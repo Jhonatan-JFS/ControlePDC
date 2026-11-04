@@ -34,7 +34,7 @@
           <button class="btn btn-soft btn-small" id="todayButton">Hoje</button>
           <button class="btn btn-soft btn-small" id="calendarButton" aria-expanded="false" aria-controls="calendarPanel">Calendário</button>
         </div>
-        <div class="search-wrap"><span aria-hidden="true">⌕</span><input id="searchInput" type="search" placeholder="Buscar CI, nome ou família..." aria-label="Buscar produtos"></div>
+
       </section>
 
       <section class="calendar-panel hidden" id="calendarPanel" aria-label="Calendário de registros">
@@ -91,6 +91,27 @@
       </section>
 
       <div class="board-heading"><div><h2 id="boardHeading">Painel do dia</h2><p id="boardDescription">Os itens permanecem na ordem em que foram registrados.</p></div><button class="btn btn-soft btn-small" id="undoButton" disabled title="Desfazer última alteração">↶ Desfazer</button></div>
+      <div class="panel-search-bar" aria-label="Busca no painel do dia">
+        <span class="panel-search-label">Buscar no painel</span>
+        <div class="search-tools">
+          <div class="search-wrap"><span aria-hidden="true">⌕</span><input id="searchInput" type="search" placeholder="Buscar cabeçalho ou item..." aria-label="Pesquisar cabeçalho ou produto"></div>
+          <select id="searchScope" aria-label="Pesquisar em">
+            <option value="all">Tudo</option><option value="header">Cabeçalho</option><option value="item">Item</option>
+          </select>
+          <button class="btn btn-soft btn-small" id="selectSearchResults" title="Marcar todos os produtos encontrados que ainda não foram impressos" disabled>Selecionar resultados</button>
+        </div>
+      </div>
+      <div class="bulk-category-bar" aria-label="Alteração de categoria dos itens selecionados">
+        <span class="bulk-selection-count" id="batchSelectionCount" aria-live="polite">0 selecionado(s)</span>
+        <label for="bulkCategory">Categoria em lote</label>
+        <select id="bulkCategory" aria-label="Nova categoria para os itens selecionados" disabled>
+          <option value="">Escolher categoria…</option>
+          <option value="increase">Aumento</option><option value="decrease">Redução</option>
+          <option value="new">Produto novo</option><option value="promo">Promoção</option>
+          <option value="other">Outros</option>
+        </select>
+        <button class="btn btn-small btn-soft" id="applyCategoryButton" disabled>Aplicar aos selecionados</button>
+      </div>
       <section class="board" aria-label="Controle de cargas">
         <div class="lane" id="pendingLane">
           <div class="lane-head"><div><span class="lane-dot pending-dot"></span><strong>Pendente de Carga</strong><span class="count" id="pendingCount">0</span></div><button class="btn btn-small btn-soft" id="sendBatchButton" disabled>Enviar selecionados →</button></div>
