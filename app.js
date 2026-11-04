@@ -1,11 +1,15 @@
 "use strict";
 (function () {
   const STORAGE_KEY = "controle-pdc-v1";
+  const CLOUD_MODE = location.protocol === "https:" || location.protocol === "http:";
+  let cloudReady = !CLOUD_MODE;
+  let cloudUserId = "";
+  let cloudChangeListener = null;
   const CATEGORY_NAMES = { increase: "Aumento", decrease: "Redução", new: "Produto novo", promo: "Promoção", other: "Outros" };
   const CATEGORY_KEYS = Object.keys(CATEGORY_NAMES);
   const $ = id => document.getElementById(id);
   const today = () => dateKey(new Date());
-  let db = loadData();
+  let db = CLOUD_MODE ? emptyData() : loadData();
   let selectedDay = today();
   let calendarMonth = selectedDay.slice(0, 7);
   let preview = [];
@@ -44,7 +48,14 @@
       return { version: 1, items: obj.items, batches: obj.batches, events: obj.events, nextOrder: Number(obj.nextOrder) || obj.items.length };
     } catch (err) { return emptyData(); }
   }
-  function persist() {
+  function persist(before) {
+    if (CLOUD_MODE) {
+      if (!cloudReady || !cloudChangeListener) { toast("Conecte ao banco antes de salvar.", true); return false; }
+      try { localStorage.setItem(STORAGE_KEY + "-cache-" + cloudUserId, JSON.stringify(db)); } catch (_) {}
+      $("storageStatus").textContent = "Enviando alterações ao Firebase…";
+      cloudChangeListener(JSON.parse(before || JSON.stringify(db)), JSON.parse(JSON.stringify(db)));
+      return true;
+    }
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
       $("storageStatus").textContent = "Salvo neste navegador";
@@ -68,11 +79,14 @@
     if (undoStack.length > 12) undoStack.shift();
   }
   function commitChange(label, change) {
+    if (CLOUD_MODE && !cloudReady) { toast("Aguarde a sincronização antes de editar.", true); return false; }
+    const before = JSON.stringify(db);
     snapshot(label);
     change();
-    persist();
+    persist(before);
     selectedIds.clear();
     render();
+    return true;
   }
   function moneyValue(raw) {
     let text = String(raw || "").trim().replace(/^R\$\s*/i, "").replace(/\s/g, "");
@@ -280,7 +294,7 @@
     const scope = $("searchScope").value;
     const oldOnly = $("overdueOnly").checked, hidePrinted = $("hidePrinted").checked;
     return db.items.filter(item => {
-      if (dateKey(item.createdAt) > selectedDay) return false;
+      if (item.deletedAt || dateKey(item.createdAt) > selectedDay) return false;
       const stage = stageAt(item, selectedDay);
       if (stage === "printed" && !printedOn(item, selectedDay)) return false;
       if (hidePrinted && stage === "printed") return false;
@@ -298,7 +312,7 @@
   function rowHtml(item, stage) {
     const overdue = dateKey(item.createdAt) < selectedDay && stage !== "printed";
     const isExpanded = expandedIds.has(item.id);
-    const canEdit = selectedDay === today();
+    const canEdit = selectedDay === today() && cloudReady;
     const cat = CATEGORY_KEYS.includes(item.category) ? item.category : "other";
     const title = CATEGORY_NAMES[cat];
     let action = stage === "pending" ? "→" : (stage === "sent" ? "✓" : "↶");
@@ -372,21 +386,24 @@
     document.querySelectorAll('.group-select[data-partial="true"]').forEach(control => { control.indeterminate = true; });
     const pendingIds = pending.filter(item => stageAt(item, selectedDay) === "pending").map(x => x.id);
     const readyIds = sent.filter(item => stageAt(item, selectedDay) === "sent").map(x => x.id);
-    $("sendBatchButton").disabled = history || !pendingIds.some(id => selectedIds.has(id));
-    $("printBatchButton").disabled = history || !readyIds.some(id => selectedIds.has(id));
-    $("selectAllPending").disabled = history || !pendingIds.length;
-    $("selectAllSent").disabled = history || !readyIds.length;
+    $("sendBatchButton").disabled = history || !cloudReady || !pendingIds.some(id => selectedIds.has(id));
+    $("printBatchButton").disabled = history || !cloudReady || !readyIds.some(id => selectedIds.has(id));
+    $("selectAllPending").disabled = history || !cloudReady || !pendingIds.length;
+    $("selectAllSent").disabled = history || !cloudReady || !readyIds.length;
     $("selectAllPending").checked = pendingIds.length > 0 && pendingIds.every(id => selectedIds.has(id));
     $("selectAllSent").checked = readyIds.length > 0 && readyIds.every(id => selectedIds.has(id));
-    $("undoButton").disabled = !undoStack.length || history;
+    $("undoButton").disabled = !undoStack.length || history || !cloudReady;
     const selectedVisible = visibleSelectedItems();
     $("batchSelectionCount").textContent = selectedVisible.length + " selecionado(s)";
     const queryActive = Boolean($("searchInput").value.trim());
     const searchCandidates = viewItems().filter(item => stageAt(item, selectedDay) !== "printed");
-    $("selectSearchResults").disabled = history || !queryActive || !searchCandidates.some(item => !selectedIds.has(item.id));
+    $("selectSearchResults").disabled = history || !cloudReady || !queryActive || !searchCandidates.some(item => !selectedIds.has(item.id));
     $("selectSearchResults").textContent = queryActive ? "Selecionar resultados (" + searchCandidates.length + ")" : "Selecionar resultados";
-    $("bulkCategory").disabled = history || !selectedVisible.length;
-    $("applyCategoryButton").disabled = history || !selectedVisible.length || !CATEGORY_KEYS.includes($("bulkCategory").value);
+    $("bulkCategory").disabled = history || !cloudReady || !selectedVisible.length;
+    $("applyCategoryButton").disabled = history || !cloudReady || !selectedVisible.length || !CATEGORY_KEYS.includes($("bulkCategory").value);
+    $("deleteDayButton").disabled = !cloudReady || !db.items.some(item => !item.deletedAt && dateKey(item.createdAt) === selectedDay);
+    $("trashToggle").textContent = "Lixeira (" + new Set(db.items.filter(x => x.deletedAt).map(x => dateKey(x.createdAt))).size + ")";
+    renderTrash();
     renderCalendar();
   }
   function setDay(key) {
@@ -399,11 +416,12 @@
     const offset = first.getDay();
     $("monthTitle").textContent = first.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
     let html = "";
+    const activeIds = new Set(db.items.filter(item => !item.deletedAt).map(item => item.id));
     for (let i = 0; i < 42; i++) {
       const d = new Date(year, month - 1, 1 - offset + i);
       const key = dateKey(d), active = key === selectedDay, isCurrent = key === today();
       const outside = d.getMonth() !== month - 1;
-      const has = db.items.some(item => dateKey(item.createdAt) === key) || db.events.some(e => dateKey(e.at) === key);
+      const has = db.items.some(item => !item.deletedAt && dateKey(item.createdAt) === key) || db.events.some(e => activeIds.has(e.itemId) && dateKey(e.at) === key);
       html += '<button class="calendar-day ' + (outside ? "outside " : "") + (active ? "selected " : "") + (isCurrent ? "current " : "") + (has ? "has-record" : "") + '" data-calendar-day="' + key + '"' + (key > today() ? " disabled" : "") + ' aria-label="' + escapeHtml(formatDay(key)) + '">' + d.getDate() + '</button>';
     }
     $("calendarGrid").innerHTML = html;
@@ -465,9 +483,10 @@
     $("itemDialog").close(); toast("Alterações salvas.");
   }
   function undoLast() {
-    if (!undoStack.length || selectedDay !== today()) return;
+    if (!undoStack.length || selectedDay !== today() || !cloudReady) return;
+    const before = JSON.stringify(db);
     const last = undoStack.pop();
-    db = JSON.parse(last.data); persist(); selectedIds.clear(); render();
+    db = JSON.parse(last.data); persist(before); selectedIds.clear(); render();
     toast("Desfeito: " + last.label);
   }
   function exportBackup() {
@@ -487,14 +506,58 @@
         const candidate = JSON.parse(String(reader.result));
         if (!candidate || !Array.isArray(candidate.items) || !Array.isArray(candidate.events) || !Array.isArray(candidate.batches)) throw Error("Formato inválido");
         if (candidate.items.some(x => !x.id || !x.ci || !CATEGORY_KEYS.includes(x.category))) throw Error("Itens inválidos");
-        if (!confirm("Restaurar este backup? Os dados atuais serão substituídos. Exporte um backup antes se quiser guardá-los.")) return;
-        snapshot("Restaurar backup");
-        db = { version: 1, items: candidate.items, events: candidate.events, batches: candidate.batches, nextOrder: Number(candidate.nextOrder) || candidate.items.length };
-        persist(); selectedIds.clear(); setDay(today()); toast("Backup restaurado com sucesso.");
+        if (CLOUD_MODE && !cloudReady) return toast("Aguarde o banco sincronizar antes de importar.", true);
+        const existing = {
+          items: new Set(db.items.map(x => x.id)),
+          events: new Set(db.events.map(x => x.id)),
+          batches: new Set(db.batches.map(x => x.id))
+        };
+        const addItems = candidate.items.filter(x => !existing.items.has(x.id));
+        const addEvents = candidate.events.filter(x => x.id && !existing.events.has(x.id));
+        const addBatches = candidate.batches.filter(x => x.id && !existing.batches.has(x.id));
+        if (!addItems.length && !addEvents.length && !addBatches.length) return toast("Os registros deste backup já estão salvos.");
+        if (!confirm("Mesclar " + addItems.length + " produto(s) do backup? Nenhum registro existente será apagado ou sobrescrito.")) return;
+        commitChange("Mesclar backup", () => {
+          db.items.push(...addItems); db.events.push(...addEvents); db.batches.push(...addBatches);
+          db.nextOrder = Math.max(Number(db.nextOrder) || 0, Number(candidate.nextOrder) || 0, ...db.items.map(x => Number(x.order) || 0));
+        });
+        setDay(today()); toast(addItems.length + " produto(s) recuperado(s), sem substituir os existentes.");
       } catch (err) { toast("Não foi possível importar: arquivo inválido.", true); }
     };
     reader.onerror = () => toast("Não foi possível ler o arquivo.", true);
     reader.readAsText(file);
+  }
+  function deleteSelectedDay() {
+    if (CLOUD_MODE && !cloudReady) return;
+    const matching = db.items.filter(x => !x.deletedAt && dateKey(x.createdAt) === selectedDay);
+    if (!matching.length) return toast("Não há registros deste dia para excluir.");
+    if (!confirm("Mover " + matching.length + " produto(s) do dia " + formatDay(selectedDay) + " para a lixeira? Eles também sairão das pendências dos dias seguintes. A restauração fica disponível na lixeira.")) return;
+    const date = selectedDay;
+    commitChange("Mover dia para a lixeira", () => {
+      const deletedAt = new Date().toISOString();
+      db.items.forEach(item => { if (!item.deletedAt && dateKey(item.createdAt) === date) item.deletedAt = deletedAt; });
+    });
+    toast("Dia movido para a lixeira. Você pode restaurar os itens.");
+  }
+  function renderTrash() {
+    const groups = new Map();
+    db.items.filter(x => x.deletedAt).forEach(item => {
+      const key = dateKey(item.createdAt);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(item);
+    });
+    const days = Array.from(groups.keys()).sort().reverse();
+    $("trashList").innerHTML = days.length ? days.map(key =>
+      '<div class="trash-day"><span>' + escapeHtml(formatDay(key)) + ' <small>(' + groups.get(key).length + ' item(ns))</small></span>' +
+      '<button type="button" class="btn btn-soft btn-small" data-restore-day="' + escapeHtml(key) + '"' + (cloudReady ? '' : ' disabled') + '>Restaurar dia</button></div>'
+    ).join("") : '<p class="trash-empty">Nenhum registro excluído.</p>';
+  }
+  function restoreDeletedDay(day) {
+    if (CLOUD_MODE && !cloudReady) return;
+    const matching = db.items.filter(x => x.deletedAt && dateKey(x.createdAt) === day);
+    if (!matching.length) return;
+    commitChange("Restaurar dia", () => matching.forEach(item => { delete item.deletedAt; }));
+    toast(matching.length + " produto(s) do dia " + formatDay(day) + " restaurado(s).");
   }
   function handleLaneClick(event) {
     const target = event.target.closest("[data-action]");
@@ -621,6 +684,12 @@
     $("sendBatchButton").addEventListener("click", () => moveItems(Array.from(selectedIds), "sent"));
     $("printBatchButton").addEventListener("click", () => moveItems(Array.from(selectedIds), "printed"));
     $("undoButton").addEventListener("click", undoLast);
+    $("deleteDayButton").addEventListener("click", deleteSelectedDay);
+    $("trashToggle").addEventListener("click", () => { $("trashPanel").classList.toggle("hidden"); renderTrash(); });
+    $("trashList").addEventListener("click", event => {
+      const button = event.target.closest("[data-restore-day]");
+      if (button) restoreDeletedDay(button.dataset.restoreDay);
+    });
     $("bulkCategory").addEventListener("change", render);
     $("applyCategoryButton").addEventListener("click", applyBulkCategory);
     $("detailForm").addEventListener("submit", saveDetails);
@@ -629,17 +698,52 @@
       if (selectedDay !== today() || !editingId) return;
       if (!confirm("Excluir este produto do controle? Você poderá desfazer em seguida.")) return;
       const id = editingId;
-      commitChange("Excluir produto", () => { db.items = db.items.filter(x => x.id !== id); });
-      $("itemDialog").close(); toast("Produto excluído. Use Desfazer se necessário.");
+      commitChange("Mover item para a lixeira", () => {
+        const item = db.items.find(x => x.id === id); if (item) item.deletedAt = new Date().toISOString();
+      });
+      $("itemDialog").close(); toast("Produto movido para a lixeira. É possível restaurar.");
     });
     $("exportButton").addEventListener("click", exportBackup);
     $("importButton").addEventListener("click", () => $("importFile").click());
     $("importFile").addEventListener("change", e => { importBackup(e.target.files[0]); e.target.value = ""; });
     window.addEventListener("storage", event => {
-      if (event.key !== STORAGE_KEY) return;
+      if (CLOUD_MODE || event.key !== STORAGE_KEY) return;
       db = loadData(); undoStack = []; selectedIds.clear(); render(); toast("Dados atualizados de outra aba.");
     });
   }
+  function setCloudReady(ready, message, uid) {
+    cloudReady = !!ready;
+    cloudUserId = uid || "";
+    if (!CLOUD_MODE) return;
+    $("mainWorkspace").classList.toggle("cloud-locked", !cloudReady);
+    $("authGate").hidden = cloudReady;
+    $("authGateHeading").textContent = cloudUserId ? (cloudReady ? "Conectado" : "Conectando ao banco…") : "Entre com sua conta Google";
+    $("authGateCaption").textContent = message || (cloudUserId ? "Seus registros são protegidos e sincronizados." : "Seus produtos e histórico ficam disponíveis no computador e no celular.");
+    $("modePill").textContent = cloudReady ? "● Sincronizado" : "● " + (cloudUserId ? "Conectando" : "Aguardando login");
+    $("loginButton").hidden = Boolean(cloudUserId);
+    $("logoutButton").hidden = !cloudUserId;
+    $("storageStatus").textContent = message || (cloudReady ? "Banco Firestore conectado" : "Faça login para começar");
+    render();
+  }
+  function receiveCloud(remote) {
+    db = {
+      version: 1,
+      items: Array.isArray(remote.items) ? remote.items : [],
+      events: Array.isArray(remote.events) ? remote.events : [],
+      batches: Array.isArray(remote.batches) ? remote.batches : [],
+      nextOrder: Math.max(0, ...(remote.items || []).map(x => Number(x.order) || 0))
+    };
+    try { if (cloudUserId) localStorage.setItem(STORAGE_KEY + "-cache-" + cloudUserId, JSON.stringify(db)); } catch (_) {}
+    selectedIds.clear();
+    render();
+  }
+  function clearCloud() { db = emptyData(); selectedIds.clear(); undoStack = []; render(); }
+  window.ControlPDC = {
+    setCloudReady, receiveCloud, clearCloud, onLocalChange(listener) { cloudChangeListener = listener; },
+    notify: toast, read: () => JSON.parse(JSON.stringify(db))
+  };
   bind();
+  if (CLOUD_MODE) setCloudReady(false, "", "");
+  else { $("loginButton").hidden = true; $("logoutButton").hidden = true; }
   render();
 })();
