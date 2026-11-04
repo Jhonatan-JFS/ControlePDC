@@ -164,7 +164,7 @@
           return;
         }
         if (lineValidity && /(?:VALIDADE|VÁLID[OA]|VENC|ATÉ|ATE)/i.test(clean)) { validity = lineValidity; return; }
-        if (/^[\p{L}\s&'().\/-]{2,64}$/u.test(clean) && !/\b(?:R\$|VALOR|PRECO|PREÇO)\b/i.test(clean)) {
+        if (/^[\p{L}\d\s&'().\/:-]{2,64}$/u.test(clean) && !/\b(?:R\$|VALOR|PRECO|PREÇO)\b/i.test(clean)) {
           family = clean.replace(/:$/, "");
           segment += 1;
           return;
@@ -244,7 +244,7 @@
       chosen.forEach(item => {
         db.nextOrder += 1;
         db.items.push({
-          id: uniqueId(), batchId, groupId: batchId + ":" + item.groupIndex,
+          id: uniqueId(), batchId, groupId: batchId + ":" + item.groupIndex + ":" + normalized(item.family),
           order: db.nextOrder, ci: String(item.ci).trim(), cb: String(item.cb || "").trim(),
           family: String(item.family || "").trim(), name: String(item.name || "").trim(),
           category: CATEGORY_KEYS.includes(item.category) ? item.category : "other",
