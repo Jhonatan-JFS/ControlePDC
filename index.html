@@ -141,6 +141,15 @@
           <div class="lane-list" id="sentList"></div>
         </div>
       </section>
+      <section class="printed-archive" aria-label="Itens com impressão confirmada">
+        <button class="printed-archive-toggle" id="printedToggle" type="button" aria-expanded="false" aria-controls="printedBody">
+          <span class="archive-title"><span class="lane-dot printed-dot"></span><strong>Impressões confirmadas</strong><span class="count" id="printedCount">0</span><small>Até a data selecionada</small></span>
+          <span class="archive-chevron" id="printedChevron" aria-hidden="true">⌄</span>
+        </button>
+        <div class="printed-archive-content hidden" id="printedBody">
+          <div class="lane-list printed-archive-list" id="printedList"></div>
+        </div>
+      </section>
       <footer class="footer"><span id="storageStatus">Salvamento local ativo</span><span>Controle PDC v1.1 · sem integração com Telegram ou PDC</span></footer>
     </main>
   </div>
