@@ -8,6 +8,7 @@
   <title>Controle PDC — Atualizações</title>
   <link rel="stylesheet" href="./style.css">
   <script defer src="./app.js"></script>
+  <script type="module" src="./cloud.js"></script>
 </head>
 <body>
   <div class="app-shell">
@@ -17,14 +18,21 @@
         <div><h1>Controle PDC</h1><p>Atualizações de produtos</p></div>
       </div>
       <div class="header-actions">
-        <span class="mode-pill"><span class="online-dot"></span> Protótipo local</span>
+        <span class="mode-pill" id="modePill"><span class="online-dot"></span> Aguardando login</span>
+        <button class="btn btn-primary btn-small" id="loginButton">Entrar com Google</button>
+        <button class="btn btn-ghost btn-small" id="logoutButton" hidden>Sair</button>
         <button class="btn btn-ghost" id="exportButton" title="Exportar backup JSON">↓ <span>Backup</span></button>
         <button class="btn btn-ghost" id="importButton" title="Importar backup JSON">↑ <span>Restaurar</span></button>
         <input id="importFile" type="file" accept=".json,application/json" hidden>
       </div>
     </header>
+    <section id="authGate" class="auth-gate" aria-live="polite" hidden>
+      <div class="auth-gate-symbol" aria-hidden="true">☁</div>
+      <div><h2 id="authGateHeading">Entre com sua conta Google</h2><p id="authGateCaption">Seus registros e históricos ficam protegidos na nuvem.</p></div>
+      <button class="btn btn-soft btn-small" id="retryPendingButton" type="button" hidden>↻ Tentar sincronizar pendências</button>
+    </section>
 
-    <main>
+    <main id="mainWorkspace">
       <section class="date-panel" aria-label="Data e pesquisa">
         <div class="day-control">
           <button class="icon-btn" id="prevDay" title="Dia anterior" aria-label="Dia anterior">‹</button>
@@ -90,7 +98,16 @@
         <div class="preview-actions"><button class="btn btn-ghost" id="cancelPreview">Cancelar</button><button class="btn btn-primary" id="savePreview">Salvar itens selecionados</button></div>
       </section>
 
-      <div class="board-heading"><div><h2 id="boardHeading">Painel do dia</h2><p id="boardDescription">Os itens permanecem na ordem em que foram registrados.</p></div><button class="btn btn-soft btn-small" id="undoButton" disabled title="Desfazer última alteração">↶ Desfazer</button></div>
+      <div class="board-heading"><div><h2 id="boardHeading">Painel do dia</h2><p id="boardDescription">Os itens permanecem na ordem em que foram registrados.</p></div>
+        <div class="board-actions">
+          <button class="btn btn-danger-outline btn-small" id="deleteDayButton" title="Mover registros da data para a lixeira" disabled>Excluir dia</button>
+          <button class="btn btn-ghost btn-small" id="trashToggle">Lixeira (0)</button>
+          <button class="btn btn-soft btn-small" id="undoButton" disabled title="Desfazer última alteração">↶ Desfazer</button>
+        </div></div>
+      <section class="trash-panel hidden" id="trashPanel" aria-label="Lixeira dos dias excluídos">
+        <div class="trash-heading"><strong>Lixeira</strong><small>Itens excluídos ficam recuperáveis. Nenhum dia é apagado definitivamente nesta versão.</small></div>
+        <div id="trashList"></div>
+      </section>
       <div class="panel-search-bar" aria-label="Busca no painel do dia">
         <span class="panel-search-label">Buscar no painel</span>
         <div class="search-tools">
@@ -124,7 +141,7 @@
           <div class="lane-list" id="sentList"></div>
         </div>
       </section>
-      <footer class="footer"><span id="storageStatus">Salvamento local ativo</span><span>Controle PDC v1.0 · sem conexão com Telegram ou PDC</span></footer>
+      <footer class="footer"><span id="storageStatus">Salvamento local ativo</span><span>Controle PDC v1.1 · sem integração com Telegram ou PDC</span></footer>
     </main>
   </div>
 
