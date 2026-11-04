@@ -144,7 +144,7 @@ ui.onLocalChange((before, after) => {
     return;
   }
   const operations = recordChanges(before, after);
-  if (!operations.length) { applyIfIdle(); return; }
+  if (!operations.length) { try { localStorage.removeItem(recoveryKey(activeUser.uid)); } catch (_) {} applyIfIdle(); return; }
   const userId = activeUser.uid;
   pendingWrites++;
   status("Salvando " + operations.length + " registro(s)…", false);
