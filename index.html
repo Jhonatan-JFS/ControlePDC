@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f3eb">
+  <meta name="description" content="Controle pessoal de cargas PDC, atualizações e conferência de etiquetas.">
+  <title>Controle PDC — Atualizações</title>
+  <link rel="stylesheet" href="./style.css">
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">P<span>·</span></div>
+        <div><h1>Controle PDC</h1><p>Atualizações de produtos</p></div>
+      </div>
+      <div class="header-actions">
+        <span class="mode-pill"><span class="online-dot"></span> Protótipo local</span>
+        <button class="btn btn-ghost" id="exportButton" title="Exportar backup JSON">↓ <span>Backup</span></button>
+        <button class="btn btn-ghost" id="importButton" title="Importar backup JSON">↑ <span>Restaurar</span></button>
+        <input id="importFile" type="file" accept=".json,application/json" hidden>
+      </div>
+    </header>
+
+    <main>
+      <section class="date-panel" aria-label="Data e pesquisa">
+        <div class="day-control">
+          <button class="icon-btn" id="prevDay" title="Dia anterior" aria-label="Dia anterior">‹</button>
+          <label class="date-label" for="dayPicker"><span id="longDate">Hoje</span><small id="dayCaption">Histórico e pendências</small></label>
+          <input type="date" id="dayPicker" aria-label="Selecionar data">
+          <button class="icon-btn" id="nextDay" title="Dia seguinte" aria-label="Dia seguinte">›</button>
+          <button class="btn btn-soft btn-small" id="todayButton">Hoje</button>
+          <button class="btn btn-soft btn-small" id="calendarButton" aria-expanded="false" aria-controls="calendarPanel">Calendário</button>
+        </div>
+        <div class="search-wrap"><span aria-hidden="true">⌕</span><input id="searchInput" type="search" placeholder="Buscar CI, nome ou família..." aria-label="Buscar produtos"></div>
+      </section>
+
+      <section class="calendar-panel hidden" id="calendarPanel" aria-label="Calendário de registros">
+        <div class="calendar-head"><button class="icon-btn" id="prevMonth" aria-label="Mês anterior">‹</button><strong id="monthTitle"></strong><button class="icon-btn" id="nextMonth" aria-label="Mês seguinte">›</button></div>
+        <div class="calendar-weekdays"><span>D</span><span>S</span><span>T</span><span>Q</span><span>Q</span><span>S</span><span>S</span></div>
+        <div id="calendarGrid" class="calendar-grid"></div>
+        <p class="calendar-hint">Ponto preenchido: há registros ou movimentações nesse dia.</p>
+      </section>
+
+      <section class="legend-and-filters" aria-label="Legenda e filtros">
+        <div class="legend">
+          <span class="legend-label">CORES</span>
+          <span><i class="dot increase"></i>Aumento</span>
+          <span><i class="dot decrease"></i>Redução</span>
+          <span><i class="dot new"></i>Novo</span>
+          <span><i class="dot promo"></i>Promoção</span>
+          <span><i class="dot other"></i>Outros</span>
+          <span class="overdue-legend">⚑ Laranja: dia anterior</span>
+        </div>
+        <div class="filters">
+          <select id="categoryFilter" aria-label="Filtrar categoria">
+            <option value="all">Todas as categorias</option>
+            <option value="increase">Aumento</option><option value="decrease">Redução</option>
+            <option value="new">Produto novo</option><option value="promo">Promoção</option>
+            <option value="other">Outros</option>
+          </select>
+          <label class="filter-check"><input id="overdueOnly" type="checkbox"> Só atrasados</label>
+          <label class="filter-check"><input id="hidePrinted" type="checkbox"> Ocultar impressos</label>
+          <button class="btn btn-link" id="clearFilters">Limpar filtros</button>
+        </div>
+      </section>
+
+      <section class="entry-panel" aria-label="Bloco de entrada">
+        <button class="entry-trigger" id="entryToggle" aria-expanded="false" aria-controls="entryBody">
+          <span class="entry-icon" aria-hidden="true">＋</span><span><strong>Entrada de mensagens</strong><small>Copie do Telegram e cole aqui</small></span><span id="entryChevron" class="chevron">⌄</span>
+        </button>
+        <div class="entry-body hidden" id="entryBody">
+          <textarea id="pasteInput" rows="7" spellcheck="false" placeholder="AUMENTOU&#10;1234 - 2.50&#10;5678 - 5.90&#10;&#10;Kit&#10;2908 - aumentou 12.30&#10;1203 - baixou 22.10" aria-label="Mensagem para interpretar"></textarea>
+          <div class="entry-tools">
+            <span class="hint">Cabeçalhos definem categoria ou família. Alterações por linha têm prioridade.</span>
+            <div><button class="btn btn-ghost" id="exampleButton">Inserir exemplo</button><button class="btn btn-primary" id="analyzeButton">Analisar mensagem →</button></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="preview-panel hidden" id="previewPanel" aria-label="Prévia de produtos identificados">
+        <div class="panel-title"><div><h2>Conferir interpretação</h2><p id="previewSummary"></p></div><button class="icon-btn" id="closePreview" aria-label="Fechar prévia">×</button></div>
+        <div class="preview-table-wrap"><table class="preview-table">
+          <thead><tr><th>Incluir</th><th>CI</th><th>Família / marca</th><th>Nome</th><th>Categoria</th><th>Valor</th><th>Validade</th></tr></thead>
+          <tbody id="previewRows"></tbody>
+        </table></div>
+        <div class="unrecognized hidden" id="unrecognizedBox"></div>
+        <div class="preview-actions"><button class="btn btn-ghost" id="cancelPreview">Cancelar</button><button class="btn btn-primary" id="savePreview">Salvar itens selecionados</button></div>
+      </section>
+
+      <div class="board-heading"><div><h2 id="boardHeading">Painel do dia</h2><p id="boardDescription">Os itens permanecem na ordem em que foram registrados.</p></div><button class="btn btn-soft btn-small" id="undoButton" disabled title="Desfazer última alteração">↶ Desfazer</button></div>
+      <section class="board" aria-label="Controle de cargas">
+        <div class="lane" id="pendingLane">
+          <div class="lane-head"><div><span class="lane-dot pending-dot"></span><strong>Pendente de Carga</strong><span class="count" id="pendingCount">0</span></div><button class="btn btn-small btn-soft" id="sendBatchButton" disabled>Enviar selecionados →</button></div>
+          <div class="lane-tools"><label><input type="checkbox" id="selectAllPending"> Selecionar visíveis</label></div>
+          <div class="lane-list" id="pendingList"></div>
+        </div>
+        <div class="lane" id="sentLane">
+          <div class="lane-head"><div><span class="lane-dot sent-dot"></span><strong>Carga Enviada</strong><span class="count" id="sentCount">0</span></div><button class="btn btn-small btn-soft" id="printBatchButton" disabled>Confirmar impressões ✓</button></div>
+          <div class="lane-tools"><label><input type="checkbox" id="selectAllSent"> Selecionar não impressos</label></div>
+          <div class="lane-list" id="sentList"></div>
+        </div>
+      </section>
+      <footer class="footer"><span id="storageStatus">Salvamento local ativo</span><span>Controle PDC v1.0 · sem conexão com Telegram ou PDC</span></footer>
+    </main>
+  </div>
+
+  <dialog id="itemDialog" aria-labelledby="detailHeading">
+    <form method="dialog" id="detailForm">
+      <div class="dialog-head"><div><small>DETALHES DO PRODUTO</small><h2 id="detailHeading">Editar item</h2></div><button class="icon-btn" type="button" id="closeDialog" aria-label="Fechar">×</button></div>
+      <div class="detail-grid">
+        <label>CI<input name="ci" required></label><label>Preço (R$)<input name="price" inputmode="decimal"></label>
+        <label>Família / marca<input name="family"></label><label>Categoria<select name="category"><option value="increase">Aumento</option><option value="decrease">Redução</option><option value="new">Produto novo</option><option value="promo">Promoção</option><option value="other">Outros</option></select></label>
+        <label class="wide">Nome completo<input name="name"></label>
+        <label>Validade da promoção<input name="validity" placeholder="dd/mm/aaaa"></label>
+        <label>CB (opcional)<input name="cb"></label>
+        <label class="wide">Observação<textarea name="note" rows="3" placeholder="Ex.: aguardar conferência do corredor"></textarea></label>
+      </div>
+      <div class="source-line"><strong>Linha original:</strong><p id="originalLine"></p><small id="recordDate"></small></div>
+      <div class="dialog-actions"><button class="btn btn-danger-outline" type="button" id="deleteItem">Excluir</button><button class="btn btn-primary" type="submit">Salvar alterações</button></div>
+    </form>
+  </dialog>
+  <div id="toast" role="status" aria-live="polite" class="toast" hidden></div>
+</body>
+</html>
