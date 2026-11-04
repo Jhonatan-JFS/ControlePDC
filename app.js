@@ -142,7 +142,8 @@
     text = text.replace(/\bCB\s*[:#-]?\s*\d{8,14}\b/ig, "");
     text = text.replace(/(?:VALIDADE|VÁLID[OA]|VENC(?:IMENTO)?|ATÉ)\s*[:\-]?\s*(?:\d{8}|\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4})/ig, "");
     text = text.replace(/(?:R\$\s*)?(?:\d{1,3}(?:\.\d{3})+,\d{2}|\d+[,.]\d{2})/g, "");
-    text = text.replace(/\b(?:AUMENTOU|AUMENTO|SUBIU|ALTA|BAIXOU|REDUÇÃO|REDUCAO|DIMINUIU|CAIU|PRODUTO NOVO|PROMOÇÃO|PROMOCAO|OFERTA|NOVO CADASTRO|PARA|DE)\b/ig, "");
+    text = text.replace(/\b(?:AUMENTOU|AUMENTO|SUBIU|ALTA|BAIXOU|REDUÇÃO|REDUCAO|DIMINUIU|CAIU|PRODUTO NOVO|PROMOÇÃO|PROMOCAO|OFERTA|NOVO CADASTRO)\b/ig, "");
+    text = text.replace(/^\s*PARA\s*[-–—:]?\s*/i, "");
     return text.replace(/^[-–—:.\s]+|[-–—:.\s]+$/g, "").replace(/\s{2,}/g, " ").trim();
   }
   function parseMessage(raw) {
@@ -256,6 +257,7 @@
     closePreview();
     selectedDay = today();
     $("dayPicker").value = selectedDay;
+    render();
     toast(chosen.length + " produto(s) adicionados. Ordem preservada.");
     $("entryBody").classList.add("hidden");
     $("entryToggle").setAttribute("aria-expanded", "false");
@@ -293,8 +295,8 @@
     const canEdit = selectedDay === today();
     const cat = CATEGORY_KEYS.includes(item.category) ? item.category : "other";
     const title = CATEGORY_NAMES[cat];
-    let action = stage === "pending" ? "→" : (stage === "sent" ? "✓" : "✓");
-    let actionTitle = stage === "pending" ? "Marcar Carga Enviada" : (stage === "sent" ? "Confirmar impressão" : "Impressão confirmada");
+    let action = stage === "pending" ? "→" : (stage === "sent" ? "✓" : "↶");
+    let actionTitle = stage === "pending" ? "Marcar Carga Enviada" : (stage === "sent" ? "Confirmar impressão" : "Desmarcar impressão");
     const name = item.name || "";
     return '<div class="item-row ' + (overdue ? 'is-overdue ' : '') + (stage === "printed" ? "is-printed" : "") + '" data-row-id="' + escapeHtml(item.id) + '">' +
       '<input class="row-select" type="checkbox" aria-label="Selecionar CI ' + escapeHtml(item.ci) + '" data-id="' + escapeHtml(item.id) + '"' + (selectedIds.has(item.id) ? " checked" : "") + (canEdit && stage !== "printed" ? "" : " disabled") + ">" +
