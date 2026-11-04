@@ -277,6 +277,7 @@
   function viewItems() {
     const query = normalized($("searchInput").value);
     const cat = $("categoryFilter").value;
+    const scope = $("searchScope").value;
     const oldOnly = $("overdueOnly").checked, hidePrinted = $("hidePrinted").checked;
     return db.items.filter(item => {
       if (dateKey(item.createdAt) > selectedDay) return false;
@@ -286,7 +287,11 @@
       const overdue = dateKey(item.createdAt) < selectedDay && stage !== "printed";
       if (oldOnly && !overdue) return false;
       if (cat !== "all" && item.category !== cat) return false;
-      if (query && !normalized([item.ci, item.cb, item.name, item.family, item.note].join(" ")).includes(query)) return false;
+      if (query) {
+        const headerMatch = normalized([item.family, CATEGORY_NAMES[item.category] || ""].join(" ")).includes(query);
+        const itemMatch = normalized([item.ci, item.cb, item.name, item.note, item.sourceLine].join(" ")).includes(query);
+        if (!(scope === "header" ? headerMatch : scope === "item" ? itemMatch : headerMatch || itemMatch)) return false;
+      }
       return true;
     }).sort((a, b) => a.order - b.order);
   }
@@ -317,15 +322,31 @@
       '<p>Categoria: ' + escapeHtml(title) + (item.validity ? " · Validade: " + escapeHtml(item.validity) : "") + '</p>' +
       '<button data-action="details" data-id="' + escapeHtml(item.id) + '">Abrir detalhes completos</button></div>' : "");
   }
+  function groupKey(item) {
+    return item.groupId || item.batchId || item.id;
+  }
+  function eligibleFamilyItems(group, lane) {
+    if (selectedDay !== today()) return [];
+    return viewItems().filter(item => groupKey(item) === group && stageAt(item, selectedDay) === (lane === "pending" ? "pending" : "sent"));
+  }
   function laneHtml(items, lane) {
     if (!items.length) return '<div class="empty-lane"><span>☷</span>Nenhum item nesta ala.</div>';
     let out = "", lastGroup = null;
     for (const item of items) {
-      const group = item.groupId || item.batchId || item.id;
+      const group = groupKey(item);
       if (group !== lastGroup) {
         if (item.family) {
-          const groupCount = items.filter(x => (x.groupId || x.batchId || x.id) === group).length;
-          out += '<div class="family-header"><span>▦ ' + escapeHtml(item.family) + '</span><span class="group-total">' + groupCount + ' item(ns)</span></div>';
+          const groupCount = items.filter(x => groupKey(x) === group).length;
+          const eligible = eligibleFamilyItems(group, lane);
+          const checkedCount = eligible.filter(x => selectedIds.has(x.id)).length;
+          out += '<div class="family-header"><label class="family-select">' +
+            '<input type="checkbox" class="group-select" data-group-id="' + escapeHtml(group) + '" data-lane="' + lane +
+            '" aria-label="Selecionar itens da família ' + escapeHtml(item.family) + '"' +
+            (checkedCount && checkedCount === eligible.length ? ' checked' : '') +
+            (!eligible.length ? ' disabled' : '') +
+            (checkedCount && checkedCount < eligible.length ? ' data-partial="true"' : '') +
+            '><span>▦ ' + escapeHtml(item.family) + '</span></label>' +
+            '<span class="group-total">' + groupCount + ' item(ns)</span></div>';
         }
         lastGroup = group;
       }
@@ -348,6 +369,7 @@
     $("sentCount").textContent = String(sent.length);
     $("pendingList").innerHTML = laneHtml(pending, "pending");
     $("sentList").innerHTML = laneHtml(sent, "sent");
+    document.querySelectorAll('.group-select[data-partial="true"]').forEach(control => { control.indeterminate = true; });
     const pendingIds = pending.filter(item => stageAt(item, selectedDay) === "pending").map(x => x.id);
     const readyIds = sent.filter(item => stageAt(item, selectedDay) === "sent").map(x => x.id);
     $("sendBatchButton").disabled = history || !pendingIds.some(id => selectedIds.has(id));
@@ -357,6 +379,14 @@
     $("selectAllPending").checked = pendingIds.length > 0 && pendingIds.every(id => selectedIds.has(id));
     $("selectAllSent").checked = readyIds.length > 0 && readyIds.every(id => selectedIds.has(id));
     $("undoButton").disabled = !undoStack.length || history;
+    const selectedVisible = visibleSelectedItems();
+    $("batchSelectionCount").textContent = selectedVisible.length + " selecionado(s)";
+    const queryActive = Boolean($("searchInput").value.trim());
+    const searchCandidates = viewItems().filter(item => stageAt(item, selectedDay) !== "printed");
+    $("selectSearchResults").disabled = history || !queryActive || !searchCandidates.some(item => !selectedIds.has(item.id));
+    $("selectSearchResults").textContent = queryActive ? "Selecionar resultados (" + searchCandidates.length + ")" : "Selecionar resultados";
+    $("bulkCategory").disabled = history || !selectedVisible.length;
+    $("applyCategoryButton").disabled = history || !selectedVisible.length || !CATEGORY_KEYS.includes($("bulkCategory").value);
     renderCalendar();
   }
   function setDay(key) {
@@ -481,6 +511,36 @@
       moveItems([id], item.stage === "pending" ? "sent" : item.stage === "sent" ? "printed" : "sent");
     }
   }
+  function visibleSelectedItems() {
+    if (selectedDay !== today()) return [];
+    return viewItems().filter(item => selectedIds.has(item.id) && stageAt(item, selectedDay) !== "printed");
+  }
+  function selectFamily(group, lane, checked) {
+    const items = eligibleFamilyItems(group, lane);
+    items.forEach(item => checked ? selectedIds.add(item.id) : selectedIds.delete(item.id));
+    render();
+  }
+  function applyBulkCategory() {
+    if (selectedDay !== today()) return;
+    const category = $("bulkCategory").value;
+    if (!CATEGORY_KEYS.includes(category)) return toast("Escolha uma categoria.", true);
+    const items = visibleSelectedItems().filter(item => item.category !== category);
+    if (!items.length) return toast("Os itens selecionados já estão nessa categoria.");
+    commitChange("Alterar categoria em lote", () => {
+      items.forEach(item => { item.category = category; });
+    });
+    $("bulkCategory").value = "";
+    render();
+    toast(items.length + " item(ns) alterado(s) para " + CATEGORY_NAMES[category] + ".");
+  }
+  function selectSearchResults() {
+    if (selectedDay !== today() || !$("searchInput").value.trim()) return;
+    const candidates = viewItems().filter(item => stageAt(item, selectedDay) !== "printed");
+    const newlySelected = candidates.filter(item => !selectedIds.has(item.id));
+    newlySelected.forEach(item => selectedIds.add(item.id));
+    render();
+    if (newlySelected.length) toast(newlySelected.length + " item(ns) encontrado(s) selecionado(s).");
+  }
   function selectVisible(lane, checked) {
     const valid = viewItems().filter(item => {
       const stage = stageAt(item, selectedDay);
@@ -534,17 +594,22 @@
       calendarMonth = dateKey(d).slice(0, 7); renderCalendar();
     });
     $("calendarGrid").addEventListener("click", e => { const el = e.target.closest("[data-calendar-day]"); if (el) setDay(el.dataset.calendarDay); });
-    for (const id of ["searchInput", "categoryFilter", "overdueOnly", "hidePrinted"]) {
+    for (const id of ["searchInput", "searchScope", "categoryFilter", "overdueOnly", "hidePrinted"]) {
       $(id).addEventListener(id === "searchInput" ? "input" : "change", () => { selectedIds.clear(); render(); });
     }
+    $("selectSearchResults").addEventListener("click", selectSearchResults);
     $("clearFilters").addEventListener("click", () => {
-      $("searchInput").value = ""; $("categoryFilter").value = "all";
+      $("searchInput").value = ""; $("searchScope").value = "all"; $("categoryFilter").value = "all";
       $("overdueOnly").checked = false; $("hidePrinted").checked = false; selectedIds.clear(); render();
     });
     $("pendingList").addEventListener("click", handleLaneClick);
     $("sentList").addEventListener("click", handleLaneClick);
     for (const id of ["pendingList", "sentList"]) {
       $(id).addEventListener("change", event => {
+        if (event.target.classList.contains("group-select")) {
+          selectFamily(event.target.dataset.groupId, event.target.dataset.lane, event.target.checked);
+          return;
+        }
         if (!event.target.classList.contains("row-select")) return;
         const key = event.target.dataset.id;
         event.target.checked ? selectedIds.add(key) : selectedIds.delete(key);
@@ -556,6 +621,8 @@
     $("sendBatchButton").addEventListener("click", () => moveItems(Array.from(selectedIds), "sent"));
     $("printBatchButton").addEventListener("click", () => moveItems(Array.from(selectedIds), "printed"));
     $("undoButton").addEventListener("click", undoLast);
+    $("bulkCategory").addEventListener("change", render);
+    $("applyCategoryButton").addEventListener("click", applyBulkCategory);
     $("detailForm").addEventListener("submit", saveDetails);
     $("closeDialog").addEventListener("click", () => $("itemDialog").close());
     $("deleteItem").addEventListener("click", () => {
