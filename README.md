@@ -1,69 +1,75 @@
-# Controle PDC — v1.0 (protótipo funcional)
+# Controle PDC — versão online (v1.1)
 
-Organizador pessoal para acompanhar **atualizações de produtos**, cargas enviadas manualmente ao **PDC** e confirmação manual de impressão de etiquetas. Não acessa Telegram, PDC ou impressoras.
+Organizador pessoal para mensagens de atualização de produtos. O sistema **não** se conecta ao Telegram, ao sistema PDC nem às impressoras: as mensagens e confirmações continuam manuais.
 
-## Testar sem instalar programas
+## Acessar
 
-1. No GitHub, abra **Code → Download ZIP**.
-2. Extraia a pasta mantendo os arquivos index.html, style.css e app.js juntos.
-3. Abra index.html no Chrome, Edge, Firefox ou outro navegador moderno.
-4. Expanda **Entrada de mensagens**, cole uma lista e clique em **Analisar mensagem**.
-5. Revise a prévia e salve os itens selecionados.
+Site: https://jhonatan-jfs.github.io/ControlePDC/
 
-O botão **Inserir exemplo** fornece dados fictícios para os primeiros testes.
+1. Abra o endereço no computador ou celular.
+2. Toque em **Entrar com Google** e autentique-se.
+3. Aguarde **Sincronizado** antes de cadastrar, editar ou confirmar cargas.
+4. Cole o texto do Telegram em **Entrada de mensagens**, confira a prévia e salve.
 
-> **Importante:** esta etapa usa armazenamento **local do navegador**. O GitHub guarda o código do site, não as tarefas. Os registros ainda **não sincronizam entre computador e celular**; a conexão com Firebase será feita em uma fase posterior. Use **Backup → Restaurar** para transferir os dados manualmente enquanto isso.
+### Migração da versão local
 
-## Modelo de texto
+**Antes de apagar ou substituir a pasta antiga**, abra o `index.html` antigo e clique em **Backup** para baixar o JSON. Entre no novo site online e use **Restaurar** para **mesclar** os registros. Nenhum registro existente é sobrescrito na importação: IDs já presentes são ignorados. Guarde o JSON como cópia de segurança.
 
-O parser reconhece cabeçalhos de categoria e de família/marca, mantendo a ordem de cada linha:
+> O histórico local do arquivo HTML não migra automaticamente para o endereço online, pois cada origem do navegador possui armazenamento próprio.
 
-    AUMENTOU
-    1234 - 2.50
-    5678 - 5.90
+## Segurança e armazenamento
 
-    Kit
-    2908 - aumentou 12.30
-    1203 - baixou 22.10
+- O **GitHub Pages** hospeda só código estático (HTML, CSS e JavaScript). Nenhum histórico é guardado no repositório.
+- O **Firebase Authentication** identifica sua conta Google. O **Cloud Firestore** armazena, separadamente, documentos de `items` (produtos), `events` (movimentações) e `batches` (mensagens originais), sob `users/{uid}/...`.
+- As regras do Firestore só permitem ler/gravar documentos no caminho correspondente ao UID autenticado. Um visitante anônimo e outro usuário não acessam seus dados.
+- Cada alteração grava apenas os documentos alterados em um lote atômico. O site bloqueia novas edições enquanto aguarda a confirmação de sincronização.
+- **Exclusão de dia:** ao selecionar a data no calendário e clicar em **Excluir dia**, os produtos daquele dia são marcados como excluídos e desaparecem das pendências atuais e históricas. A **Lixeira** permite restaurar o dia posteriormente; os dados não são eliminados fisicamente nesta versão.
+- **Exclusão de item:** segue o mesmo modelo recuperável.
+- **Backup JSON manual:** continue exportando backups periodicamente. Backups gerenciados e recuperação pontual do Firestore dependem do plano pago; não estão ativos no Spark.
+- Dados podem ser consultados e editados apenas com conexão e sessão confirmadas. Se a conexão falhar, a interface bloqueia alterações para evitar que salvamentos locais sejam confundidos com dados sincronizados.
+- A configuração web pública do Firebase em `cloud.js` não é uma chave administrativa. As regras de acesso são a barreira de segurança; nunca inclua credenciais de serviço privadas no repositório.
 
-    PRODUTO NOVO
-    9012 - Tubo de cola quente transparente - 19.90
+## Leitura das mensagens
 
-    PROMOÇÃO
-    VALIDADE: 15112026
-    3456 - 7,99
+Exemplo:
 
-**Regras principais:**
+```text
+AUMENTOU
+1234 - 2.50
+5678 - 5.90
 
-- A categoria indicada no cabeçalho vale para as linhas seguintes; a categoria escrita na própria linha tem prioridade.
-- Uma linha como Kit ou São Roque vira família/marca até surgir outro cabeçalho de família.
-- Cabeçalhos repetidos em mensagens diferentes não são mesclados automaticamente.
-- CI, CB, nome, preço e validade são reconhecidos quando disponíveis. Dados ausentes permanecem em branco.
-- Preços aceitam 2.50, 2,50 e R$ 2,50.
-- Validade aceita 15112026, 15/11/2026 e formatos semelhantes.
-- Linhas que não forem identificadas aparecem na prévia e permanecem no texto original do lote.
-- CI repetido gera alerta, mas nenhum registro é excluído ou substituído automaticamente.
+Kit
+2908 - aumentou 12.30
+1203 - baixou 22.10
 
-## Fluxo operacional
+PRODUTO NOVO
+9012 - Tubo de cola quente transparente - 19.90
 
-- **Pendente de Carga** → ao clicar na seta, **Carga Enviada**.
-- **Carga Enviada** → ao clicar no visto, **Impressão confirmada**.
-- Itens não impressos permanecem na mesma ala em dias seguintes, com marcador laranja.
-- Itens impressos ficam visíveis no dia da confirmação e seguem consultáveis pelo calendário.
-- Cada ação de status recebe registro de data/hora para reconstruir o histórico de qualquer dia.
-- Seleção em lote, filtros rápidos, observações, edição e **Desfazer** estão incluídos.
+PROMOÇÃO
+VALIDADE: 15112026
+3456 - 7,99
+```
 
-## Privacidade e backup
+- Cabeçalhos de categoria se aplicam às próximas linhas; a categoria escrita no próprio produto tem prioridade.
+- Cabeçalhos de família/marca agrupam produtos do mesmo envio, preservando a ordem original.
+- CI, CB, nome, valor e validade são extraídos quando informados. Campos ausentes ficam vazios e podem ser corrigidos.
+- Valores aceitam ponto ou vírgula como separador decimal. Validade aceita `ddmmaaaa` ou `dd/mm/aaaa`.
+- CI repetido é sinalizado sem deduplicação automática. Linhas não reconhecidas ficam na prévia.
 
-- Os dados são salvos em localStorage neste navegador.
-- A exclusão de dados do navegador pode apagar os registros locais. Exporte backups JSON periodicamente.
-- O modo anônimo/privado não é adequado para uso contínuo.
-- O backup contém produtos, eventos e textos originais colados: guarde o arquivo em local seguro.
-- Não há telemetria, API de IA ou integração com terceiros nesta versão. A folha de estilos pode baixar fontes web quando houver conexão; sem internet, usa fontes de substituição.
-- O site não altera configuração de rede, PDVs ou impressoras.
+## Painel e histórico
 
-## Próxima etapa planejada
+- **Pendente de Carga** → **Carga Enviada** → **Impressão confirmada**, sempre por ação manual.
+- Itens incompletos do dia anterior continuam no painel e recebem marcação laranja.
+- Calendário e filtros permitem conferir os dias. A lixeira é independente das datas ativas.
+- Cada cabeçalho de família possui seleção em lote; há seleção de resultados de busca, categoria em lote, notas, filtros e **Desfazer**.
+- A busca dentro do Painel do dia permite pesquisar por cabeçalho/família ou por item, selecionando os resultados em um clique.
 
-Hospedagem via **GitHub Pages** e sincronização **Firebase Authentication + Cloud Firestore**. Antes de publicar o repositório, configurar login com conta autorizada, regras de segurança restritas ao usuário e testes de acesso negado. **Nunca** enviar chaves administrativas do Firebase ou conteúdo de trabalho ao repositório público.
+## Implantação
 
-Este repositório permanece privado durante a primeira etapa de testes.
+- Repositório público somente para permitir GitHub Pages no plano GitHub Free.
+- GitHub Pages: branch `main`, pasta `/(root)`.
+- Firebase: projeto `controlepdc-41408`, Firestore Standard (São Paulo), Authentication/Google habilitado; domínio autorizado `jhonatan-jfs.github.io`.
+- As regras de acesso vigentes estão espelhadas em [firestore.rules](firestore.rules); alteração desse arquivo no GitHub **não** publica regras automaticamente no Firebase. Aplique-as pelo console de regras.
+- Se um recurso do Firebase tiver erro de permissão, não ative "modo de teste" nem permita acesso público como solução. Verifique login, domínio e regras.
+
+O app não altera a rede da loja, PDVs, servidores Radmin ou impressoras.
