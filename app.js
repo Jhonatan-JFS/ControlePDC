@@ -285,9 +285,6 @@
     }
     return stage;
   }
-  function printedOn(item, day) {
-    return db.events.some(e => e.itemId === item.id && e.type === "stage" && e.to === "printed" && dateKey(e.at) === day);
-  }
   function viewItems() {
     const query = normalized($("searchInput").value);
     const cat = $("categoryFilter").value;
@@ -296,7 +293,6 @@
     return db.items.filter(item => {
       if (item.deletedAt || dateKey(item.createdAt) > selectedDay) return false;
       const stage = stageAt(item, selectedDay);
-      if (stage === "printed" && !printedOn(item, selectedDay)) return false;
       if (hidePrinted && stage === "printed") return false;
       const overdue = dateKey(item.createdAt) < selectedDay && stage !== "printed";
       if (oldOnly && !overdue) return false;
@@ -340,7 +336,7 @@
     return item.groupId || item.batchId || item.id;
   }
   function eligibleFamilyItems(group, lane) {
-    if (selectedDay !== today()) return [];
+    if (selectedDay !== today() || lane === "printed") return [];
     return viewItems().filter(item => groupKey(item) === group && stageAt(item, selectedDay) === (lane === "pending" ? "pending" : "sent"));
   }
   function laneHtml(items, lane) {
@@ -353,13 +349,14 @@
           const groupCount = items.filter(x => groupKey(x) === group).length;
           const eligible = eligibleFamilyItems(group, lane);
           const checkedCount = eligible.filter(x => selectedIds.has(x.id)).length;
-          out += '<div class="family-header"><label class="family-select">' +
-            '<input type="checkbox" class="group-select" data-group-id="' + escapeHtml(group) + '" data-lane="' + lane +
-            '" aria-label="Selecionar itens da família ' + escapeHtml(item.family) + '"' +
-            (checkedCount && checkedCount === eligible.length ? ' checked' : '') +
-            (!eligible.length ? ' disabled' : '') +
-            (checkedCount && checkedCount < eligible.length ? ' data-partial="true"' : '') +
-            '><span>▦ ' + escapeHtml(item.family) + '</span></label>' +
+          out += '<div class="family-header">' +
+            (lane === "printed" ? '<span class="family-select">▦ ' + escapeHtml(item.family) + '</span>' :
+              '<label class="family-select"><input type="checkbox" class="group-select" data-group-id="' + escapeHtml(group) + '" data-lane="' + lane +
+              '" aria-label="Selecionar itens da família ' + escapeHtml(item.family) + '"' +
+              (checkedCount && checkedCount === eligible.length ? ' checked' : '') +
+              (!eligible.length ? ' disabled' : '') +
+              (checkedCount && checkedCount < eligible.length ? ' data-partial="true"' : '') +
+              '><span>▦ ' + escapeHtml(item.family) + '</span></label>') +
             '<span class="group-total">' + groupCount + ' item(ns)</span></div>';
         }
         lastGroup = group;
@@ -378,11 +375,14 @@
     $("boardDescription").textContent = history ? "Situação registrada até o fim da data selecionada. Volte a Hoje para editar." : "Ordem de recebimento preservada · pendências anteriores seguem sinalizadas.";
     const shown = viewItems();
     const pending = shown.filter(item => stageAt(item, selectedDay) === "pending");
-    const sent = shown.filter(item => stageAt(item, selectedDay) !== "pending");
+    const sent = shown.filter(item => stageAt(item, selectedDay) === "sent");
+    const printed = shown.filter(item => stageAt(item, selectedDay) === "printed");
     $("pendingCount").textContent = String(pending.length);
     $("sentCount").textContent = String(sent.length);
+    $("printedCount").textContent = String(printed.length);
     $("pendingList").innerHTML = laneHtml(pending, "pending");
     $("sentList").innerHTML = laneHtml(sent, "sent");
+    $("printedList").innerHTML = laneHtml(printed, "printed");
     document.querySelectorAll('.group-select[data-partial="true"]').forEach(control => { control.indeterminate = true; });
     const pendingIds = pending.filter(item => stageAt(item, selectedDay) === "pending").map(x => x.id);
     const readyIds = sent.filter(item => stageAt(item, selectedDay) === "sent").map(x => x.id);
@@ -667,6 +667,13 @@
     });
     $("pendingList").addEventListener("click", handleLaneClick);
     $("sentList").addEventListener("click", handleLaneClick);
+    $("printedList").addEventListener("click", handleLaneClick);
+    $("printedToggle").addEventListener("click", () => {
+      const expanded = $("printedToggle").getAttribute("aria-expanded") === "true";
+      $("printedToggle").setAttribute("aria-expanded", String(!expanded));
+      $("printedBody").classList.toggle("hidden", expanded);
+      $("printedChevron").textContent = expanded ? "⌄" : "⌃";
+    });
     for (const id of ["pendingList", "sentList"]) {
       $(id).addEventListener("change", event => {
         if (event.target.classList.contains("group-select")) {
