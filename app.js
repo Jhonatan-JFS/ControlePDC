@@ -726,6 +726,8 @@
     render();
   }
   function receiveCloud(remote) {
+    const changedOutsideThisBrowser = ["items", "events", "batches"].some(type => JSON.stringify(db[type] || []) !== JSON.stringify(remote[type] || []));
+    if (changedOutsideThisBrowser) undoStack = [];
     db = {
       version: 1,
       items: Array.isArray(remote.items) ? remote.items : [],
