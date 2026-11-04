@@ -279,9 +279,23 @@
   }
   function closePreview() { $("previewPanel").classList.add("hidden"); preview = []; previewRaw = ""; ignoredLines = []; }
   function stageAt(item, day) {
+    // O snapshot do Firestore ordena documentos pelo ID, não pelo momento do evento.
+    // Para o estado atual, o campo do próprio produto é a referência principal.
+    const validStages = ["pending", "sent", "printed"];
+    if (day === today() && validStages.includes(item.stage)) return item.stage;
+
+    // No histórico, considera o evento mais recente na data consultada,
+    // independentemente da ordem em que o Firestore devolveu os documentos.
     let stage = "pending";
+    let latestTime = -Infinity;
     for (const event of db.events) {
-      if (event.itemId === item.id && dateKey(event.at) <= day && event.type === "stage") stage = event.to;
+      if (event.itemId !== item.id || event.type !== "stage" || !validStages.includes(event.to)) continue;
+      if (dateKey(event.at) > day) continue;
+      const time = Date.parse(event.at);
+      if (Number.isFinite(time) && time >= latestTime) {
+        latestTime = time;
+        stage = event.to;
+      }
     }
     return stage;
   }
@@ -429,19 +443,22 @@
   function moveItems(ids, target) {
     const valid = ids.filter(id => {
       const item = db.items.find(x => x.id === id);
-      return item && ((target === "sent" && item.stage === "pending") || (target === "printed" && item.stage === "sent") || (target === "sent" && item.stage === "printed"));
+      if (!item) return false;
+      const stage = stageAt(item, today());
+      return (target === "sent" && (stage === "pending" || stage === "printed")) ||
+        (target === "printed" && stage === "sent");
     });
-    if (!valid.length) return;
+    if (!valid.length) return toast("Nenhum item elegível para essa alteração.", true);
     const now = new Date().toISOString();
-    commitChange(target === "printed" ? "Confirmar impressão" : "Alterar situação da carga", () => {
+    const saved = commitChange(target === "printed" ? "Confirmar impressão" : "Alterar situação da carga", () => {
       valid.forEach(id => {
         const item = db.items.find(x => x.id === id);
-        const from = item.stage;
+        const from = stageAt(item, today());
         item.stage = target;
         db.events.push({ id: uniqueId(), type: "stage", itemId: id, from, to: target, at: now });
       });
     });
-    toast(valid.length + " produto(s) atualizado(s).");
+    if (saved) toast(valid.length + " produto(s) atualizado(s).");
   }
   function openDetails(id) {
     const item = db.items.find(x => x.id === id); if (!item) return;
@@ -571,7 +588,8 @@
       if (selectedDay !== today()) return;
       const item = db.items.find(x => x.id === id);
       if (!item) return;
-      moveItems([id], item.stage === "pending" ? "sent" : item.stage === "sent" ? "printed" : "sent");
+      const stage = stageAt(item, today());
+      moveItems([id], stage === "pending" ? "sent" : stage === "sent" ? "printed" : "sent");
     }
   }
   function visibleSelectedItems() {
