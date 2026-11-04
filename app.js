@@ -130,7 +130,8 @@
   }
   function pricesFromLine(line) {
     const rgx = /(?:R\$\s*)?(\d{1,3}(?:\.\d{3})+,\d{2}|\d+[,.]\d{2})/g;
-    const list = Array.from(String(line).matchAll(rgx)).map(x => moneyValue(x[1]));
+    const withoutDates = String(line).replace(/\b\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4}\b/g, " ");
+    const list = Array.from(withoutDates.matchAll(rgx)).map(x => moneyValue(x[1]));
     return list.filter(Boolean);
   }
   function nameFromLine(line, ci) {
