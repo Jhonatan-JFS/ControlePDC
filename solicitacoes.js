@@ -181,6 +181,7 @@
     $('supervisionCount').textContent=String(pending.length);
     $('supervisionToggle').setAttribute('aria-expanded',String(!$('supervisionBody').classList.contains('hidden')));
     $('reqHistoryCount').textContent=all.length+' registros';
+    $('copySupervisionReport').disabled=!filteredRequests().length;
     if($('supervisionBody').classList.contains('hidden')){renderHistory();return;}
     const list=filteredRequests(), allowed=new Set(list.filter(x=>['awaiting','not_done'].includes(x.status)).map(x=>x.id));
     const available=list.filter(x=>allowed.has(x.id));const chosen=available.filter(x=>selected.has(x.id));
@@ -265,6 +266,7 @@
       if(e.target.closest('#reqSave'))save();
     });
     $('supervisionToggle').addEventListener('click',()=>{$('supervisionBody').classList.toggle('hidden');renderSupervision();});
+    $('copySupervisionReport').addEventListener('click',()=>core.copyReport('Aguardando Supervisão',filteredRequests(),true));
     ['supSearch','supCategory','supModel','supStatus'].forEach(k=>$(k).addEventListener(k==='supSearch'?'input':'change',()=>{selected.clear();renderSupervision();}));
     $('supSelectAll').addEventListener('change',e=>{const ids=filteredRequests().filter(x=>['awaiting','not_done'].includes(x.status)).map(x=>x.id);ids.forEach(k=>e.target.checked?selected.add(k):selected.delete(k));renderSupervision();});
     $('supItems').addEventListener('change',e=>{const el=e.target.closest('[data-select-request]');if(el){el.checked?selected.add(el.dataset.selectRequest):selected.delete(el.dataset.selectRequest);renderSupervision();}});
