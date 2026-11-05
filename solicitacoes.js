@@ -35,6 +35,7 @@
   const id = () => (crypto?.randomUUID?.() || Date.now()+"-"+Math.random().toString(36).slice(2));
   let model = "cadastro", draft = {}, rowCount = 1, selected = new Set(), search = "", openCategory = "Cadastros";
   let page = "pdc", statusView = "open", previewMessage = "", expanded = new Set();
+  const historyOpenTypes = new Set(), historyOpenItems = new Set();
   const field = (name,label,opts={}) => `<label class="req-field ${opts.wide?'wide':''}">${escapeHtml(label)}<input data-field="${name}" ${opts.required?'required':''} ${opts.inputmode?`inputmode="${opts.inputmode}"`:''} value="${escapeHtml(draft[name]||'')}" placeholder="${escapeHtml(opts.hint||'')}" autocomplete="off"></label>`;
   const select = (name,label,choices) => `<label class="req-field">${escapeHtml(label)}<select data-field="${name}">${choices.map(([k,v])=>`<option value="${k}" ${String(draft[name]||'')===k?'selected':''}>${escapeHtml(v)}</option>`).join('')}</select></label>`;
   const rowField = (n,key,label) => `<label class="req-field">${escapeHtml(label)}<input data-row="${n}" data-key="${key}" value="${escapeHtml((draft.rows||[])[n]?.[key]||'')}" autocomplete="off"></label>`;
@@ -136,7 +137,7 @@
     updatePreview();
   }
   function updatePreview(){previewMessage=message(); if($('reqPreview'))$('reqPreview').textContent=previewMessage;}
-  async function copy(str){try{await navigator.clipboard.writeText(str);core.notify('Copiado.');}catch(_){core.notify('Não foi possível copiar. Verifique a permissão do navegador.',true);}}
+  async function copy(str){try{await navigator.clipboard.writeText(str);core.notify('Copiado.');return true;}catch(_){core.notify('Não foi possível copiar. Verifique a permissão do navegador.',true);return false;}}
   function readForm(target){
     const el=target.closest('[data-field],[data-row]'); if(!el)return;
     if(el.dataset.row!==undefined){const i=Number(el.dataset.row);draft.rows[i] ||= {};draft.rows[i][el.dataset.key]=el.value;}
@@ -197,13 +198,49 @@
   }
   function renderHistory(){
     const root=$('reqHistory');if(!root)return;
+    if(root.classList.contains('hidden'))return;
     const state=core.read(),items=state.items||[],events=state.events||[];
-    root.innerHTML=allRequests().sort((a,b)=>Date.parse(b.createdAt)-Date.parse(a.createdAt)).slice(0,200).map(r=>{
-      const item=items.find(i=>i.sourceRequestId===r.id),st=item?.stage;
-      const sent=events.filter(e=>e.itemId===item?.id&&e.to==='sent').sort((a,b)=>Date.parse(b.at)-Date.parse(a.at))[0];
-      const printed=events.filter(e=>e.itemId===item?.id&&e.to==='printed').sort((a,b)=>Date.parse(b.at)-Date.parse(a.at))[0];
-      const milestones=state.requestEvents?.filter(e=>e.requestId===r.id).sort((a,b)=>Date.parse(a.at)-Date.parse(b.at))||[];
-      return `<article class="req-history-item"><strong>${escapeHtml(r.ci||r.cb||'Sem CI')} · ${escapeHtml(r.name||r.modelName)}</strong><small>${escapeHtml(r.modelName)} · criado em ${new Date(r.createdAt).toLocaleString('pt-BR')}</small><small>Supervisão: ${r.status==='approved'?'Confirmada':r.status==='not_done'?'Não realizada':'Aguardando'}${r.reviewedAt?' · '+new Date(r.reviewedAt).toLocaleString('pt-BR'):''}</small>${item?`<small>Fila PDC: ${st==='printed'?'Impressão confirmada':st==='sent'?'Carga enviada':'Pendente de Carga'} · ${new Date(item.createdAt).toLocaleString('pt-BR')}</small>`:''}${sent?`<small>Carga enviada: ${new Date(sent.at).toLocaleString('pt-BR')}</small>`:''}${printed?`<small>Impressão confirmada: ${new Date(printed.at).toLocaleString('pt-BR')}</small>`:''}${milestones.some(e=>e.type==='rejected')?`<small>Ocorrências: ${milestones.filter(e=>e.type==='rejected').length} negativa(s)</small>`:''}</article>`;
+    const groups=new Map(),itemsByRequest=new Map(),eventsByItem=new Map();
+    items.forEach(item=>{if(item.sourceRequestId)itemsByRequest.set(item.sourceRequestId,item);});
+    events.forEach(event=>{if(!eventsByItem.has(event.itemId))eventsByItem.set(event.itemId,[]);eventsByItem.get(event.itemId).push(event);});
+    const requests=(state.requests||[]).slice().sort((a,b)=>Date.parse(b.createdAt||0)-Date.parse(a.createdAt||0));
+    for(const r of requests){
+      const type=r.modelId||'modelo-antigo:'+String(r.modelName||'Outros');
+      if(!groups.has(type))groups.set(type,{name:models[type]?.name||r.modelName||'Outros modelos',records:[]});
+      groups.get(type).records.push(r);
+    }
+    root.innerHTML=[...groups].map(([type,group])=>{
+      const groupOpen=historyOpenTypes.has(type);
+      return `<section class="req-history-group">
+        <button type="button" class="req-history-group-toggle" data-history-group="${escapeHtml(type)}" aria-expanded="${groupOpen}">
+          <span><strong>${escapeHtml(group.name)}</strong><small>${group.records.length} item(ns)</small></span><span aria-hidden="true">${groupOpen?'⌃':'⌄'}</span>
+        </button>
+        ${groupOpen?`<div class="req-history-group-content">${group.records.map(r=>{
+          const itemOpen=historyOpenItems.has(r.id),message=r.message||r.originalLine||'';
+          const item=itemsByRequest.get(r.id),st=item?.stage;
+          const itemEvents=eventsByItem.get(item?.id)||[];
+          const lastEvent=target=>itemEvents.filter(e=>e.type==='stage'&&e.to===target).sort((a,b)=>Date.parse(b.at)-Date.parse(a.at))[0];
+          const sent=lastEvent('sent'),printed=lastEvent('printed');
+          return `<article class="req-history-item">
+            <div class="req-history-row">
+              <button type="button" class="req-history-item-toggle" data-history-item="${escapeHtml(r.id)}" aria-expanded="${itemOpen}" title="${itemOpen?'Recolher':'Exibir'} mensagem e andamento">
+                <strong>${escapeHtml(r.ci||r.cb||'Sem CI')} · ${escapeHtml(r.name||r.modelName||'Produto')}</strong>
+                <small>${new Date(r.createdAt).toLocaleString('pt-BR')} · ${r.status==='approved'?'Realizada':r.status==='not_done'?'Não realizada':'Aguardando supervisão'}</small>
+              </button>
+              <button type="button" class="req-history-copy" data-history-copy="${escapeHtml(r.id)}" title="Copiar mensagem deste item" aria-label="Copiar mensagem do item ${escapeHtml(r.ci||r.cb||r.name||'registrado')}" ${message?'':'disabled'}>⧉</button>
+              <button type="button" class="req-history-expand-icon" data-history-item="${escapeHtml(r.id)}" aria-label="${itemOpen?'Recolher':'Expandir'} item" aria-expanded="${itemOpen}">${itemOpen?'⌃':'⌄'}</button>
+            </div>
+            ${itemOpen?`<div class="req-history-detail"><span class="req-history-detail-label">Mensagem registrada</span><pre>${escapeHtml(message||'Mensagem não disponível neste registro.')}</pre>
+              <small>Tipo: ${escapeHtml(r.modelName||group.name)} · Categoria PDC: ${escapeHtml(pdcNames[r.pdcCategory]||'Outros')}</small>
+              <small>Supervisão: ${r.status==='approved'?'Confirmada':r.status==='not_done'?'Não realizada':'Aguardando'}${r.reviewedAt?' · '+new Date(r.reviewedAt).toLocaleString('pt-BR'):''}</small>
+              ${r.reason?`<small>Motivo: ${escapeHtml(r.reason)}</small>`:''}
+              ${item?`<small>Fila PDC: ${st==='printed'?'Impressão confirmada':st==='sent'?'Carga enviada':'Pendente de Carga'} · ${new Date(item.createdAt).toLocaleString('pt-BR')}</small>`:''}
+              ${sent?`<small>Carga enviada: ${new Date(sent.at).toLocaleString('pt-BR')}</small>`:''}
+              ${printed?`<small>Impressão confirmada: ${new Date(printed.at).toLocaleString('pt-BR')}</small>`:''}
+            </div>`:''}
+          </article>`;
+        }).join('')}</div>`:''}
+      </section>`;
     }).join('')||'<p class="req-muted">Nenhuma solicitação registrada ainda.</p>';
   }
   function changePage(next){page=next;$('pdcPage').hidden=next!=='pdc';$('requestsPage').hidden=next!=='requests';document.querySelectorAll('[data-page]').forEach(b=>{b.classList.toggle('active',b.dataset.page===next);b.setAttribute('aria-current',b.dataset.page===next?'page':'false');});if(next==='requests'){renderModels();renderForm();}window.scrollTo({top:0,behavior:'instant'});}
@@ -240,6 +277,30 @@
     $('supApprove').addEventListener('click',()=>{const ids=[...selected];const result=core.approveRequests(ids);if(result){selected.clear();core.notify(result.approved+' item(ns) encaminhados ao PDC.'+(result.missing?' '+result.missing+' precisam de CI e nome válidos.':''));}});
     $('supReject').addEventListener('click',()=>{const ids=[...selected];if(!ids.length)return;const reason=prompt('Motivo de não realização (opcional):','');if(reason===null)return;if(!confirm('Marcar '+ids.length+' solicitação(ões) como não realizadas?'))return;if(core.rejectRequests(ids,reason)){selected.clear();core.notify('Registro de não realização salvo.');}});
     $('reqHistoryToggle').addEventListener('click',()=>{$('reqHistory').classList.toggle('hidden');renderHistory();});
+    $('reqHistory').addEventListener('click',async e=>{
+      const copyButton=e.target.closest('[data-history-copy]');
+      if(copyButton){
+        const request=allRequests().find(r=>r.id===copyButton.dataset.historyCopy);
+        const content=request?.message||request?.originalLine||'';
+        if(content && await copy(content)){
+          copyButton.textContent='✓';
+          setTimeout(()=>{if(copyButton.isConnected)copyButton.textContent='⧉';},1400);
+        }
+        return;
+      }
+      const groupButton=e.target.closest('[data-history-group]');
+      if(groupButton){
+        const type=groupButton.dataset.historyGroup;
+        historyOpenTypes.has(type)?historyOpenTypes.delete(type):historyOpenTypes.add(type);
+        renderHistory();return;
+      }
+      const itemButton=e.target.closest('[data-history-item]');
+      if(itemButton){
+        const recordId=itemButton.dataset.historyItem;
+        historyOpenItems.has(recordId)?historyOpenItems.delete(recordId):historyOpenItems.add(recordId);
+        renderHistory();
+      }
+    });
   }
   bind();setModel('cadastro');core.onWorkspaceChange(renderSupervision);renderSupervision();
   window.PDCSolicitacoesTest={message:()=>message(),models,formatMoney,setModel,readDraft:()=>draft,validate};
