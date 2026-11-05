@@ -101,6 +101,27 @@
     const num = Number(value);
     return value !== "" && value != null && Number.isFinite(num) ? num.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—";
   }
+  function reportLine(entry, isRequest) {
+    const code = String(entry.ci || entry.cb || "Sem CI").trim();
+    const name = String(entry.name || "").trim();
+    const category = CATEGORY_NAMES[entry.pdcCategory || entry.category] || "Outros";
+    const amount = raw => { const value = moneyValue(raw); return value === "" ? "" : "R$ " + displayMoney(value); };
+    let value;
+    if (isRequest) {
+      const cost = amount(entry.cost), sale = amount(entry.sale);
+      value = [cost && "Custo: " + cost, sale && "Venda: " + sale].filter(Boolean).join(" / ") || "Sem valor";
+    } else value = amount(entry.price) || "Sem valor";
+    return [code, ...(name ? [name] : []), category, value].join(" - ");
+  }
+  async function copyReport(label, entries, isRequest = false) {
+    if (!entries.length) { toast("Não há itens para copiar nesta seção.", true); return false; }
+    const report = label + " (" + entries.length + ")\n\n" + entries.map(entry => reportLine(entry, isRequest)).join("\n");
+    try {
+      await navigator.clipboard.writeText(report);
+      toast(entries.length + " item(ns) copiados para a área de transferência.");
+      return true;
+    } catch (_) { toast("Não foi possível copiar. Verifique a permissão do navegador.", true); return false; }
+  }
   function parseValidity(input) {
     const txt = String(input || "").trim();
     if (!txt) return "";
@@ -425,6 +446,9 @@
     $("pendingList").innerHTML = laneHtml(pending, "pending");
     $("sentList").innerHTML = laneHtml(sent, "sent");
     $("printedList").innerHTML = laneHtml(printed, "printed");
+    $("copyPendingReport").disabled = !pending.length;
+    $("copySentReport").disabled = !sent.length;
+    $("copyPrintedReport").disabled = !printed.length;
     document.querySelectorAll('.group-select[data-partial="true"]').forEach(control => { control.indeterminate = true; });
     const pendingIds = pending.filter(item => stageAt(item, selectedDay) === "pending").map(x => x.id);
     const readyIds = sent.filter(item => stageAt(item, selectedDay) === "sent").map(x => x.id);
@@ -714,6 +738,14 @@
     $("pendingList").addEventListener("click", handleLaneClick);
     $("sentList").addEventListener("click", handleLaneClick);
     $("printedList").addEventListener("click", handleLaneClick);
+    for (const [button, stage, label] of [
+      ["copyPendingReport", "pending", "Pendente de Carga"],
+      ["copySentReport", "sent", "Carga Enviada"],
+      ["copyPrintedReport", "printed", "Impressões confirmadas"]
+    ]) {
+      $(button).addEventListener("click", () => copyReport(label + " — " + formatDay(selectedDay),
+        viewItems().filter(item => stageAt(item, selectedDay) === stage)));
+    }
     $("printedToggle").addEventListener("click", () => {
       const expanded = $("printedToggle").getAttribute("aria-expanded") === "true";
       $("printedToggle").setAttribute("aria-expanded", String(!expanded));
@@ -879,6 +911,7 @@
     setCloudReady, receiveCloud, clearCloud, onLocalChange(listener) { cloudChangeListener = listener; },
     onWorkspaceChange(listener) { workspaceChangeListener=listener; },
     createRequests,approveRequests,rejectRequests,reopenRequests,correctRequest,
+    copyReport,
     notify: toast, read: () => JSON.parse(JSON.stringify(db))
   };
   bind();
