@@ -6,10 +6,10 @@
   <meta name="theme-color" content="#f6f3eb">
   <meta name="description" content="Controle pessoal de cargas PDC, atualizações e conferência de etiquetas.">
   <title>Controle PDC — Atualizações</title>
-  <link rel="stylesheet" href="./style.css?v=2.0.0">
+  <link rel="stylesheet" href="./style.css?v=2.0.2">
   <link rel="stylesheet" href="./solicitacoes.css?v=2.0.1">
-  <script defer src="./app.js?v=2.0.0"></script>
-  <script defer src="./solicitacoes.js?v=2.0.1"></script>
+  <script defer src="./app.js?v=2.0.2"></script>
+  <script defer src="./solicitacoes.js?v=2.0.2"></script>
   <script type="module" src="./cloud.js?v=2.0.0"></script>
 </head>
 <body>
@@ -135,21 +135,21 @@
       </div>
       <section class="board" aria-label="Controle de cargas">
         <div class="lane" id="pendingLane">
-          <div class="lane-head"><div><span class="lane-dot pending-dot"></span><strong>Pendente de Carga</strong><span class="count" id="pendingCount">0</span></div><button class="btn btn-small btn-soft" id="sendBatchButton" disabled>Enviar selecionados →</button></div>
+          <div class="lane-head"><div><span class="lane-dot pending-dot"></span><strong>Pendente de Carga</strong><span class="count" id="pendingCount">0</span></div><div class="lane-head-actions"><button class="btn btn-small btn-ghost report-copy" id="copyPendingReport" type="button" title="Copiar relatório das pendências visíveis" disabled>⧉ Relatório</button><button class="btn btn-small btn-soft" id="sendBatchButton" disabled>Enviar selecionados →</button></div></div>
           <div class="lane-tools"><label><input type="checkbox" id="selectAllPending"> Selecionar visíveis</label></div>
           <div class="lane-list" id="pendingList"></div>
         </div>
         <div class="lane" id="sentLane">
-          <div class="lane-head"><div><span class="lane-dot sent-dot"></span><strong>Carga Enviada</strong><span class="count" id="sentCount">0</span></div><button class="btn btn-small btn-soft" id="printBatchButton" disabled>Confirmar impressões ✓</button></div>
+          <div class="lane-head"><div><span class="lane-dot sent-dot"></span><strong>Carga Enviada</strong><span class="count" id="sentCount">0</span></div><div class="lane-head-actions"><button class="btn btn-small btn-ghost report-copy" id="copySentReport" type="button" title="Copiar relatório das cargas visíveis" disabled>⧉ Relatório</button><button class="btn btn-small btn-soft" id="printBatchButton" disabled>Confirmar impressões ✓</button></div></div>
           <div class="lane-tools"><label><input type="checkbox" id="selectAllSent"> Selecionar não impressos</label></div>
           <div class="lane-list" id="sentList"></div>
         </div>
       </section>
       <section class="supervision-archive" aria-label="Solicitações aguardando supervisão">
-        <button id="supervisionToggle" class="supervision-toggle" type="button" aria-expanded="false" aria-controls="supervisionBody">
+        <div class="archive-heading"><button id="supervisionToggle" class="supervision-toggle" type="button" aria-expanded="false" aria-controls="supervisionBody">
           <span class="archive-title"><span class="lane-dot pending-dot"></span><strong>Aguardando Supervisão</strong><span class="count" id="supervisionCount">0</span><small>Solicitações registradas</small></span>
           <span aria-hidden="true">⌄</span>
-        </button>
+        </button><button class="btn btn-small btn-ghost report-copy archive-report-copy" id="copySupervisionReport" type="button" title="Copiar relatório das solicitações exibidas">⧉ Relatório</button></div>
         <div id="supervisionBody" class="supervision-content hidden">
           <div class="sup-toolbar">
             <input id="supSearch" type="search" placeholder="CI, CB, produto ou solicitação..." aria-label="Pesquisar solicitações">
@@ -165,10 +165,10 @@
         </div>
       </section>
       <section class="printed-archive" aria-label="Itens com impressão confirmada">
-        <button class="printed-archive-toggle" id="printedToggle" type="button" aria-expanded="false" aria-controls="printedBody">
+        <div class="archive-heading"><button class="printed-archive-toggle" id="printedToggle" type="button" aria-expanded="false" aria-controls="printedBody">
           <span class="archive-title"><span class="lane-dot printed-dot"></span><strong>Impressões confirmadas</strong><span class="count" id="printedCount">0</span><small>Até a data selecionada</small></span>
           <span class="archive-chevron" id="printedChevron" aria-hidden="true">⌄</span>
-        </button>
+        </button><button class="btn btn-small btn-ghost report-copy archive-report-copy" id="copyPrintedReport" type="button" title="Copiar relatório de impressões confirmadas visíveis" disabled>⧉ Relatório</button></div>
         <div class="printed-archive-content hidden" id="printedBody">
           <div class="lane-list printed-archive-list" id="printedList"></div>
         </div>
