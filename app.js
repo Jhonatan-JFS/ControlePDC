@@ -5,6 +5,7 @@
   let cloudReady = !CLOUD_MODE;
   let cloudUserId = "";
   let cloudChangeListener = null;
+  let workspaceChangeListener = null;
   const CATEGORY_NAMES = { increase: "Aumento", decrease: "Redução", new: "Produto novo", promo: "Promoção", other: "Outros" };
   const CATEGORY_KEYS = Object.keys(CATEGORY_NAMES);
   const $ = id => document.getElementById(id);
@@ -38,14 +39,14 @@
     if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
     return String(Date.now()) + "-" + Math.random().toString(36).slice(2);
   }
-  function emptyData() { return { version: 1, items: [], batches: [], events: [], nextOrder: 0 }; }
+  function emptyData() { return { version: 2, items: [], batches: [], events: [], requests: [], requestEvents: [], nextOrder: 0 }; }
   function loadData() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return emptyData();
       const obj = JSON.parse(raw);
       if (!obj || !Array.isArray(obj.items) || !Array.isArray(obj.events) || !Array.isArray(obj.batches)) return emptyData();
-      return { version: 1, items: obj.items, batches: obj.batches, events: obj.events, nextOrder: Number(obj.nextOrder) || obj.items.length };
+      return { version: 2, items: obj.items, batches: obj.batches, events: obj.events, requests: Array.isArray(obj.requests) ? obj.requests : [], requestEvents: Array.isArray(obj.requestEvents) ? obj.requestEvents : [], nextOrder: Number(obj.nextOrder) || obj.items.length };
     } catch (err) { return emptyData(); }
   }
   function persist(before) {
@@ -126,11 +127,38 @@
     if (/\b(PRODUTO[S]? NOVO[S]?|NOVO CADASTRO|CADASTRO DE PRODUTO[S]?|CHEGOU|CHEGARAM)\b/.test(t)) return "new";
     if (/\b(AUMENTOU|AUMENTO|SUBIU|ALTA DE PRECO|REAJUSTE PARA CIMA|MAJOROU)\b/.test(t)) return "increase";
     if (/\b(BAIXOU|BAIXA DE PRECO|REDUCAO|REDUZIU|DIMINUIU|CAIU|QUEDA DE PRECO)\b/.test(t)) return "decrease";
-    return "";
+    // Reconhecimento tolerante a pequenos erros de digitação em palavras
+    // inequívocas; nunca deduz aumento/redução de "preço" ou "ajuste" sozinho.
+    const vocabulary = {
+      promo:["PROMOCAO","PROMOCIONAL","PROMO","OFERTA","OFERTAS","DESCONTO","LIQUIDACAO"],
+      new:["CADASTRO","CADASTRAR","CADASTRADO","NOVO","NOVOS","NOVIDADE","CHEGOU","CHEGARAM","INCLUSAO"],
+      increase:["AUMENTOU","AUMENTO","AUMENTAR","SUBIU","SUBIDA","ELEVOU","ACRESCIMO","MAJOROU","CARO"],
+      decrease:["BAIXOU","BAIXA","REDUCAO","REDUZIU","REDUZIR","DIMINUIU","DIMINUIR","CAIU","QUEDA","BARATEOU"]
+    };
+    const words=t.split(/[^A-Z]+/).filter(w=>w.length>=4);
+    const distance=(a,b)=>{
+      if(Math.abs(a.length-b.length)>2)return 3;
+      let prior=Array.from({length:b.length+1},(_,i)=>i);
+      for(let i=1;i<=a.length;i++){
+        const row=[i];
+        for(let j=1;j<=b.length;j++)row[j]=Math.min(prior[j]+1,row[j-1]+1,prior[j-1]+(a[i-1]===b[j-1]?0:1));
+        prior=row;
+      }
+      return prior[b.length];
+    };
+    const hits=Object.entries(vocabulary).filter(([,keys])=>
+      words.some(word=>keys.some(key=>
+        word===key || (key.length>=5 && word.length>=5 && distance(word,key)<=(key.length>=8?2:1))
+      ))
+    );
+    return hits.length===1?hits[0][0]:"";
   }
   function isCategoryHeader(line) {
     const t = normalized(line).replace(/[:!.\s]+$/g, "");
-    return /^(AUMENTOU|AUMENTO|SUBIU|ALTA DE PRECO|REAJUSTE PARA CIMA|BAIXOU|REDUCAO|DIMINUIU|CAIU|PRODUTO[S]? NOVO[S]?|NOVO CADASTRO|CADASTRO|CADASTRO DE PRODUTO[S]?|PROMOCAO|OFERTA)(?:\s+(?:VALIDADE|VALIDO ATE|ATE)\s*[:\-]?\s*\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4})?$/.test(t);
+    if (/^(AUMENTOU|AUMENTO|SUBIU|ALTA DE PRECO|REAJUSTE PARA CIMA|BAIXOU|REDUCAO|DIMINUIU|CAIU|PRODUTO[S]? NOVO[S]?|NOVO CADASTRO|CADASTRO|CADASTRO DE PRODUTO[S]?|PROMOCAO|OFERTA)(?:\s+(?:VALIDADE|VALIDO ATE|ATE)\s*[:\-]?\s*\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4})?$/.test(t)) return true;
+    // Cabeçalhos breves com erro como "AUMNETOU" ou "PROMOÇAO".
+    const words=t.split(/\s+/).filter(Boolean);
+    return words.length<=3 && !/\d/.test(t) && Boolean(categoryFromLine(t));
   }
   function extractCI(line) {
     const explicit = line.match(/\bCI\s*[:#-]?\s*(\d{2,14})\b/i);
@@ -419,6 +447,7 @@
     $("trashToggle").textContent = "Lixeira (" + new Set(db.items.filter(x => x.deletedAt).map(x => dateKey(x.createdAt))).size + ")";
     renderTrash();
     renderCalendar();
+    if (workspaceChangeListener) workspaceChangeListener();
   }
   function setDay(key) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(key) || key > today()) return;
@@ -524,21 +553,20 @@
         if (!candidate || !Array.isArray(candidate.items) || !Array.isArray(candidate.events) || !Array.isArray(candidate.batches)) throw Error("Formato inválido");
         if (candidate.items.some(x => !x.id || !x.ci || !CATEGORY_KEYS.includes(x.category))) throw Error("Itens inválidos");
         if (CLOUD_MODE && !cloudReady) return toast("Aguarde o banco sincronizar antes de importar.", true);
-        const existing = {
-          items: new Set(db.items.map(x => x.id)),
-          events: new Set(db.events.map(x => x.id)),
-          batches: new Set(db.batches.map(x => x.id))
-        };
-        const addItems = candidate.items.filter(x => !existing.items.has(x.id));
-        const addEvents = candidate.events.filter(x => x.id && !existing.events.has(x.id));
-        const addBatches = candidate.batches.filter(x => x.id && !existing.batches.has(x.id));
-        if (!addItems.length && !addEvents.length && !addBatches.length) return toast("Os registros deste backup já estão salvos.");
-        if (!confirm("Mesclar " + addItems.length + " produto(s) do backup? Nenhum registro existente será apagado ou sobrescrito.")) return;
+        const types = ["items", "events", "batches", "requests", "requestEvents"];
+        const additions = {};
+        for (const type of types) {
+          const existing = new Set((db[type] || []).map(x => x.id));
+          additions[type] = (Array.isArray(candidate[type]) ? candidate[type] : []).filter(x => x && x.id && !existing.has(x.id));
+        }
+        const count = types.reduce((sum,type) => sum + additions[type].length, 0);
+        if (!count) return toast("Os registros deste backup já estão salvos.");
+        if (!confirm("Mesclar " + count + " registro(s) do backup? Nenhum registro existente será apagado ou sobrescrito.")) return;
         commitChange("Mesclar backup", () => {
-          db.items.push(...addItems); db.events.push(...addEvents); db.batches.push(...addBatches);
+          for (const type of types) db[type].push(...additions[type]);
           db.nextOrder = Math.max(Number(db.nextOrder) || 0, Number(candidate.nextOrder) || 0, ...db.items.map(x => Number(x.order) || 0));
         });
-        setDay(today()); toast(addItems.length + " produto(s) recuperado(s), sem substituir os existentes.");
+        setDay(today()); toast(count + " registro(s) recuperado(s), sem substituir os existentes.");
       } catch (err) { toast("Não foi possível importar: arquivo inválido.", true); }
     };
     reader.onerror = () => toast("Não foi possível ler o arquivo.", true);
@@ -751,13 +779,15 @@
     render();
   }
   function receiveCloud(remote) {
-    const changedOutsideThisBrowser = ["items", "events", "batches"].some(type => JSON.stringify(db[type] || []) !== JSON.stringify(remote[type] || []));
+    const changedOutsideThisBrowser = ["items", "events", "batches", "requests", "requestEvents"].some(type => JSON.stringify(db[type] || []) !== JSON.stringify(remote[type] || []));
     if (changedOutsideThisBrowser) undoStack = [];
     db = {
-      version: 1,
+      version: 2,
       items: Array.isArray(remote.items) ? remote.items : [],
       events: Array.isArray(remote.events) ? remote.events : [],
       batches: Array.isArray(remote.batches) ? remote.batches : [],
+      requests: Array.isArray(remote.requests) ? remote.requests : [],
+      requestEvents: Array.isArray(remote.requestEvents) ? remote.requestEvents : [],
       nextOrder: Math.max(0, ...(remote.items || []).map(x => Number(x.order) || 0))
     };
     try { if (cloudUserId) localStorage.setItem(STORAGE_KEY + "-cache-" + cloudUserId, JSON.stringify(db)); } catch (_) {}
@@ -765,8 +795,90 @@
     render();
   }
   function clearCloud() { db = emptyData(); selectedIds.clear(); undoStack = []; render(); }
+  function addRequestEvent(requestId, type, details) {
+    db.requestEvents.push({ id: uniqueId(), requestId, type, at: new Date().toISOString(), ...(details || {}) });
+  }
+  function createRequests(entries) {
+    if (!Array.isArray(entries) || !entries.length) return false;
+    if (entries.some(x => !x.id || !x.submissionId || !x.modelId || !x.message || !x.pdcCategory)) {
+      toast("Dados incompletos da solicitação.", true); return false;
+    }
+    if (entries.some(x => db.requests.some(y => y.id === x.id))) {
+      toast("Esta solicitação já está registrada.", true); return false;
+    }
+    return commitChange("Registrar solicitações", () => {
+      for (const entry of entries) {
+        db.requests.push({ ...entry, status:"awaiting", reviewedAt:"", reason:"", pdcItemId:null });
+        addRequestEvent(entry.id, "created", { modelId:entry.modelId, submissionId:entry.submissionId });
+      }
+    });
+  }
+  function approveRequests(ids) {
+    const valid = new Set(ids);
+    const matching = db.requests.filter(r => valid.has(r.id) && ["awaiting", "not_done"].includes(r.status));
+    const allowed = matching.filter(r => /^\d{2,14}$/.test(String(r.ci || "")) && String(r.name || "").trim().length > 0);
+    const missing = matching.length - allowed.length;
+    if (!allowed.length) { toast("Informe CI válido e nome do produto antes de encaminhar ao PDC. Use Corrigir dados.", true); return false; }
+    const already = new Set(db.items.map(x => x.sourceRequestId));
+    const duplicate = allowed.filter(r => already.has(r.id));
+    if (duplicate.length) { toast("Há solicitações já transferidas ao PDC. Atualize antes de tentar novamente.", true); return false; }
+    if (!commitChange("Confirmar realização de solicitações", () => {
+      const now = new Date().toISOString();
+      for (const r of allowed) {
+        const itemId = "pdc-req-" + r.id;
+        if (db.items.some(x => x.id === itemId || x.sourceRequestId === r.id)) continue;
+        db.nextOrder += 1;
+        db.items.push({
+          id:itemId, batchId:"solicitacoes-" + r.submissionId,
+          groupId:"solicitacoes-" + r.submissionId + ":" + r.modelId,
+          order:db.nextOrder,ci:r.ci,cb:r.cb||"",family:r.modelGroup||"Solicitações",
+          name:r.name||r.modelName||"",category:CATEGORY_KEYS.includes(r.pdcCategory)?r.pdcCategory:"other",
+          price:r.sale?moneyValue(r.sale):"",cost:r.cost||"",previousPrice:"",validity:r.validity||"",
+          note:r.note||"",stage:"pending",createdAt:now,
+          sourceLine:r.originalLine||r.message,origin:"solicitacoes",
+          sourceRequestId:r.id,sourceSubmissionId:r.submissionId,sourceModelId:r.modelId
+        });
+        db.events.push({id:uniqueId(),itemId,type:"stage",from:null,to:"pending",at:now});
+        r.status="approved";r.reviewedAt=now;r.pdcItemId=itemId;r.reason="";
+        addRequestEvent(r.id,"approved",{pdcItemId:itemId,category:r.pdcCategory});
+      }
+    })) return false;
+    return {approved:allowed.length,missing};
+  }
+  function rejectRequests(ids,reason) {
+    const chosen = new Set(ids);
+    return commitChange("Registrar solicitações não realizadas", () => {
+      for (const r of db.requests) if (chosen.has(r.id) && ["awaiting","not_done"].includes(r.status)) {
+        r.status="not_done";r.reason=String(reason||"");r.reviewedAt=new Date().toISOString();
+        addRequestEvent(r.id,"rejected",{reason:r.reason});
+      }
+    });
+  }
+  function reopenRequests(ids) {
+    const chosen = new Set(ids);
+    return commitChange("Reencaminhar à supervisão", () => {
+      for (const r of db.requests) if (chosen.has(r.id) && r.status==="not_done") {
+        r.status="awaiting";r.reason="";r.reviewedAt="";
+        addRequestEvent(r.id,"reopened");
+      }
+    });
+  }
+  function correctRequest(requestId,changes) {
+    const r = db.requests.find(x => x.id === requestId);
+    if (!r || !["awaiting","not_done"].includes(r.status)) return false;
+    const ci=String(changes.ci||"").trim(),cb=String(changes.cb||"").trim();
+    if(ci && !/^\d{2,14}$/.test(ci)) {toast("CI inválido: use de 2 a 14 números.",true);return false;}
+    if(cb && !/^\d{8,14}$/.test(cb)) {toast("CB inválido.",true);return false;}
+    if(!CATEGORY_KEYS.includes(changes.pdcCategory))return false;
+    return commitChange("Correção da solicitação", () => {
+      r.ci=ci;r.cb=cb;r.name=String(changes.name||"").trim();r.pdcCategory=changes.pdcCategory;
+      addRequestEvent(r.id,"corrected",{ci,cb,category:r.pdcCategory});
+    });
+  }
   window.ControlPDC = {
     setCloudReady, receiveCloud, clearCloud, onLocalChange(listener) { cloudChangeListener = listener; },
+    onWorkspaceChange(listener) { workspaceChangeListener=listener; },
+    createRequests,approveRequests,rejectRequests,reopenRequests,correctRequest,
     notify: toast, read: () => JSON.parse(JSON.stringify(db))
   };
   bind();
