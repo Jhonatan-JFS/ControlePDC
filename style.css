@@ -38,4 +38,13 @@ dialog{width:min(580px,calc(100vw - 20px));border:1px solid var(--line);border-r
 .printed-archive-list{min-height:0;max-height:45vh;overflow-y:auto}
 .printed-archive-list .row-select{visibility:hidden}
 .printed-archive-list .empty-lane{min-height:76px}
+/* Relatórios por etapa: ações compactas, sem alterar o fluxo das filas. */
+.lane-head-actions{display:flex;align-items:center;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+.lane-head .lane-head-actions{min-width:0}
+.archive-heading{display:flex;align-items:stretch;background:#fafaf7;min-width:0}
+.archive-heading>.supervision-toggle,.archive-heading>.printed-archive-toggle{width:auto;flex:1;min-width:0}
+.archive-report-copy{align-self:center;margin:0 12px 0 3px;flex:none}
+.report-copy{color:#3b7460;border-color:#dde8dd;background:#fffefa}
+.report-copy:hover:not(:disabled){background:#edf5ed;border-color:#c6ddcb}
+@media(max-width:650px){.lane-head-actions{gap:3px}.lane-head .report-copy{font-size:9px;padding:5px 6px}.archive-report-copy{font-size:9px;padding:5px 7px;margin-right:7px}.archive-heading .archive-title{gap:4px}}
 @media(max-width:540px){.archive-title small{display:none}.printed-archive-toggle{padding:10px 11px}}
