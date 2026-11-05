@@ -6,8 +6,8 @@
   const $ = id => document.getElementById(id);
   const cats = [
     {name:"Cadastros", ids:["cadastro","grade"]},
-    {name:"Códigos e Identificação", ids:["cb","troca","ean"]},
-    {name:"Preços e Custos", ids:["preco","verificarPreco","custo","verificarValores"]},
+    {name:"Códigos e Identificação", ids:["cb","ean"]},
+    {name:"Preços e Custos", ids:["preco","verificarPreco","custo"]},
     {name:"Grades e Unidades", ids:["desmembrar"]},
     {name:"Promoções e Validades", ids:["promoEntrar","promoSair","validadeAdd","validadeRemove"]},
     {name:"Dados do Produto", ids:["nome"]}
@@ -16,12 +16,10 @@
     cadastro:{name:"Cadastro de Produto", cat:"new", multi:true},
     grade:{name:"Cadastro em Grade",cat:"new",multi:true},
     cb:{name:"Atualização de CB",cat:"other",multi:true},
-    troca:{name:"Troca de CI/CB",cat:"other",custom:true},
     ean:{name:"Adicionar CI ou CB no EAN",cat:"other"},
     preco:{name:"Ajuste de Preço",cat:"other"},
     verificarPreco:{name:"Verificação de Preço",cat:"other"},
     custo:{name:"Adicionar Valor de Custo",cat:"other"},
-    verificarValores:{name:"Verificar Valores",cat:"other",custom:true},
     desmembrar:{name:"Desmembramento em Grade",cat:"other",multi:true},
     promoEntrar:{name:"Entrada de Promoção",cat:"promo",multi:true},
     promoSair:{name:"Retirada de Promoção",cat:"promo",multi:true},
@@ -64,6 +62,7 @@
     if(models[model].custom && !value(draft.customText))return "Escreva e confira o texto deste modelo antes de concluir.";
     if(!rows().some(r=>value(r.ci||r.cb)))return "Informe o CI ou CB de pelo menos um produto.";
     if(model==='grade' && (!value(draft.rootCI)||!value(draft.rootName))) return "Informe o CI principal e o nome da grade.";
+    if(model==='ean' && (!value(draft.ci)||!value(draft.name))) return "Informe o CI e o nome do produto.";
     if(model==='ean' && draft.eanMode==='CB' && !value(draft.cb)) return "Informe o CB a adicionar no EAN.";
     if(model==='cb' && rows().some(r=>!value(r.ci)||!value(r.newCB))) return "Informe o CI e o novo CB de cada produto.";
     for(const row of rows()) if((row.cost && formatMoney(row.cost)===null)||(row.sale && formatMoney(row.sale)===null)) return "Verifique os valores: use números positivos.";
@@ -85,7 +84,7 @@
       case 'promoSair':return line;
       case 'validadeAdd':return line+(value(r.date)?' - Até data: '+(dateValue(r.date)||r.date):'');
       case 'validadeRemove':return line;
-      case 'ean':return `CI - ${ci}`+(draft.eanMode==='CB'?`\nCB: ${cb}`:'');
+      case 'ean':return `${ci}${name?' - '+name:''}`+(draft.eanMode==='CB'?`\nCB: ${cb}`:'');
       case 'nome':return `CI - ${ci}\n\nDE:\n${value(r.oldName)}\n\nPARA:\n${value(r.newName)}`;
       case 'preco':case 'verificarPreco':{
         const cost=formatMoney(r.cost),sale=formatMoney(r.sale);
@@ -131,7 +130,7 @@
     if(model==='grade')extras=field('rootCI','CI principal',{required:true})+field('rootName','Nome da grade');
     if(model==='desmembrar')extras=select('unit','Unidade', [['Un','Un.'],['Metro','Metro'],['1/2 Metro','1/2 Metro'],['Personalizado','Personalizado']])+field('qty','Quantidade (opcional)')+(draft.unit==='Personalizado'?field('customUnit','Nome da unidade'):"");
     if(model==='ean')extras=select('eanMode','Código a adicionar no EAN',[['CI','CI'],['CB','CB']]);
-    const simple = !m.multi ? `<div class="req-fields">${field('ci','CI',{required:true})}${model==='ean'&&draft.eanMode==='CB'?field('cb','CB'):''}${field('name','Nome do produto (para o PDC)')}${model==='nome'?field('oldName','Nome atual')+field('newName','Novo nome'):''}${model==='preco'?field('cost','Custo (R$)',{inputmode:'decimal'})+field('sale','Venda (R$)',{inputmode:'decimal'}):''}${model==='custo'?field('cost','Custo (R$)',{inputmode:'decimal'}):''}</div><div class="req-row-copy"><button type="button" data-copy-ci="0" class="btn btn-link">Copiar CI</button><button type="button" data-copy-cb="0" class="btn btn-link">Copiar CB</button><button type="button" data-copy-name="0" class="btn btn-link">Copiar nome</button></div>` : rowsHtml();
+    const simple = !m.multi ? `<div class="req-fields">${field('ci','CI',{required:true})}${model==='ean'&&draft.eanMode==='CB'?field('cb','CB'):''}${field('name',model==='ean'?'Nome do produto':'Nome do produto (para o PDC)',{required:model==='ean'})}${model==='nome'?field('oldName','Nome atual')+field('newName','Novo nome'):''}${model==='preco'?field('cost','Custo (R$)',{inputmode:'decimal'})+field('sale','Venda (R$)',{inputmode:'decimal'}):''}${model==='custo'?field('cost','Custo (R$)',{inputmode:'decimal'}):''}</div><div class="req-row-copy"><button type="button" data-copy-ci="0" class="btn btn-link">Copiar CI</button><button type="button" data-copy-cb="0" class="btn btn-link">Copiar CB</button><button type="button" data-copy-name="0" class="btn btn-link">Copiar nome</button></div>` : rowsHtml();
     const warning=m.custom?'<p class="req-warning">O texto definitivo deste modelo não foi encontrado no arquivo original. Digite e confira a mensagem antes de registrar.</p>':'';
     $('reqForm').innerHTML=`<div class="req-form-heading"><div><small>MODELO SELECIONADO</small><h3>${escapeHtml(m.name)}</h3></div><button type="button" class="btn btn-ghost btn-small" id="reqClear">Limpar</button></div><div class="req-fields">${extras}</div>${simple}${showRows?'<button type="button" class="btn btn-soft btn-small req-add" id="reqAddRow">＋ Adicionar produto</button>':''}${['preco','verificarPreco'].includes(model)?`<label class="req-wide-note">Observação (opcional; texto livre)<textarea data-field="memo" rows="2" placeholder="">${escapeHtml(draft.memo||'')}</textarea></label>`:''}${m.custom?`${warning}<label class="req-wide-note">Mensagem personalizada<textarea data-field="customText" rows="6" placeholder="Escreva o texto revisado deste modelo">${escapeHtml(draft.customText||'')}</textarea></label>`:''}<label class="req-field req-category-picker">Categoria sugerida no PDC<select data-field="category">${Object.entries(pdcNames).map(([key,v])=>`<option value="${key}" ${draft.category===key?'selected':''}>${v}</option>`).join('')}</select></label>${model==='preco'?'<p class="req-muted">Para Aumento ou Redução, escolha explicitamente a categoria; custos e preços isolados não determinam a direção.</p>':''}<div class="req-message"><div class="req-preview-head"><strong>Pré-visualização</strong><button type="button" id="reqCopy" class="btn btn-ghost btn-small">Copiar mensagem</button></div><pre id="reqPreview"></pre></div><div class="req-form-actions"><button type="button" class="btn btn-primary" id="reqSave">Concluir solicitação → Supervisão</button></div>`;
     updatePreview();
