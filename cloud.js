@@ -17,12 +17,12 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const firestore = getFirestore(app);
 const ui = window.ControlPDC;
-const TYPES = ["items", "events", "batches"];
+const TYPES = ["items", "events", "batches", "requests", "requestEvents"];
 let activeUser = null;
 let stopListeners = [];
 let snapshots = {};
 let pendingWrites = 0;
-let latestRemote = {items: [], events: [], batches: []};
+let latestRemote = {items: [], events: [], batches: [], requests: [], requestEvents: []};
 let writeQueue = Promise.resolve();
 let initialHintShown = false;
 let blockedByError = false;
@@ -48,7 +48,9 @@ function remoteData() {
   return {
     items: (snapshots.items || []).map(x => ({...x})),
     events: (snapshots.events || []).map(x => ({...x})),
-    batches: (snapshots.batches || []).map(x => ({...x}))
+    batches: (snapshots.batches || []).map(x => ({...x})),
+    requests: (snapshots.requests || []).map(x => ({...x})),
+    requestEvents: (snapshots.requestEvents || []).map(x => ({...x}))
   };
 }
 function allCollectionsLoaded() {
@@ -174,7 +176,7 @@ function watchUser(user) {
   blockedByError = false;
   pendingWrites = 0;
   snapshots = {};
-  latestRemote = {items: [], events: [], batches: []};
+  latestRemote = {items: [], events: [], batches: [], requests: [], requestEvents: []};
   recoveryChecked = false;
   recoveryButton.hidden = true;
   status("Carregando o histórico protegido…", false);
