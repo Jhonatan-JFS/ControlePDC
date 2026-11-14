@@ -272,28 +272,99 @@
     }
     return items;
   }
+
+  function monitorConfigHtml(selection){
+    const selected=selection.groups;
+    const current=draftMonitorGroup;
+    const options=myGroups.map(g=>'<option value="'+enc(g.id)+'"'+(g.id===current?' selected':'')+'>'+enc(g.name)+(g.isForum?' · tópicos':'')+'</option>').join("");
+    const list=selected.length?selected.map(g=>{
+      const summary=g.isForum?(g.topics.map(t=>t.name).join(", ")||"Nenhum tópico"):"Conversa inteira";
+      return '<div class="tg-mon-configured"><div><strong>'+enc(g.name)+'</strong><small>'+enc(summary)+'</small></div>'+
+        '<div class="tg-mon-row-actions"><button type="button" class="btn btn-soft btn-small" data-mon-edit="'+enc(g.id)+'">Editar</button>'+
+        '<button type="button" class="btn btn-ghost btn-small" data-mon-remove="'+enc(g.id)+'">Retirar</button></div></div>';
+    }).join(""):'<p class="tg-muted">Nenhum grupo selecionado. Escolha abaixo o que deseja acompanhar.</p>';
+    return '<section class="tg-monitor-settings" aria-label="Configuração do monitoramento">'+
+      '<div class="tg-mon-config-heading"><strong>Grupos e tópicos monitorados</strong><span>Independente dos destinos de envio</span></div>'+
+      '<div class="tg-mon-selection-list">'+list+'</div>'+
+      (logged()?'<div class="tg-mon-new-selection"><label for="tgMonGroupPick">Escolha um grupo do Telegram</label>'+
+       '<select id="tgMonGroupPick"><option value="">Selecionar grupo…</option>'+options+'</select>'+
+       '<div id="tgMonTopicOptions"><p class="tg-muted">Selecione o grupo para configurar seus tópicos.</p></div>'+
+       '<button type="button" class="btn btn-primary btn-small" id="tgMonSaveGroup">Salvar grupo e tópicos</button></div>':
+       '<p class="tg-muted">Conecte sua conta em Telegram → Configurações para selecionar novos grupos.</p>')+
+      '<p class="tg-mon-helper">Desmarcar um grupo interrompe novas leituras, mas não apaga o histórico local. Os modelos e seus destinos de envio continuam iguais.</p></section>';
+  }
   function monitorHtml(){
-    const db=readHistory(),items=db.records.slice().sort((a,b)=>new Date(b.date)-new Date(a.date));
-    const requests=items.filter(r=>r.kind==="solicitacao"||!r.kind);
+    const {selection,group}=monitorScope(),db=readHistory();
+    if(!selection.groups.length)monitorSettingsOpen=true;
+    if(group&&activeMonitorTopic!=="all"&&!group.topics.some(t=>t.id===activeMonitorTopic))activeMonitorTopic="all";
+    const records=group?db.records.filter(r=>matchesMonitorScope(r,group,activeMonitorTopic))
+      .sort((a,b)=>new Date(b.date)-new Date(a.date)):[];
+    const requests=records.filter(r=>r.kind==="solicitacao"||!r.kind);
     const verified=requests.filter(r=>r.status==="conferido"&&!r.unavailable).length;
     const pending=requests.filter(r=>r.status==="pendente"&&!r.unavailable).length;
-    const sources=(window.TelegramRouting?.groups?.()||[]).filter(g=>g.telegramId&&(!g.isForum||g.topicId!=null)).length;
+    const totalSources=selection.groups.reduce((count,g)=>count+(g.isForum?g.topics.length:1),0);
     const metric=(title,value,tone,note)=>'<div class="tg-stat" data-tone="'+tone+'"><div class="tg-stat-label">'+title+'</div><strong class="tg-stat-value">'+value+'</strong><div class="tg-stat-note">'+note+'</div></div>';
-    const stats='<section class="tg-stats" aria-label="Resumo do monitoramento">'+
-      metric("Mensagens registradas",items.length,"info","Histórico disponível")+
-      metric("Conferidas",verified,"success","Com reação atualmente")+
-      metric("Não conferidas",pending,"warning","Sem reação no último exame")+
-      metric("Destinos vinculados",sources,"info","Grupos / tópicos configurados")+'</section>';
-    return stats+'<div class="tg-monitor-head"><div><strong>'+items.length+' mensagem(ns) registrada(s)</strong><small>Última sincronização: '+(db.lastSync?enc(new Date(db.lastSync).toLocaleString("pt-BR")):"nunca")+'</small></div><button type="button" class="btn btn-primary btn-small" id="tgSyncNow">↻ Sincronizar agora</button></div>'+
-      '<p class="tg-auth-message" id="tgMonitorStatus" role="status" aria-live="polite">'+(logged()?"Verifique novas mensagens e reações antigas.":"Conecte sua conta em Configurações.")+'</p>'+
-      (items.length?'<div class="tg-records">'+items.map(rec=>{
-        const parsed=extract(rec.text),status=rec.unavailable?"Mensagem indisponível":rec.kind==="preco"?"Atualização de preço":rec.kind==="produto"?"Produto novo":rec.status==="conferido"?"Conferido":"Não conferido";
-        const rows=parsed.length?parsed.map(p=>'<div class="tg-monitor-item"><strong>'+enc(p.ci)+' - '+enc(p.name)+'</strong>'+(p.cb?'<small>CB: '+enc(p.cb)+'</small>':'')+'</div>').join(""):'<pre>'+enc(rec.text)+'</pre>';
-        return '<article class="tg-record"><div class="tg-record-top"><strong>'+enc(rec.group)+(rec.topicName?' · '+enc(rec.topicName):'')+'</strong><span class="tg-rec-state '+(rec.status==="conferido"&&!rec.unavailable?"ok":"")+'">'+enc(status)+'</span></div><small>'+enc(new Date(rec.date).toLocaleString("pt-BR"))+' · Mensagem #'+rec.messageId+'</small><div class="tg-record-content">'+rows+'</div><small>'+(rec.reactionCount||0)+' reação(ões) · '+(rec.history?.length||0)+' evento(s) no histórico</small></article>';
-      }).join("")+'</div>':'<div class="tg-information"><strong>Nenhuma solicitação registrada.</strong><p>Conecte a conta, vincule os grupos reais e inicie a primeira sincronização. Ela examinará inicialmente as últimas 200 mensagens de cada grupo; depois recuperará as novas por identificador.</p></div>');
+    const tabs='<nav class="tg-monitor-tabs" aria-label="Grupos monitorados">'+selection.groups.map(g=>{
+      const selected=g.id===activeMonitorGroup;
+      return '<button type="button" class="tg-monitor-tab'+(selected?' active':'')+'" data-mon-tab="'+enc(g.id)+'" aria-current="'+(selected?'page':'false')+'">'+enc(g.name)+'</button>';
+    }).join("")+'</nav>';
+    const topics=group?.isForum?'<nav class="tg-monitor-topics" aria-label="Tópicos do grupo selecionado">'+
+      '<button type="button" class="tg-monitor-topic'+(activeMonitorTopic==="all"?' active':'')+'" data-mon-filter="all">Todos os tópicos escolhidos</button>'+
+      group.topics.map(t=>'<button type="button" class="tg-monitor-topic'+(activeMonitorTopic===t.id?' active':'')+'" data-mon-filter="'+enc(t.id)+'">'+enc(t.name)+'</button>').join("")+'</nav>':"";
+    const top='<div class="tg-monitor-controls"><div><strong>Monitoramento por grupo</strong><p>Alterne entre os grupos para ver apenas suas mensagens.</p></div>'+
+      '<button type="button" id="tgMonToggleConfig" class="btn btn-soft btn-small" aria-expanded="'+monitorSettingsOpen+'">⚙ Selecionar grupos e tópicos</button></div>';
+    const stats='<section class="tg-stats" aria-label="Indicadores da aba selecionada">'+
+      metric("Mensagens exibidas",records.length,"info",group?"Grupo atual":"Nenhum grupo")+
+      metric("Conferidas",verified,"success","Com reação na última leitura")+
+      metric("Não conferidas",pending,"warning","Sem reação na última leitura")+
+      metric("Fontes monitoradas",totalSources,"info","Grupos / tópicos selecionados")+'</section>';
+    const sync='<div class="tg-monitor-head"><div><strong>'+records.length+' mensagem(ns) nesta aba</strong><small>Última sincronização: '+(db.lastSync?enc(new Date(db.lastSync).toLocaleString("pt-BR")):"nunca")+'</small></div>'+
+      '<button type="button" class="btn btn-primary btn-small" id="tgSyncNow"'+(!selection.groups.length?' disabled':'')+'>↻ Sincronizar selecionados</button></div>';
+    const status='<p class="tg-auth-message" id="tgMonitorStatus" role="status" aria-live="polite">'+
+      (!logged()?"Conecte sua conta em Configurações.":!selection.groups.length?"Configure quais grupos e tópicos acompanhar.":"A sincronização consulta apenas as fontes escolhidas, incluindo reações antigas.")+'</p>';
+    const content=records.length?'<div class="tg-records">'+records.map(rec=>{
+      const parsed=extract(rec.text);
+      const label=rec.unavailable?"Mensagem indisponível":rec.kind==="preco"?"Atualização de preço":
+        rec.kind==="produto"?"Produto novo":rec.status==="conferido"?"Conferido":"Não conferido";
+      const block=parsed.length?parsed.map(p=>'<div class="tg-monitor-item"><strong>'+enc(p.ci)+' - '+enc(p.name)+'</strong>'+(p.cb?'<small>CB: '+enc(p.cb)+'</small>':'')+'</div>').join(""):'<pre>'+enc(rec.text)+'</pre>';
+      return '<article class="tg-record"><div class="tg-record-top"><strong>'+enc(rec.group)+(rec.topicName?' · '+enc(rec.topicName):'')+'</strong>'+
+        '<span class="tg-rec-state '+(rec.status==="conferido"&&!rec.unavailable?"ok":"")+'">'+enc(label)+'</span></div>'+
+        '<small>'+enc(new Date(rec.date).toLocaleString("pt-BR"))+' · Mensagem #'+enc(rec.messageId)+'</small>'+
+        '<div class="tg-record-content">'+block+'</div><small>'+(rec.reactionCount||0)+' reação(ões) · '+(rec.history?.length||0)+' evento(s) registrados</small></article>';
+    }).join("")+'</div>':'<div class="tg-information"><strong>Nenhuma mensagem nesta visualização.</strong><p>'+
+      (!group?"Configure um grupo para começar.":"Ainda não há registros deste grupo e tópico no histórico local. Use Sincronizar selecionados.")+'</p></div>';
+    return top+(monitorSettingsOpen?monitorConfigHtml(selection):"")+tabs+topics+stats+sync+status+content;
+  }
+  async function renderMonitorTopicChoices(){
+    const mount=$("tgMonTopicOptions"),select=$("tgMonGroupPick");
+    if(!mount||!select)return;
+    const id=select.value,actual=myGroups.find(g=>g.id===id);
+    if(!actual){mount.innerHTML='<p class="tg-muted">Escolha um grupo da lista.</p>';return;}
+    if(!actual.isForum){mount.innerHTML='<div class="tg-mon-whole-group"><strong>Grupo sem tópicos</strong><p>As mensagens desta conversa serão acompanhadas.</p></div>';return;}
+    const version=++topicRequestVersion;
+    mount.innerHTML='<p class="tg-muted">Buscando tópicos do grupo…</p>';
+    try{
+      let available=monitorTopicCache.get(id);
+      if(!available){available=await topics(id);monitorTopicCache.set(id,available);}
+      if(version!==topicRequestVersion||$("tgMonGroupPick")?.value!==id)return;
+      if(!available.length){mount.innerHTML='<p class="tg-auth-message error">Nenhum tópico encontrado. Confira as permissões do grupo.</p>';return;}
+      const previously=readMonitorSelection().groups.find(g=>g.id===id);
+      const enabled=new Set(draftMonitorGroup===id?draftMonitorTopics:previously?.topics.map(t=>t.id)||[]);
+      mount.innerHTML='<fieldset class="tg-mon-topic-fieldset"><legend>Tópicos que deseja monitorar</legend>'+
+        '<div class="tg-mon-topic-helpers"><button type="button" class="btn btn-ghost btn-small" id="tgMonSelectAll">Selecionar todos</button>'+
+        '<button type="button" class="btn btn-ghost btn-small" id="tgMonClearTopics">Limpar seleção</button></div>'+
+        '<div class="tg-mon-topic-grid">'+available.map(t=>'<label class="tg-mon-topic-choice"><input type="checkbox" data-mon-topic="'+enc(t.id)+'"'+(enabled.has(t.id)?' checked':'')+'><span>'+enc(t.name)+'</span></label>').join("")+'</div></fieldset>';
+    }catch(e){mount.innerHTML='<p class="tg-auth-message error">Não foi possível carregar tópicos: '+enc(e.message||e)+'</p>';}
   }
   function renderMonitor(){
-    const mount=$("tgMonitorMount");if(mount)mount.innerHTML=monitorHtml();
+    const mount=$("tgMonitorMount");
+    if(!mount)return;
+    mount.innerHTML=monitorHtml();
+    if(monitorSettingsOpen&&draftMonitorGroup){
+      const picker=$("tgMonGroupPick");
+      if(picker)picker.value=draftMonitorGroup;
+      renderMonitorTopicChoices();
+    }
   }
   document.addEventListener("click",async e=>{
     if(e.target.closest("#tgConnect")){await connect();return;}
