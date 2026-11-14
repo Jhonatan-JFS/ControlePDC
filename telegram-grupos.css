@@ -57,3 +57,69 @@
   .tg-fields label:last-child{grid-column:auto}
   .tg-editor-toolbar label{max-width:none}
 }
+
+
+/* Autenticação Telegram e conferência de mensagens da conta */
+.tg-route{display:flex;justify-content:space-between;gap:15px;align-items:center;background:#f7faf6;border:1px solid #dfe7db;border-radius:10px;padding:15px;margin:12px 0 15px}
+.tg-route.assigned{border-color:#c9e4d0;background:#f0f9f1}
+.tg-route.unassigned{border-color:#efdfc0;background:#fff9ed}
+.tg-route small,.tg-route strong,.tg-route p{display:block;margin:0}
+.tg-route small{font-size:9px;letter-spacing:.07em;font-weight:800;color:#779583}
+.tg-route strong{color:#265641;margin:4px 0;font-size:14px;overflow-wrap:anywhere}
+.tg-route p{color:#73897b;font-size:11px;line-height:1.5}
+.tg-route-mark{font-size:10px;font-weight:700;white-space:nowrap}
+.tg-group-setup-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border:1px solid #e3e9e2;border-radius:10px}
+.tg-group-setup-head small{font-size:9px;color:#889b8c}
+.tg-group-setup-head h4{margin:4px 0 0;color:#2d5b46}
+.tg-config-explain{font-size:11px;color:#627c6c;line-height:1.6}
+.tg-model-list{display:grid;gap:5px}
+.tg-model-assignment{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid #e6ece4;border-radius:9px;cursor:pointer}
+.tg-model-assignment input{accent-color:#287857;flex-shrink:0}
+.tg-model-assignment span{display:grid;gap:2px;min-width:0;flex:1}
+.tg-model-assignment strong{font-size:11px;color:#2c5541}
+.tg-model-assignment small{font-size:10px;color:#8aa092}
+.tg-model-assignment em{font-style:normal;color:#7e9989;font-size:10px;text-align:right;max-width:30%}
+.tg-auth-box{border:1px solid #e1e9e0;background:#f8faf6;border-radius:11px;padding:18px;margin:14px 0}
+.tg-auth-box h4{font-size:15px;color:#255a40;margin:0 0 8px}
+.tg-auth-box p{font-size:11px;color:#6d8375;line-height:1.65;margin:5px 0 14px}
+.tg-auth-box a{color:#24745c;text-decoration:underline}
+.tg-auth-box label{display:grid;gap:5px;margin:8px 0;font:700 11px Manrope,Arial,sans-serif;color:#536e5b}
+.tg-auth-box input{width:100%;min-width:0;padding:10px;border:1px solid #d7e3da;border-radius:7px;color:#2a5540;background:#fff}
+.tg-auth-box button{margin:8px 6px 0 0}
+.tg-auth-ok{border-radius:9px;border:1px solid #baddc3;background:#eaf7ed;padding:13px}
+.tg-auth-ok strong{color:#206045;font-size:12px}
+.tg-auth-message{margin-top:12px;font-size:11px;color:#247457}
+.tg-auth-message.error{color:#ae4646}
+.tg-auth-dialog{border:1px solid #d9e9df;border-radius:13px;padding:24px;max-width:min(420px,93vw);width:100%;box-shadow:0 16px 54px #173c322f}
+.tg-auth-dialog::backdrop{background:#152e27ad}
+.tg-auth-dialog h3{margin:0 0 10px;font-size:16px}
+.tg-auth-dialog p{font-size:12px;color:#5d796c;line-height:1.5}
+.tg-auth-dialog input{padding:12px;border:1px solid #cfe0d6;border-radius:8px;width:100%;box-sizing:border-box}
+.tg-auth-dialog-buttons{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.tg-real-picker{display:flex;align-items:flex-end;gap:9px;flex-wrap:wrap;margin:12px 0}
+.tg-real-picker label{display:grid;gap:6px;flex:1;min-width:190px;color:#4e6e60;font-size:11px;font-weight:700}
+.tg-real-picker select{width:100%;padding:10px;border-radius:8px;border:1px solid #dce6db;background:#fff;color:#345847}
+.tg-muted{color:#879a8d;font-size:11px}
+.tg-monitor-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+.tg-monitor-head strong,.tg-monitor-head small{display:block}
+.tg-monitor-head strong{font-size:12px;color:#315740}
+.tg-monitor-head small{font-size:10px;color:#849b8a}
+.tg-records{display:grid;gap:10px;margin-top:14px}
+.tg-record{border:1px solid #e1e8df;border-radius:11px;background:#fbfcf8;padding:14px}
+.tg-record-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.tg-record-top strong{font-size:12px;color:#2c5641}
+.tg-record>small{display:block;font-size:10px;color:#8b9d8d;margin-top:4px}
+.tg-rec-state{font-size:10px;background:#fff1dd;color:#956c35;border-radius:30px;padding:5px 9px;white-space:nowrap}
+.tg-rec-state.ok{background:#e2f4e8;color:#216445}
+.tg-record-content{margin:11px 0;display:grid;gap:10px}
+.tg-monitor-item{padding:10px 12px;border-radius:8px;border:1px solid #e4eae1;background:#f6f9f4;display:grid;gap:3px}
+.tg-monitor-item strong{font-size:12px;color:#2b4f40;white-space:pre-wrap;overflow-wrap:anywhere}
+.tg-monitor-item small{color:#607969;font-size:11px}
+.tg-record pre{font:500 12px/1.7 Manrope,Arial,sans-serif;white-space:pre-wrap;overflow-wrap:anywhere;margin:0}
+@media(max-width:760px){
+ .tg-route{align-items:flex-start;flex-wrap:wrap}
+ .tg-model-assignment{align-items:flex-start}
+ .tg-model-assignment em{max-width:40%}
+ .tg-editor-actions{justify-content:stretch}
+ .tg-editor-actions button{flex:1}
+}
