@@ -206,7 +206,8 @@
     // Primeiro os comunicados. Um informe de preço ou produto novo não deve
     // virar solicitação só porque contém CI, CB ou uma palavra comum.
     if(/\b(?:aumentou|abaixou|baixou|subiu|reduziu|reajustou)\b[^\n]{0,95}(?:R\$\s*)?\d+[.,]\d{2}/i.test(txt)
-      ||/\b(?:aumento|redu[cç][aã]o|altera[cç][aã]o)\s+de\s+pre[cç]o\b/i.test(txt))return "preco";
+      ||/\b(?:aumento|redu[cç][aã]o|altera[cç][aã]o)\s+de\s+pre[cç]o\b/i.test(txt)
+      ||/^\s*(?:AUMENTOU|ABAIXOU|DIMINUIU|REDUZIU)\b/im.test(txt))return "preco";
     if(/\b(?:produto|item|mercadoria)(?:s)?\s+novo(?:s)?\b|\bnovo(?:s)?\s+(?:produto|item|mercadoria)(?:s)?\b/i.test(txt))return "produto";
     // Solicitações dos colegas também precisam de conferência por reação.
     if(/\bpor\s+favor\s*[,.:;]?\s*(?:cadastrar|atualizar|alterar|trocar|incluir|adicionar|verificar|ajustar|retirar|remover|colocar|desmembrar|corrigir|registrar|cancelar)\b/i.test(txt)
