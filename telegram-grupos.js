@@ -93,9 +93,8 @@
     const ci=val(r.ci),name=val(r.name),cb=val(r.cb);
     const line=ci+(name?" - "+name:"");
     if(!ci && !name && !cb)return "";
-    let out=line+(cb?(line?"\n":"")+"CB: "+cb:"");
-    if(kind==="nome" && val(r.newName))out+="\nNovo nome: "+val(r.newName);
-    return out;
+    if(kind==="nome")return "CI - "+ci+"\n\nDE:\n"+name+"\n\nPARA:\n"+val(r.newName);
+    return line+(cb?(line?"\n":"")+"CB: "+cb:"");
   }
   function getMessage(){
     const m=model(),d=draft();
