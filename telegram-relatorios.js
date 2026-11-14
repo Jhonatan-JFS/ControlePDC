@@ -11,6 +11,10 @@
     if(!Number.isFinite(d.getTime()))return "Data não disponível";
     return d.toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",hour12:false});
   };
+  const formatCutoff=value=>{
+    const match=String(value||"").match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+    return match?match[3]+"/"+match[2]+"/"+match[1]+" às "+match[4]+":"+match[5]:formatDate(value);
+  };
   const labels={
     all:"Todas as categorias",cb:"Atualizações de CB",produto:"Produtos novos",
     preco:"Alterações de preço",solicitacao:"Solicitações",outras:"Outras mensagens"
@@ -111,7 +115,7 @@
       "============================================================",
       "Grupo: "+group.name,
       "Tópico: "+(topic?.name||"Conversa principal (sem tópicos)"),
-      "A partir de: "+formatDate(opts.from),
+      "A partir de: "+formatCutoff(opts.from)+" (horário local do navegador)",
       "Gerado em: "+formatDate(new Date()),
       "Filtro: "+labels[opts.kind||"all"],
       "Origem: "+(opts.direction==="enviadas"?"Minhas mensagens":opts.direction==="recebidas"?"Mensagens recebidas":"Todas as mensagens"),
