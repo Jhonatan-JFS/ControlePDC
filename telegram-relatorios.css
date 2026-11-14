@@ -1,0 +1,37 @@
+/* Relatório TXT por grupo/tópico — dentro da quarta aba Monitoramento. */
+#monitorPage .tg-report-panel{
+  margin:16px 0 20px;padding:clamp(13px,2.5vw,20px);
+  border:1px solid #376484;border-radius:16px;
+  background:linear-gradient(126deg,#152b44,#12243a 75%);
+  box-shadow:0 8px 20px #07112024;
+}
+#monitorPage .tg-report-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+#monitorPage .tg-report-head h3{color:#e5f6ff;font-size:15px;margin:0 0 5px;font-weight:800}
+#monitorPage .tg-report-head p{margin:0;max-width:640px;font-size:11px;line-height:1.65;color:#a7c2d7}
+#monitorPage .tg-report-head>span{border:1px solid #507999;background:#21445f;color:#c8ebff;border-radius:8px;font-size:10px;padding:7px 10px;white-space:nowrap;font-weight:800}
+#monitorPage .tg-report-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:12px;row-gap:12px;align-items:end}
+#monitorPage .tg-report-fields label{display:grid;gap:7px;color:#bed7e7;font-size:11px;font-weight:750;min-width:0}
+#monitorPage .tg-report-fields select,#monitorPage .tg-report-fields input{
+  display:block;width:100%;min-width:0;min-height:41px;
+  border:1px solid #476581;background:#0f2236;color:#e9f6ff;
+  border-radius:9px;padding:10px 11px;font:600 12px Manrope,Arial,sans-serif;color-scheme:dark
+}
+#monitorPage .tg-report-fields select:focus-visible,#monitorPage .tg-report-fields input:focus-visible{
+  border-color:#75c8f2;outline:2px solid #509dcb51;outline-offset:1px
+}
+#monitorPage .tg-report-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:9px;margin:16px 0 9px}
+#monitorPage .tg-report-actions .btn{min-height:38px}
+#monitorPage .tg-report-status{font-size:11px;line-height:1.7;color:#a7c2d5;margin:6px 0}
+#monitorPage .tg-report-status.error{color:#ffa7a7}
+#monitorPage .tg-report-preview{
+  margin:13px 0 0;padding:16px;max-height:420px;overflow:auto;
+  background:#081626;border:1px solid #3b5872;border-radius:11px;
+  color:#dceeff;font:500 11px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace;
+  white-space:pre-wrap;overflow-wrap:anywhere;
+}
+@media(max-width:760px){
+  #monitorPage .tg-report-fields{grid-template-columns:1fr}
+  #monitorPage .tg-report-head>span{font-size:9px}
+  #monitorPage .tg-report-actions{display:grid;grid-template-columns:1fr}
+  #monitorPage .tg-report-actions .btn{width:100%;min-width:0}
+}
