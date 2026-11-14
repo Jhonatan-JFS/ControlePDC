@@ -1,16 +1,59 @@
-
-/* Organizador de destinos Telegram — apenas interface, sem envio. */
-.tg-destinations{border-bottom:1px solid #e3e8e1;padding-bottom:13px;margin-bottom:13px}
-.tg-destinations-head{display:flex;justify-content:space-between;align-items:center;gap:9px}
-.tg-destinations-head strong{font-size:12px;color:#315947}
-.tg-destinations p{font-size:10px;line-height:1.5;color:#758b80;margin:7px 0}
-.tg-group-list{display:grid;gap:5px}
-.tg-group-row{display:flex;gap:4px;align-items:center;min-width:0}
-.tg-group-button{border:1px solid transparent;border-radius:8px;background:transparent;padding:9px 10px;font:600 11px Manrope,Arial,sans-serif;text-align:left;color:#466452;flex:1;min-width:0;display:flex;justify-content:space-between;align-items:center;gap:6px;cursor:pointer;overflow-wrap:anywhere}
-.tg-group-button.active{border-color:#c7e3d3;background:#e3f1e8;color:#185847}
-.tg-group-button small{color:#728f7d}
-.tg-remove-group{border:0;background:transparent;color:#947878;padding:5px;cursor:pointer}
-.tg-dest-picker{display:grid;gap:6px;border:1px solid #e1e9e0;background:#f8faf6;border-radius:9px;padding:11px;margin-bottom:14px}
-.tg-dest-picker label{font:700 11px Manrope,Arial,sans-serif;color:#355846}
-.tg-dest-picker select{padding:9px;border:1px solid #dfe7de;background:#fff;border-radius:8px;color:#345446;font:600 12px Manrope,Arial,sans-serif}
-.tg-dest-picker small{font-size:10px;line-height:1.55;color:#788b7e}
+/* Página Telegram independente — visual alinhado ao Controle PDC. */
+.tg-page{max-width:1250px;margin:0 auto}
+.tg-page-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:2px 2px 16px}
+.tg-page-head h2{margin:0;color:#1d4037;font:800 19px Manrope,Arial,sans-serif}
+.tg-page-head p{color:#82938d;font-size:12px;margin:4px 0 0}
+.tg-warning-label{background:#fff3df;border:1px solid #ecdcbc;border-radius:18px;padding:8px 11px;color:#896638;font:700 10px Manrope,Arial,sans-serif}
+.tg-layout{display:grid;grid-template-columns:minmax(220px,.26fr) minmax(0,.74fr);align-items:start;gap:16px}
+.tg-sidebar,.tg-workspace{background:#fffefa;border:1px solid #e2e6df;border-radius:13px;box-shadow:0 6px 22px #1d462a0b}
+.tg-sidebar{padding:13px;display:grid;gap:6px;position:sticky;top:12px}
+.tg-sidebar-title{font:800 10px Manrope,Arial,sans-serif;letter-spacing:.09em;color:#92a398;padding:5px}
+.tg-section-link{border:0;border-radius:9px;background:transparent;padding:12px 11px;text-align:left;font:750 12px Manrope,Arial,sans-serif;color:#496b5a;cursor:pointer}
+.tg-section-link.active{background:#e0eee6;color:#1c614b}
+.tg-groups-heading{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:13px 5px 4px}
+.tg-groups-heading strong{font-size:11px;color:#557361}
+.tg-group-list{display:grid;gap:5px;margin-bottom:11px}
+.tg-group-button{display:grid;gap:3px;border:1px solid #e9eee8;background:#f8faf6;border-radius:9px;color:#305945;cursor:pointer;text-align:left;padding:11px 12px;font:700 12px Manrope,Arial,sans-serif;min-width:0;overflow-wrap:anywhere}
+.tg-group-button:hover{background:#eff6ef}.tg-group-button.active{background:#e3f1e8;border-color:#9ed1b4;color:#195b44}
+.tg-group-button small{font:500 10px Manrope,Arial,sans-serif;color:#85998c}
+.tg-empty-groups{color:#96a79c;font-size:11px;line-height:1.5;padding:5px 10px}
+.tg-workspace{padding:20px;min-width:0;min-height:290px}
+.tg-workspace-head{padding-bottom:16px;border-bottom:1px solid #e5eae3;margin-bottom:15px}
+.tg-workspace-head h3{margin:0;font:800 17px Manrope,Arial,sans-serif;color:#23503e}
+.tg-workspace-head p{font-size:11px;color:#82958a;line-height:1.65;margin:5px 0 0}
+.tg-editor-toolbar{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;margin-bottom:14px}
+.tg-editor-toolbar label{font:700 11px Manrope,Arial,sans-serif;color:#5d7968;display:grid;gap:6px;flex:1;max-width:350px;min-width:180px}
+.tg-editor-toolbar select,.tg-fields input,.tg-custom input,.tg-custom textarea{background:#fff;border:1px solid #dfe5dd;border-radius:8px;padding:10px;font:600 12px Manrope,Arial,sans-serif;color:#345344;width:100%;min-width:0}
+.tg-group-actions{display:flex;gap:6px;flex-wrap:wrap}
+.tg-information{border:1px solid #e4e9e0;background:#f6f9f5;border-radius:10px;padding:15px;color:#587567}
+.tg-information strong{font:800 12px Manrope,Arial,sans-serif;color:#315a48}
+.tg-information p{margin:7px 0 0;font-size:11px;line-height:1.7}
+.tg-info-inline{margin:12px 0 15px}
+.tg-product{padding:15px;border:1px solid #e5eae4;background:#fafbf8;border-radius:11px;margin-bottom:11px}
+.tg-product-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px}
+.tg-product-head strong{font:800 12px Manrope,Arial,sans-serif;color:#305743}
+.tg-text-button{color:#a45c56;background:transparent;border:0;cursor:pointer;font-size:11px}
+.tg-fields{display:grid;grid-template-columns:minmax(90px,.32fr) minmax(180px,.68fr);gap:11px}
+.tg-fields label,.tg-custom label{display:grid;gap:5px;color:#5e796b;font:700 10px Manrope,Arial,sans-serif}
+.tg-fields label:last-child{grid-column:1/-1}
+.tg-custom{display:grid;gap:14px;padding:15px;border:1px solid #e6ebe2;border-radius:11px;background:#fafbf9}
+.tg-custom textarea{min-height:150px;resize:vertical;font-weight:500;line-height:1.6}
+.tg-preview-panel{margin-top:17px;border:1px solid #e1e9df;background:#f3f7f2;border-radius:10px;overflow:hidden}
+.tg-preview-head{border-bottom:1px solid #e1e9df;padding:12px 14px;display:flex;justify-content:space-between;gap:8px;color:#315641;font-size:11px}
+.tg-preview-head span{color:#879c8b;font-weight:500}
+.tg-preview-panel pre{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;min-height:65px;max-height:45vh;overflow:auto;font:500 12px/1.8 Manrope,Arial,sans-serif;color:#2d493b;padding:14px}
+.tg-editor-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px;flex-wrap:wrap}
+.tg-notice{font-size:11px;color:#25805f;line-height:1.5;margin:10px 0 0}.tg-notice.error{color:#a53f45}
+.tg-menu-toggle{display:none}
+@media(max-width:760px){
+  .tg-page-head{flex-wrap:wrap}
+  .tg-warning-label{font-size:10px}
+  .tg-menu-toggle{display:inline-flex;margin:0 0 10px}
+  .tg-layout{display:block}
+  .tg-sidebar{display:none;margin-bottom:12px;position:static}
+  .tg-sidebar.open{display:grid}
+  .tg-workspace{padding:13px}
+  .tg-fields{grid-template-columns:1fr}
+  .tg-fields label:last-child{grid-column:auto}
+  .tg-editor-toolbar label{max-width:none}
+}
