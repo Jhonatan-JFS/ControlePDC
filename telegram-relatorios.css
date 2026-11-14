@@ -35,3 +35,22 @@
   #monitorPage .tg-report-actions{display:grid;grid-template-columns:1fr}
   #monitorPage .tg-report-actions .btn{width:100%;min-width:0}
 }
+
+
+/* Atalho de Relatório TXT permanentemente visível na barra superior do Monitoramento. */
+#monitorPage .tg-monitor-header-actions{display:flex;align-items:center;justify-content:flex-end;gap:11px;flex-wrap:wrap}
+#monitorPage .tg-report-launcher{
+  min-height:43px;padding:11px 17px;font-size:12px;font-weight:800;
+  color:#fff;background:linear-gradient(125deg,#2479c9,#368de2);
+  border:1px solid #68bff1;border-radius:11px;
+  box-shadow:0 4px 16px #135d9d4d;white-space:nowrap;
+}
+#monitorPage .tg-report-launcher:hover,
+#monitorPage .tg-report-launcher:focus-visible{background:linear-gradient(125deg,#2c90e4,#4bb5ef);border-color:#9cdbff}
+#monitorPage .tg-report-container{scroll-margin-top:16px;animation:tg-report-appear .18s ease-out}
+#monitorPage .tg-report-container>.tg-report-panel{margin-top:4px}
+@keyframes tg-report-appear{from{opacity:.75;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:760px){
+  #monitorPage .tg-monitor-header-actions{width:100%;justify-content:stretch}
+  #monitorPage .tg-report-launcher{width:100%;flex:1}
+}
