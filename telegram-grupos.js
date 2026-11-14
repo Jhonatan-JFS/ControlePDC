@@ -155,11 +155,6 @@
       }).join("")+'</div>':'<p class="tg-muted">Configure um destino para selecionar seus modelos.</p>')+'</section>'+
       '<section class="tg-final-step"><strong>Pronto! Agora é só solicitar.</strong><p>Em <b>Nova solicitação</b>, selecione o modelo, preencha os produtos e revise a prévia. O destino já aparecerá preenchido; você só confirma o envio.</p><button type="button" class="btn btn-primary btn-small" id="tgGoCompose">Ir para Nova solicitação</button></section>';
   }
-  function renderMonitoring(){
-    pane.innerHTML=header("Monitoramento","Histórico de solicitações, reações e alterações por mensagem.")+
-      '<div id="tgMonitorMount"></div>';
-    window.TelegramConnector?.renderMonitor?.();
-  }
   function renderSettings(){
     pane.innerHTML=header("Configurações","Conexão de conta e sincronização sob demanda no navegador.")+
       '<div id="tgAuthMount"></div>'+
@@ -171,7 +166,6 @@
     if(badge){badge.textContent=connected?"Conta Telegram conectada":"Conta Telegram não conectada";badge.classList.toggle("connected",connected);}
     menu();
     if(section==="grupos"){renderGroups();renderRealGroupChooser();}
-    else if(section==="monitoramento")renderMonitoring();
     else if(section==="configuracoes")renderSettings();
     else renderCompose();
   }
