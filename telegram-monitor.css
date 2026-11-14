@@ -1,0 +1,55 @@
+/* Página de Monitoramento Telegram: grupos independentes, tópicos e navegação. */
+#monitorPage .tg-monitor-workspace{width:100%;min-width:0}
+#monitorPage .tg-monitor-controls{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+#monitorPage .tg-monitor-controls strong{display:block;font-size:15px;font-weight:800;color:#f0f8ff}
+#monitorPage .tg-monitor-controls p{font-size:11px;color:#a5bfd4;line-height:1.6;margin:4px 0 0}
+#monitorPage .tg-monitor-controls button{white-space:normal}
+#monitorPage .tg-monitor-settings{background:#13243b;border:1px solid #345372;border-radius:15px;padding:16px;margin-bottom:18px}
+#monitorPage .tg-mon-config-heading{display:flex;gap:7px 14px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:14px}
+#monitorPage .tg-mon-config-heading strong{font-size:14px;color:#e7f7ff}
+#monitorPage .tg-mon-config-heading span{font-size:10px;color:#9dbdd3}
+#monitorPage .tg-mon-selection-list{display:grid;gap:8px}
+#monitorPage .tg-mon-configured{background:#0e1c2f;border:1px solid #304c68;border-radius:10px;padding:12px;display:flex;align-items:center;justify-content:space-between;gap:9px;flex-wrap:wrap}
+#monitorPage .tg-mon-configured>div:first-child{flex:1;min-width:130px}
+#monitorPage .tg-mon-configured strong{display:block;font-size:12px;color:#e2f5ff}
+#monitorPage .tg-mon-configured small{display:block;color:#aac0d4;font-size:11px;line-height:1.5;margin-top:3px}
+#monitorPage .tg-mon-row-actions{display:flex;flex-wrap:wrap;gap:6px}
+#monitorPage .tg-mon-new-selection{border-top:1px solid #2c465e;margin-top:15px;padding-top:14px;display:grid;gap:11px}
+#monitorPage .tg-mon-new-selection>label{color:#c0d6e9;font-size:11px;font-weight:700}
+#monitorPage .tg-mon-new-selection>select{width:100%;max-width:550px;min-width:0;padding:12px}
+#monitorPage .tg-mon-new-selection>button{justify-self:start}
+#monitorPage .tg-mon-helper{font-size:10px;line-height:1.65;color:#9bb9cb;margin:13px 0 0}
+#monitorPage .tg-mon-topic-fieldset{min-width:0;border:1px solid #365572;border-radius:11px;padding:12px}
+#monitorPage .tg-mon-topic-fieldset legend{padding:0 7px;font-weight:700;font-size:11px;color:#cae6fb}
+#monitorPage .tg-mon-topic-helpers{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+#monitorPage .tg-mon-topic-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:7px}
+#monitorPage .tg-mon-topic-choice{display:flex;align-items:center;gap:9px;background:#162d45;border:1px solid #385776;border-radius:9px;padding:12px 10px;color:#dbecfa;font-size:11px;cursor:pointer}
+#monitorPage .tg-mon-topic-choice:has(input:checked){border-color:#69b6df;background:#174361}
+#monitorPage .tg-mon-topic-choice input{accent-color:#61b8ec;flex-shrink:0}
+#monitorPage .tg-mon-whole-group{background:#173149;border:1px solid #365371;border-radius:10px;padding:11px}
+#monitorPage .tg-mon-whole-group strong{font-size:12px;color:#d9eeff}
+#monitorPage .tg-mon-whole-group p{font-size:11px;color:#a2bdcf;margin:5px 0 0}
+#monitorPage .tg-monitor-tabs{display:flex;gap:8px;overflow-x:auto;padding:5px 2px 11px;margin:0 0 10px;scrollbar-width:thin;scrollbar-color:#53799a #102035}
+#monitorPage .tg-monitor-tab{background:#12273c;border:1px solid #345271;border-radius:12px;color:#b7d0e4;font-weight:700;font-size:12px;padding:11px 16px;white-space:nowrap;cursor:pointer;min-height:41px}
+#monitorPage .tg-monitor-tab.active{background:linear-gradient(120deg,#215a84,#1b4867);color:#f3faff;border-color:#64aee0;box-shadow:inset 0 -3px 0 #75cff7}
+#monitorPage .tg-monitor-topic:hover,#monitorPage .tg-monitor-tab:hover{border-color:#71bee4}
+#monitorPage .tg-monitor-topics{display:flex;gap:7px;overflow-x:auto;padding:0 1px 13px;scrollbar-width:thin}
+#monitorPage .tg-monitor-topic{background:#0e2238;border:1px solid #2d4b67;color:#9bbfd7;border-radius:22px;font-size:11px;white-space:nowrap;padding:9px 13px;cursor:pointer}
+#monitorPage .tg-monitor-topic.active{color:#dff8ff;background:#235477;border-color:#58a6d4}
+#monitorPage .tg-monitor-tabs:empty{display:none}
+#monitorPage .tg-monitor-head{border-top:1px solid #29435f;padding-top:15px}
+#monitorPage #tgMonitorStatus{line-height:1.6}
+#monitorPage #tgSyncNow:disabled{opacity:.45;cursor:not-allowed}
+#monitorPage .tg-record{border-radius:13px}
+@media(max-width:760px){
+ #monitorPage .tg-monitor-controls{align-items:stretch}
+ #monitorPage .tg-monitor-controls button{width:100%}
+ #monitorPage .tg-monitor-settings{padding:12px}
+ #monitorPage .tg-monitor-tab{padding:10px 13px}
+ #monitorPage .tg-mon-topic-grid{grid-template-columns:1fr}
+ #monitorPage .tg-mon-new-selection>button{width:100%}
+}
+@media(max-width:550px){
+ .pdc-nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px}
+ .pdc-nav button{min-width:0;white-space:normal;padding:9px 7px;line-height:1.3}
+}
