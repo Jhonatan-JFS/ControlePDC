@@ -1,5 +1,5 @@
-/* Central Telegram: roteamento local de modelos para grupos configurados.
-   Sem acesso real ao Telegram nesta etapa. A integração futura exige backend autorizado. */
+/* Central Telegram: modelos, destinos por grupo/tópico e menus.
+   A conexão MTProto fica em telegram-connector.js; os vínculos são locais ao navegador. */
 (() => {
   "use strict";
   const $ = id => document.getElementById(id);
