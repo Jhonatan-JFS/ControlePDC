@@ -337,11 +337,18 @@
     const {selection,group}=monitorScope(),db=readHistory();
     if(!selection.groups.length)monitorSettingsOpen=true;
     if(group&&activeMonitorTopic!=="all"&&!group.topics.some(t=>t.id===activeMonitorTopic))activeMonitorTopic="all";
-    const records=group?db.records.filter(r=>matchesMonitorScope(r,group,activeMonitorTopic))
+    const all=group?db.records.filter(r=>matchesMonitorScope(r,group,activeMonitorTopic))
       .sort((a,b)=>new Date(b.date)-new Date(a.date)):[];
-    const requests=records.filter(r=>r.kind==="solicitacao"||!r.kind);
-    const verified=requests.filter(r=>r.status==="conferido"&&!r.unavailable).length;
-    const pending=requests.filter(r=>r.status==="pendente"&&!r.unavailable).length;
+    const sent=all.filter(r=>recordDirection(r)==="enviadas");
+    const incoming=all.filter(r=>recordDirection(r)==="recebidas");
+    const grouped={solicitacao:incoming.filter(r=>r.kind==="solicitacao"),preco:incoming.filter(r=>r.kind==="preco"),
+      produto:incoming.filter(r=>r.kind==="produto"),outras:incoming.filter(r=>!["solicitacao","preco","produto"].includes(r.kind))};
+    const visible=activeMonitorDirection==="recebidas"?
+      incoming.filter(r=>activeReceivedCategory==="todas"||r.kind===activeReceivedCategory||
+        (activeReceivedCategory==="outras"&&!["solicitacao","preco","produto"].includes(r.kind))):sent;
+    const allRequests=all.filter(r=>r.kind==="solicitacao");
+    const verified=allRequests.filter(r=>r.status==="conferido"&&!r.unavailable).length;
+    const pending=allRequests.filter(r=>r.status==="pendente"&&!r.unavailable).length;
     const totalSources=selection.groups.reduce((count,g)=>count+(g.isForum?g.topics.length:1),0);
     const metric=(title,value,tone,note)=>'<div class="tg-stat" data-tone="'+tone+'"><div class="tg-stat-label">'+title+'</div><strong class="tg-stat-value">'+value+'</strong><div class="tg-stat-note">'+note+'</div></div>';
     const tabs='<nav class="tg-monitor-tabs" aria-label="Grupos monitorados">'+selection.groups.map(g=>{
@@ -351,29 +358,52 @@
     const topics=group?.isForum?'<nav class="tg-monitor-topics" aria-label="Tópicos do grupo selecionado">'+
       '<button type="button" class="tg-monitor-topic'+(activeMonitorTopic==="all"?' active':'')+'" data-mon-filter="all">Todos os tópicos escolhidos</button>'+
       group.topics.map(t=>'<button type="button" class="tg-monitor-topic'+(activeMonitorTopic===t.id?' active':'')+'" data-mon-filter="'+enc(t.id)+'">'+enc(t.name)+'</button>').join("")+'</nav>':"";
-    const top='<div class="tg-monitor-controls"><div><strong>Monitoramento por grupo</strong><p>Alterne entre os grupos para ver apenas suas mensagens.</p></div>'+
+    const top='<div class="tg-monitor-controls"><div><strong>Monitoramento por grupo</strong><p>Consulte mensagens de todos os participantes, separadas por quem enviou e pelo assunto.</p></div>'+
       '<button type="button" id="tgMonToggleConfig" class="btn btn-soft btn-small" aria-expanded="'+monitorSettingsOpen+'">⚙ Selecionar grupos e tópicos</button></div>';
-    const stats='<section class="tg-stats" aria-label="Indicadores da aba selecionada">'+
-      metric("Mensagens exibidas",records.length,"info",group?"Grupo atual":"Nenhum grupo")+
-      metric("Conferidas",verified,"success","Com reação na última leitura")+
-      metric("Não conferidas",pending,"warning","Sem reação na última leitura")+
-      metric("Fontes monitoradas",totalSources,"info","Grupos / tópicos selecionados")+'</section>';
-    const sync='<div class="tg-monitor-head"><div><strong>'+records.length+' mensagem(ns) nesta aba</strong><small>Última sincronização: '+(db.lastSync?enc(new Date(db.lastSync).toLocaleString("pt-BR")):"nunca")+'</small></div>'+
+    const directionTabs='<nav class="tg-monitor-directions" aria-label="Origem das mensagens">'+
+      '<button type="button" class="tg-monitor-direction'+(activeMonitorDirection==="enviadas"?' active':'')+'" data-mon-direction="enviadas" aria-pressed="'+(activeMonitorDirection==="enviadas")+'"><span>Minhas mensagens</span><strong>'+sent.length+'</strong></button>'+
+      '<button type="button" class="tg-monitor-direction'+(activeMonitorDirection==="recebidas"?' active':'')+'" data-mon-direction="recebidas" aria-pressed="'+(activeMonitorDirection==="recebidas")+'"><span>Mensagens recebidas</span><strong>'+incoming.length+'</strong></button></nav>';
+    const receivedFilters='<nav class="tg-monitor-categories" aria-label="Tipos de mensagens recebidas">'+[
+      ["todas","Todas",incoming.length],["solicitacao","Solicitações dos colegas",grouped.solicitacao.length],
+      ["preco","Alterações de preço",grouped.preco.length],["produto","Produtos novos",grouped.produto.length],
+      ["outras","Outras",grouped.outras.length]
+    ].map(([key,label,count])=>'<button type="button" class="tg-monitor-category'+(activeReceivedCategory===key?' active':'')+'" data-mon-category="'+key+'" aria-pressed="'+(activeReceivedCategory===key)+'">'+label+' <span>'+count+'</span></button>').join("")+'</nav>';
+    const stats='<section class="tg-stats" aria-label="Indicadores das mensagens">'+
+      (activeMonitorDirection==="enviadas"?
+        metric("Minhas mensagens",sent.length,"info","Deste grupo ou tópico")+
+        metric("Conferidas",sent.filter(r=>r.kind==="solicitacao"&&r.status==="conferido").length,"success","Com reação")+
+        metric("Pendentes",sent.filter(r=>r.kind==="solicitacao"&&r.status==="pendente").length,"warning","Sem reação")+
+        metric("Fontes selecionadas",totalSources,"info","Grupos / tópicos monitorados"):
+        metric("Recebidas",incoming.length,"info","Mensagens dos demais participantes")+
+        metric("Solicitações",grouped.solicitacao.length,"warning","Também acompanhadas por reações")+
+        metric("Preços",grouped.preco.length,"info","Atualizações identificadas")+
+        metric("Produtos novos",grouped.produto.length,"success","Comunicados identificados"))+
+      '</section>';
+    const sync='<div class="tg-monitor-head"><div><strong>'+visible.length+' mensagem(ns) exibida(s)</strong>'+
+      '<small>Última sincronização: '+(db.lastSync?enc(new Date(db.lastSync).toLocaleString("pt-BR")):"nunca")+
+      ' · Solicitações conferidas neste grupo: '+verified+' · pendentes: '+pending+'</small></div>'+
       '<button type="button" class="btn btn-primary btn-small" id="tgSyncNow"'+(!selection.groups.length?' disabled':'')+'>↻ Sincronizar selecionados</button></div>';
     const status='<p class="tg-auth-message" id="tgMonitorStatus" role="status" aria-live="polite">'+
-      (!logged()?"Conecte sua conta em Configurações.":!selection.groups.length?"Configure quais grupos e tópicos acompanhar.":"A sincronização consulta apenas as fontes escolhidas, incluindo reações antigas.")+'</p>';
-    const content=records.length?'<div class="tg-records">'+records.map(rec=>{
-      const parsed=extract(rec.text);
-      const label=rec.unavailable?"Mensagem indisponível":rec.kind==="preco"?"Atualização de preço":
-        rec.kind==="produto"?"Produto novo":rec.status==="conferido"?"Conferido":"Não conferido";
+      (!logged()?"Conecte sua conta em Telegram → Configurações.":!selection.groups.length?"Configure quais grupos e tópicos acompanhar.":"A sincronização consulta todas as mensagens das fontes escolhidas e revalida as reações das solicitações de qualquer participante.")+'</p>';
+    const content=visible.length?'<div class="tg-records">'+visible.map(rec=>{
+      const received=recordDirection(rec)==="recebidas",request=rec.kind==="solicitacao";
+      const parsed=request?extract(rec.text):[];
+      const label=request?(rec.unavailable?"Mensagem indisponível":rec.status==="conferido"?"Conferido":"Não conferido"):
+        rec.kind==="preco"?"Alteração de preço":rec.kind==="produto"?"Produto novo":"Mensagem recebida";
       const block=parsed.length?parsed.map(p=>'<div class="tg-monitor-item"><strong>'+enc(p.ci)+' - '+enc(p.name)+'</strong>'+(p.cb?'<small>CB: '+enc(p.cb)+'</small>':'')+'</div>').join(""):'<pre>'+enc(rec.text)+'</pre>';
-      return '<article class="tg-record"><div class="tg-record-top"><strong>'+enc(rec.group)+(rec.topicName?' · '+enc(rec.topicName):'')+'</strong>'+
-        '<span class="tg-rec-state '+(rec.status==="conferido"&&!rec.unavailable?"ok":"")+'">'+enc(label)+'</span></div>'+
-        '<small>'+enc(new Date(rec.date).toLocaleString("pt-BR"))+' · Mensagem #'+enc(rec.messageId)+'</small>'+
-        '<div class="tg-record-content">'+block+'</div><small>'+(rec.reactionCount||0)+' reação(ões) · '+(rec.history?.length||0)+' evento(s) registrados</small></article>';
+      const sender=received?'Recebida de participante'+(rec.senderId?' (ID '+enc(rec.senderId)+')':''):'Enviada por mim';
+      const requestAction=received?'<div class="tg-record-actions"><button type="button" class="btn btn-ghost btn-small" data-mon-request="'+enc(rec.key)+'">'+
+        (request?'Não é solicitação':'Marcar como solicitação')+'</button></div>':"";
+      return '<article class="tg-record"><div class="tg-record-top"><strong>'+enc(rec.group)+(rec.topicName?' · '+enc(rec.topicName):'')+
+        '</strong><span class="tg-rec-state '+(request&&rec.status==="conferido"&&!rec.unavailable?"ok":"")+'">'+enc(label)+'</span></div>'+
+        '<small>'+sender+' · '+enc(new Date(rec.date).toLocaleString("pt-BR"))+' · Mensagem #'+enc(rec.messageId)+'</small>'+
+        '<div class="tg-record-content">'+block+'</div>'+
+        '<small>'+(request?(rec.reactionCount||0)+' reação(ões) · '+(rec.history?.length||0)+' evento(s) registrados':
+           'Mensagem informativa, sem status de conferência')+'</small>'+requestAction+'</article>';
     }).join("")+'</div>':'<div class="tg-information"><strong>Nenhuma mensagem nesta visualização.</strong><p>'+
-      (!group?"Configure um grupo para começar.":"Ainda não há registros deste grupo e tópico no histórico local. Use Sincronizar selecionados.")+'</p></div>';
-    return top+(monitorSettingsOpen?monitorConfigHtml(selection):"")+tabs+topics+stats+sync+status+content;
+      (!group?"Configure um grupo para começar.":"Não há mensagens nesta categoria no histórico local. Use Sincronizar selecionados para consultar novas mensagens.")+'</p></div>';
+    return top+(monitorSettingsOpen?monitorConfigHtml(selection):"")+tabs+topics+directionTabs+
+      (activeMonitorDirection==="recebidas"?receivedFilters:"")+stats+sync+status+content;
   }
   async function renderMonitorTopicChoices(){
     const mount=$("tgMonTopicOptions"),select=$("tgMonGroupPick");
@@ -420,6 +450,30 @@
   document.addEventListener("click",async e=>{
     if(e.target.closest("#tgMonToggleConfig")){
       monitorSettingsOpen=!monitorSettingsOpen;draftMonitorGroup="";draftMonitorTopics=[];renderMonitor();return;
+    }
+    const direction=e.target.closest("[data-mon-direction]");
+    if(direction){
+      activeMonitorDirection=direction.dataset.monDirection;
+      activeReceivedCategory="todas";
+      renderMonitor();return;
+    }
+    const category=e.target.closest("[data-mon-category]");
+    if(category){activeReceivedCategory=category.dataset.monCategory;renderMonitor();return;}
+    const requestToggle=e.target.closest("[data-mon-request]");
+    if(requestToggle){
+      const state=readHistory(),rec=state.records.find(r=>r.key===requestToggle.dataset.monRequest);
+      if(!rec||recordDirection(rec)!=="recebidas")return;
+      const next=rec.kind==="solicitacao"?"recebida":"solicitacao";
+      rec.manualKind=next;rec.kind=next;
+      const nextStatus=next==="solicitacao"?"pendente":"informativo";
+      if(rec.status!==nextStatus){
+        rec.status=nextStatus;
+        (rec.history ||= []).push({at:new Date().toISOString(),status:nextStatus,reason:"Classificação manual no monitor"});
+      }
+      if(next!=="solicitacao"){rec.reactionCount=0;rec.reactions=[];}
+      try{writeHistory(state);renderMonitor();}
+      catch(e){alert(String(e.message||e));}
+      return;
     }
     const tab=e.target.closest("[data-mon-tab]");
     if(tab){activeMonitorGroup=tab.dataset.monTab;activeMonitorTopic="all";renderMonitor();return;}
