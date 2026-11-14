@@ -80,7 +80,9 @@
   }
   function routeBox(){
     const g=destination(modelId);
-    const ready=!!g?.telegramId && (!g.isForum||g.topicId!=null);
+    const actual=g?.telegramId?window.TelegramConnector?.groups?.().find(x=>x.id===g.telegramId):null;
+    const forum=actual?.isForum??g?.isForum;
+    const ready=!!g?.telegramId && (!forum||g.topicId!=null);
     const detail=g?.telegramId ? esc(g.telegramName||g.name)+(g.topicName?' / '+esc(g.topicName):'') : "";
     return '<div class="tg-route '+(ready?"assigned":"unassigned")+'"><div><small>DESTINO AUTOMÁTICO</small><strong>'+(g?esc(g.name):'Nenhum grupo associado')+'</strong><p>'+(g?(ready?'Telegram: '+detail:'Selecione o tópico dentro do grupo antes do envio.'):'Configure um grupo ou tópico para receber este modelo.')+'</p></div><span class="tg-route-mark">'+(ready?'✓ Vinculado':'! Pendente')+'</span></div>';
   }
@@ -276,7 +278,8 @@
     }
     if(e.target.closest("#tgSendMessage")){
       const dest=destination(modelId);
-      if(!dest||!dest.telegramId||(dest.isForum&&dest.topicId==null))return notice("Vincule o grupo e seu tópico para este modelo.",true);
+      const actual=window.TelegramConnector?.groups?.().find(x=>x.id===dest?.telegramId);
+      if(!dest||!dest.telegramId||((actual?.isForum??dest.isForum)&&dest.topicId==null))return notice("Vincule o grupo e seu tópico para este modelo.",true);
       if(!window.TelegramConnector?.connected?.())return notice("Conecte o Telegram na aba Configurações.",true);
       const txt=getMessage();if(!txt.trim())return notice("Preencha o texto da solicitação.",true);
       const d=draft(),m=model();if(m.kind){const items=d.rows.filter(r=>val(r.ci)||val(r.name)||val(r.cb)||val(r.newName));if(!items.length||items.some(r=>!val(r.ci)||!val(r.name)||(m.kind==="cb"&&!val(r.cb))||(m.kind==="nome"&&!val(r.newName))))return notice("Complete os campos obrigatórios dos produtos.",true);}
