@@ -34,6 +34,13 @@
   }
   function logged(){return !!current&&!!window.TelegramBridge?.connected?.();}
   function groups(){return myGroups.map(g=>({...g}));}
+  async function topics(groupId){
+    if(!logged())throw new Error("Conecte a conta para listar os tópicos.");
+    const selected=myGroups.find(g=>g.id===groupId);
+    if(!selected)throw new Error("Grupo não encontrado. Atualize os grupos em Configurações.");
+    if(!selected.isForum)return [];
+    return window.TelegramBridge.topics(groupId);
+  }
   async function ask(kind,info){
     const labels={
       phone:"Número do Telegram (com DDI +55)",code:"Código de autenticação recebido no Telegram",
@@ -115,7 +122,12 @@
   }
   function linked(){
     const entries=window.TelegramRouting?.groups?.()||[];
-    return entries.filter(g=>g.telegramId&&myGroups.some(x=>x.id===g.telegramId));
+    const targets=entries.filter(g=>{
+      if(!g.telegramId)return false;
+      const actual=myGroups.find(x=>x.id===g.telegramId);
+      return actual && (!actual.isForum || (g.topicId!=null && String(g.topicId)!==""));
+    });
+    return targets.filter((g,i)=>targets.findIndex(x=>x.telegramId===g.telegramId&&String(x.topicId??"")===String(g.topicId??""))===i);
   }
   function readHistory(){
     try{
@@ -139,10 +151,12 @@
     let rec=state.records.find(x=>x.key===key);
     const now=new Date().toISOString();
     if(!rec){
-      rec={key,telegramId:g.telegramId,group:g.name,messageId:m.id,date:m.date,text:m.text,kind,reactionCount:kind==="solicitacao"?(m.reactionCount||0):0,reactions:kind==="solicitacao"?(m.reactions||[]):[],status:kind==="solicitacao"?(m.reactionCount>0?"conferido":"pendente"):"informativo",history:[{at:now,status:kind==="solicitacao"?(m.reactionCount>0?"conferido":"pendente"):"informativo",reason:"Primeira leitura"}]};
+      rec={key,telegramId:g.telegramId,topicId:m.topicId??g.topicId??null,topicName:g.topicName||"",group:g.telegramName||g.name,messageId:m.id,date:m.date,text:m.text,kind,reactionCount:kind==="solicitacao"?(m.reactionCount||0):0,reactions:kind==="solicitacao"?(m.reactions||[]):[],status:kind==="solicitacao"?(m.reactionCount>0?"conferido":"pendente"):"informativo",history:[{at:now,status:kind==="solicitacao"?(m.reactionCount>0?"conferido":"pendente"):"informativo",reason:"Primeira leitura"}]};
       state.records.push(rec);
     }else {
       rec.text=m.text||rec.text;rec.date=m.date||rec.date;
+      if(m.topicId!=null)rec.topicId=m.topicId;
+      if(g.topicName)rec.topicName=g.topicName;
     }
     return rec;
   }
@@ -160,15 +174,16 @@
   async function synchronize(){
     if(!logged())throw new Error("Conecte sua conta Telegram para sincronizar.");
     const targets=linked();
-    if(!targets.length)throw new Error("Vincule ao menos um grupo real aos destinos configurados.");
+    if(!targets.length)throw new Error("Vincule ao menos um grupo ou tópico do Telegram aos destinos configurados.");
     const db=readHistory(),errors=[],meId=window.TelegramBridge.getMeId();
     let added=0,checked=0;
     for(const group of targets){
       try{
         let pages=0,more=true;
         while(more&&pages<8){
-          const cursor=Number(db.cursors[group.telegramId]||0);
-          const page=await window.TelegramBridge.scan(group.telegramId,cursor,1200);
+          const cursorKey=group.telegramId+":topic:"+(group.topicId??"all");
+          const cursor=Number((db.cursors[cursorKey]??(group.topicId==null?db.cursors[group.telegramId]:0))||0);
+          const page=await window.TelegramBridge.scan(group.telegramId,cursor,1200,group.topicId??null);
           for(const msg of page.messages){
             const kind=recognize(msg,meId);
             if(kind){
@@ -177,12 +192,14 @@
               insertMessage(db,group,msg,kind);
             }
           }
-          db.cursors[group.telegramId]=Math.max(cursor,page.lastId);
+          db.cursors[cursorKey]=Math.max(cursor,page.lastId);
           writeHistory(db);
           more=page.truncated;pages++;
         }
         if(more)errors.push(group.name+": há mais mensagens para recuperar. Sincronize novamente.");
-        const records=db.records.filter(r=>r.telegramId===group.telegramId && (!r.kind||r.kind==="solicitacao"));
+        const records=db.records.filter(r=>r.telegramId===group.telegramId &&
+          (group.topicId==null || r.topicId==null || String(r.topicId)===String(group.topicId)) &&
+          (!r.kind||r.kind==="solicitacao"));
         for(let i=0;i<records.length;i+=50){
           const chunk=records.slice(i,i+50),reactionData=await window.TelegramBridge.reactions(group.telegramId,chunk.map(x=>x.messageId));
           const byId=new Map(reactionData.map(x=>[x.id,x]));
@@ -212,7 +229,7 @@
       (items.length?'<div class="tg-records">'+items.map(rec=>{
         const parsed=extract(rec.text),status=rec.unavailable?"Mensagem indisponível":rec.kind==="preco"?"Atualização de preço":rec.kind==="produto"?"Produto novo":rec.status==="conferido"?"Conferido":"Não conferido";
         const rows=parsed.length?parsed.map(p=>'<div class="tg-monitor-item"><strong>'+enc(p.ci)+' - '+enc(p.name)+'</strong>'+(p.cb?'<small>CB: '+enc(p.cb)+'</small>':'')+'</div>').join(""):'<pre>'+enc(rec.text)+'</pre>';
-        return '<article class="tg-record"><div class="tg-record-top"><strong>'+enc(rec.group)+'</strong><span class="tg-rec-state '+(rec.status==="conferido"&&!rec.unavailable?"ok":"")+'">'+enc(status)+'</span></div><small>'+enc(new Date(rec.date).toLocaleString("pt-BR"))+' · Mensagem #'+rec.messageId+'</small><div class="tg-record-content">'+rows+'</div><small>'+(rec.reactionCount||0)+' reação(ões) · '+(rec.history?.length||0)+' evento(s) no histórico</small></article>';
+        return '<article class="tg-record"><div class="tg-record-top"><strong>'+enc(rec.group)+(rec.topicName?' · '+enc(rec.topicName):'')+'</strong><span class="tg-rec-state '+(rec.status==="conferido"&&!rec.unavailable?"ok":"")+'">'+enc(status)+'</span></div><small>'+enc(new Date(rec.date).toLocaleString("pt-BR"))+' · Mensagem #'+rec.messageId+'</small><div class="tg-record-content">'+rows+'</div><small>'+(rec.reactionCount||0)+' reação(ões) · '+(rec.history?.length||0)+' evento(s) no histórico</small></article>';
       }).join("")+'</div>':'<div class="tg-information"><strong>Nenhuma solicitação registrada.</strong><p>Conecte a conta, vincule os grupos reais e inicie a primeira sincronização. Ela examinará inicialmente as últimas 200 mensagens de cada grupo; depois recuperará as novas por identificador.</p></div>');
   }
   function renderMonitor(){
@@ -234,8 +251,9 @@
   window.TelegramConnector={
     connected:logged,
     groups,
+    topics,
     reloadGroups,
-    send:async(groupId,text)=>{if(!logged())throw new Error("Conecte sua conta.");return window.TelegramBridge.send(groupId,text);},
+    send:async(groupId,text,topicId=null)=>{if(!logged())throw new Error("Conecte sua conta.");return window.TelegramBridge.send(groupId,text,topicId);},
     renderLogin,renderMonitor,synchronize,readHistory
   };
 })();

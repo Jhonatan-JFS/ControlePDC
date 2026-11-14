@@ -27,7 +27,7 @@
   function load(){
     try{
       const s=JSON.parse(localStorage.getItem(STORAGE)||"{}");
-      const groups=(Array.isArray(s.groups)?s.groups:[]).filter(g=>g&&typeof g.id==="string"&&typeof g.name==="string").slice(0,40).map(g=>({id:g.id,name:g.name.slice(0,80),telegramId:typeof g.telegramId==="string"?g.telegramId:""}));
+      const groups=(Array.isArray(s.groups)?s.groups:[]).filter(g=>g&&typeof g.id==="string"&&typeof g.name==="string").slice(0,40).map(g=>({id:g.id,name:g.name.slice(0,80),telegramId:typeof g.telegramId==="string"?g.telegramId:"",telegramName:typeof g.telegramName==="string"?g.telegramName:"",topicId:g.topicId==null?null:String(g.topicId),topicName:typeof g.topicName==="string"?g.topicName:"",isForum:!!g.isForum}));
       const ids=new Set(groups.map(g=>g.id));
       const mappings={};
       const prior=s.mappings&&typeof s.mappings==="object"?s.mappings:{};
@@ -38,6 +38,7 @@
   }
   const state=load();
   let section="solicitacoes", groupId=state.groups[0]?.id||"", modelId="cadastro";
+  const topicCache=new Map();
   function store(){
     try{localStorage.setItem(STORAGE,JSON.stringify(state));return true;}
     catch(_){alert("Não foi possível salvar neste navegador.");return false;}
@@ -71,7 +72,7 @@
     });
     groupsEl.innerHTML=state.groups.map(g=>{
       const n=models.filter(m=>state.mappings[m.id]===g.id).length;
-      return '<button type="button" class="tg-group-button '+(section==="grupos"&&groupId===g.id?"active":"")+'" data-tg-group="'+esc(g.id)+'"><span>'+esc(g.name)+'</span><small>'+n+' modelo(s) · Configurar</small></button>';
+      return '<button type="button" class="tg-group-button '+(section==="grupos"&&groupId===g.id?"active":"")+'" data-tg-group="'+esc(g.id)+'"><span>'+esc(g.name)+'</span><small>'+(g.telegramId?(esc(g.telegramName||"Grupo")+(g.topicName?' / '+esc(g.topicName):'')):'Não vinculado')+' · '+n+' modelo(s)</small></button>';
     }).join("") || '<p class="tg-empty-groups">Nenhum grupo cadastrado.</p>';
   }
   function header(title,description){
@@ -79,7 +80,11 @@
   }
   function routeBox(){
     const g=destination(modelId);
-    return '<div class="tg-route '+(g?"assigned":"unassigned")+'"><div><small>DESTINO AUTOMÁTICO</small><strong>'+(g?esc(g.name):'Nenhum grupo associado')+'</strong><p>'+(g?(g.telegramId?'Grupo do Telegram vinculado à conta.':'Grupo ainda não vinculado a uma conversa real.'):'Configure um grupo que receberá este tipo de solicitação.')+'</p></div><span class="tg-route-mark">'+(g?(g.telegramId?'✓ Vinculado':'! Não vinculado'):'! Pendente')+'</span></div>';
+    const actual=g?.telegramId?window.TelegramConnector?.groups?.().find(x=>x.id===g.telegramId):null;
+    const forum=actual?.isForum??g?.isForum;
+    const ready=!!g?.telegramId && (!forum||g.topicId!=null);
+    const detail=g?.telegramId ? esc(g.telegramName||g.name)+(g.topicName?' / '+esc(g.topicName):'') : "";
+    return '<div class="tg-route '+(ready?"assigned":"unassigned")+'"><div><small>DESTINO AUTOMÁTICO</small><strong>'+(g?esc(g.name):'Nenhum grupo associado')+'</strong><p>'+(g?(ready?'Telegram: '+detail:'Selecione o tópico dentro do grupo antes do envio.'):'Configure um grupo ou tópico para receber este modelo.')+'</p></div><span class="tg-route-mark">'+(ready?'✓ Vinculado':'! Pendente')+'</span></div>';
   }
   function itemInputs(){
     const m=model(),d=draft();
@@ -126,7 +131,7 @@
       '<div class="tg-information tg-info-inline"><strong>Grupos reais do Telegram</strong><p>Conecte sua conta em Configurações. Depois selecione abaixo uma conversa da lista autorizada para vinculá-la ao destino configurado.</p></div>'+
       '<div id="tgRealGroupChooser"></div>'+
       (selected?'<div class="tg-group-setup-head"><div><small>GRUPO SELECIONADO</small><h4>'+esc(selected.name)+'</h4></div><div class="tg-group-actions"><button type="button" id="tgRenameGroup" class="btn btn-ghost btn-small">Renomear</button><button type="button" id="tgDeleteGroup" class="btn btn-ghost btn-small">Excluir</button></div></div>'+
-        '<p class="tg-config-explain">Destino real: <b>'+(selected.telegramId?'vinculado ao ID '+esc(selected.telegramId):'ainda não vinculado')+'</b>. Marque quantos modelos desejar: Cadastro de Produto e Alteração de Nomenclatura podem ir ao mesmo grupo.</p>'+
+        '<p class="tg-config-explain">Destino real: <b>'+(selected.telegramId?esc(selected.telegramName||'Grupo')+(selected.topicName?' / '+esc(selected.topicName):selected.isForum?' / tópico não selecionado':''):'ainda não vinculado')+'</b>. Você pode vincular vários destinos ao mesmo grupo, escolhendo tópicos diferentes. Cada destino recebe os modelos marcados abaixo.</p>'+
         '<div class="tg-model-list">'+models.map(m=>{
           const assigned=destination(m.id),checked=assigned?.id===selected.id;
           return '<label class="tg-model-assignment"><input type="checkbox" data-tg-map="'+esc(m.id)+'" '+(checked?"checked":"")+'><span><strong>'+esc(m.name)+'</strong><small>'+esc(m.category)+'</small></span><em>'+(assigned&&!checked?'Em: '+esc(assigned.name):checked?'Destino definido':'Livre')+'</em></label>';
@@ -154,9 +159,33 @@
   function renderRealGroupChooser(){
     const mount=$("tgRealGroupChooser");if(!mount)return;
     const connected=window.TelegramConnector?.connected?.();
-    if(!connected){mount.innerHTML='<p class="tg-muted">Conecte a conta em Configurações para escolher grupos existentes.</p>';return;}
+    if(!connected){mount.innerHTML='<p class="tg-muted">Conecte a conta em Configurações para escolher grupos e tópicos.</p>';return;}
     const available=window.TelegramConnector.groups();
-    mount.innerHTML='<div class="tg-real-picker"><label>Selecionar grupo real<select id="tgRealGroupSelect"><option value="">Escolha uma conversa</option>'+available.map(g=>'<option value="'+esc(g.id)+'">'+esc(g.name)+'</option>').join("")+'</select></label><button type="button" id="tgLinkRealGroup" class="btn btn-soft btn-small">Vincular ao grupo selecionado</button></div>';
+    const selected=getGroup(groupId);
+    mount.innerHTML='<div class="tg-real-picker"><label>1. Selecione o grupo<select id="tgRealGroupSelect"><option value="">Escolha uma conversa</option>'+available.map(g=>'<option value="'+esc(g.id)+'"'+(selected?.telegramId===g.id?' selected':'')+'>'+esc(g.name)+(g.isForum?' (com tópicos)':'')+'</option>').join("")+'</select></label><div id="tgRealTopicChooser" class="tg-topic-chooser"></div><button type="button" id="tgRefreshTopics" class="btn btn-ghost btn-small">↻ Atualizar tópicos</button><button type="button" id="tgLinkRealGroup" class="btn btn-soft btn-small">Vincular destino</button></div>';
+    if(selected?.telegramId)loadTopicChoices();
+  }
+  async function loadTopicChoices(){
+    const dropdown=$("tgRealGroupSelect"),mount=$("tgRealTopicChooser");
+    if(!dropdown||!mount)return;
+    const id=dropdown.value,actual=window.TelegramConnector?.groups?.().find(g=>g.id===id);
+    if(!actual){mount.innerHTML="";return;}
+    if(!actual.isForum){
+      mount.innerHTML='<p class="tg-muted">Este grupo não possui tópicos. O destino será a conversa principal.</p>';
+      return;
+    }
+    mount.innerHTML='<p class="tg-muted">Consultando tópicos do grupo…</p>';
+    try{
+      let found=topicCache.get(id);
+      if(!found){
+        found=await window.TelegramConnector.topics(id);
+        topicCache.set(id,found);
+      }
+      if($("tgRealGroupSelect")?.value!==id)return;
+      if(!found.length){mount.innerHTML='<p class="tg-auth-message error">Não foi possível localizar tópicos. Confira se este grupo está no modo Fórum.</p>';return;}
+      const old=getGroup(groupId);
+      mount.innerHTML='<label>2. Escolha o tópico (subchat)<select id="tgRealTopicSelect"><option value="">Selecione um tópico…</option>'+found.map(t=>'<option value="'+esc(t.id)+'"'+(old?.telegramId===id&&String(old.topicId)===String(t.id)?' selected':'')+(t.closed?' disabled':'')+'>'+esc(t.name)+(t.closed?' (fechado)':'')+'</option>').join("")+'</select></label>';
+    }catch(err){mount.innerHTML='<p class="tg-auth-message error">Não foi possível listar os tópicos: '+esc(err.message||err)+'</p>';}
   }
   window.TelegramRouting={groups:()=>state.groups.map(g=>({...g})),refresh:render};
   window.addEventListener("tg-connection-changed",()=>render());
@@ -182,6 +211,7 @@
   });
   pane.addEventListener("change",e=>{
     const el=e.target;
+    if(el.id==="tgRealGroupSelect"){loadTopicChoices();return;}
     if(el.id==="tgModelSelect"){
       if(!modelMap.has(el.value))return;
       modelId=el.value;render();return;
@@ -217,12 +247,20 @@
       return;
     }
     if(e.target.closest("#tgAddRow")){draft().rows.push({});store();renderCompose();return;}
+    if(e.target.closest("#tgRefreshTopics")){const id=$("tgRealGroupSelect")?.value||"";if(id)topicCache.delete(id);await loadTopicChoices();return;}
     if(e.target.closest("#tgLinkRealGroup")){
       const g=getGroup(groupId),id=$("tgRealGroupSelect")?.value||"";
       const actual=window.TelegramConnector?.groups?.().find(x=>x.id===id);
-      if(!g||!actual)return notice("Escolha um grupo real.",true);
-      if(state.groups.some(x=>x.id!==g.id&&x.telegramId===id))return alert("Este grupo já está vinculado a outro destino.");
-      g.telegramId=id;g.name=actual.name;store();render();return;
+      if(!g||!actual)return alert("Escolha um grupo real.");
+      const topicId=actual.isForum?($("tgRealTopicSelect")?.value||""):null;
+      if(actual.isForum&&!topicId)return alert("Escolha o tópico (subchat) antes de vincular.");
+      const selectedTopic=actual.isForum?topicCache.get(id)?.find(t=>String(t.id)===topicId):null;
+      if(actual.isForum&&!selectedTopic)return alert("Tópico não encontrado. Atualize a lista e tente novamente.");
+      if(state.groups.some(x=>x.id!==g.id&&x.telegramId===id&&String(x.topicId??"")===String(topicId??"")))
+        return alert("Este grupo e tópico já estão vinculados a outro destino. Edite os modelos desse destino.");
+      g.telegramId=id;g.telegramName=actual.name;g.isForum=actual.isForum;
+      g.topicId=topicId;g.topicName=selectedTopic?.name||"";
+      store();render();return;
     }
     if(e.target.closest("#tgSaveDraft")){store();notice("Rascunho salvo neste navegador.");return;}
     if(e.target.closest("#tgRenameGroup")){
@@ -240,12 +278,14 @@
     }
     if(e.target.closest("#tgSendMessage")){
       const dest=destination(modelId);
-      if(!dest||!dest.telegramId)return notice("Configure e vincule um grupo real para este modelo.",true);
+      const actual=window.TelegramConnector?.groups?.().find(x=>x.id===dest?.telegramId);
+      if(!dest||!dest.telegramId||((actual?.isForum??dest.isForum)&&dest.topicId==null))return notice("Vincule o grupo e seu tópico para este modelo.",true);
       if(!window.TelegramConnector?.connected?.())return notice("Conecte o Telegram na aba Configurações.",true);
       const txt=getMessage();if(!txt.trim())return notice("Preencha o texto da solicitação.",true);
       const d=draft(),m=model();if(m.kind){const items=d.rows.filter(r=>val(r.ci)||val(r.name)||val(r.cb)||val(r.newName));if(!items.length||items.some(r=>!val(r.ci)||!val(r.name)||(m.kind==="cb"&&!val(r.cb))||(m.kind==="nome"&&!val(r.newName))))return notice("Complete os campos obrigatórios dos produtos.",true);}
-      if(!confirm("Enviar esta solicitação para o grupo "+dest.name+"?\n\n"+txt))return;
-      try{const result=await window.TelegramConnector.send(dest.telegramId,txt);notice("Mensagem enviada ao grupo "+dest.name+" (ID "+result.id+"). Sincronize o monitor para acompanhar as reações.");}
+      const destinationLabel=(dest.telegramName||dest.name)+(dest.topicName?" / "+dest.topicName:"");
+      if(!confirm("Enviar esta solicitação para "+destinationLabel+"?\n\n"+txt))return;
+      try{const result=await window.TelegramConnector.send(dest.telegramId,txt,dest.topicId??null);notice("Mensagem enviada para "+destinationLabel+" (ID "+result.id+"). Sincronize o monitor para acompanhar as reações.");}
       catch(err){notice("Falha no envio: "+String(err.message||err),true);}return;
     }
     if(e.target.closest("#tgCopyMessage")){

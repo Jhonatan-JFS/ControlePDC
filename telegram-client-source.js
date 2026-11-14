@@ -43,7 +43,7 @@ import { Api } from "teleproto";
       if(!entity || !(dialog.isGroup||dialog.isChannel))continue;
       const id=(dialog.isChannel?"channel:":"chat:")+String(entity.id);
       peers.set(id,entity);
-      output.push({id,name:dialog.name||entity.title||id,isChannel:!!dialog.isChannel,isGroup:!!dialog.isGroup});
+      output.push({id,name:dialog.name||entity.title||id,isChannel:!!dialog.isChannel,isGroup:!!dialog.isGroup,isForum:!!entity.forum});
     }
     return output;
   }
@@ -52,27 +52,73 @@ import { Api } from "teleproto";
     if(!entity)throw new Error("Grupo não carregado. Atualize a lista de grupos após conectar.");
     return entity;
   }
+  async function topics(groupId){
+    const entity=peer(groupId);
+    if(!entity.forum)return [];
+    const tg=ensure(), input=await tg.getInputEntity(entity);
+    const result=[],seen=new Set();
+    let offsetDate=0,offsetId=0,offsetTopic=0;
+    for(let p=0;p<12;p++){
+      const response=await tg.invoke(new Api.messages.GetForumTopics({
+        peer:input,offsetDate,offsetId,offsetTopic,limit:100
+      }));
+      const batch=response?.topics||[];
+      for(const t of batch){
+        const topicId=Number(t.id);
+        if(!Number.isInteger(topicId)||seen.has(topicId)||!t.title)continue;
+        seen.add(topicId);
+        result.push({id:String(topicId),name:String(t.title),closed:!!t.closed,hidden:!!t.hidden});
+      }
+      if(!batch.length||(Number(response.count||0)>0 && result.length>=Number(response.count)))break;
+      const last=batch[batch.length-1];
+      const top=Number(last.topMessage||0);
+      const anchor=(response.messages||[]).find(m=>Number(m.id)===top);
+      const timestamp=anchor?.date ?? last.date;
+      const date=timestamp instanceof Date?Math.floor(timestamp.getTime()/1000):Number(timestamp||0);
+      const nextTopic=Number(last.id)||0;
+      if(!nextTopic || (offsetTopic===nextTopic&&offsetId===top))break;
+      offsetDate=date;offsetId=top;offsetTopic=nextTopic;
+    }
+    if(!seen.has(1))result.unshift({id:"1",name:"Geral",closed:false,hidden:false});
+    return result;
+  }
+  function topicOf(message){
+    const reply=message?.replyTo;
+    if(!reply)return "1";
+    if(reply.replyToTopId!=null)return String(reply.replyToTopId);
+    if(reply.forumTopic && reply.replyToMsgId!=null)return String(reply.replyToMsgId);
+    return "1";
+  }
   function normalize(message){
     const results=message?.reactions?.results||[];
     const reactions=results.map(x=>({emoji:x.reaction?.emoticon||((x.reaction?.documentId)?"Emoji personalizado":"Reação"),count:Number(x.count||0)})).filter(x=>x.count>0);
-    return {id:Number(message.id),senderId:String(message.senderId||""),date:message.date instanceof Date?message.date.toISOString():new Date(Number(message.date||0)*1000).toISOString(),text:String(message.message||""),out:!!message.out,edited:!!message.editDate, reactions, reactionCount:reactions.reduce((sum,x)=>sum+x.count,0)};
+    return {id:Number(message.id),senderId:String(message.senderId||""),date:message.date instanceof Date?message.date.toISOString():new Date(Number(message.date||0)*1000).toISOString(),text:String(message.message||""),out:!!message.out,edited:!!message.editDate,topicId:topicOf(message), reactions, reactionCount:reactions.reduce((sum,x)=>sum+x.count,0)};
   }
-  async function scan(groupId,lastId=0,limit=1800){
+  async function scan(groupId,lastId=0,limit=1800,topicId=null){
     const tg=ensure(),entity=peer(groupId),old=Number(lastId)||0;
+    const requested=topicId==null?null:String(topicId);
+    const thread=requested && requested!=="1"?Number(requested):null;
+    if(thread!==null && (!Number.isInteger(thread)||thread<2))throw new Error("ID de tópico inválido.");
+    const params=thread!==null?{replyTo:thread}:{};
     let messages=[];
-    let max=old;
+    let max=old,examined=0;
     if(!old){
-      const initial=await tg.getMessages(entity,{limit:Math.min(200,limit)});
-      messages=initial.filter(Boolean).map(normalize).sort((a,b)=>a.id-b.id);
+      const initial=await tg.getMessages(entity,{...params,limit:Math.min(200,limit)});
+      messages=initial.filter(Boolean).map(normalize).filter(m=>requested==null|| (thread!==null?true:m.topicId==="1")).sort((a,b)=>a.id-b.id);
+      if(thread!==null)messages.forEach(m=>{m.topicId=requested;});
       for(const m of messages)max=Math.max(max,m.id);
     } else {
-      for await(const m of tg.iterMessages(entity,{minId:old,reverse:true,limit})){
+      for await(const m of tg.iterMessages(entity,{...params,minId:old,reverse:true,limit})){
         if(!m)continue;
-        messages.push(normalize(m));
+        examined++;
+        const item=normalize(m);
         max=Math.max(max,Number(m.id));
+        if(requested!=null && thread===null && item.topicId!=="1")continue;
+        if(thread!==null)item.topicId=requested;
+        messages.push(item);
       }
     }
-    return {messages,lastId:max,truncated:old>0&&messages.length>=limit,initial:!old,ownId};
+    return {messages,lastId:max,truncated:old>0&&examined>=limit,initial:!old,ownId};
   }
   async function reactions(groupId,ids){
     const tg=ensure(),entity=peer(groupId),output=[];
@@ -96,13 +142,20 @@ import { Api } from "teleproto";
     }
     return output;
   }
-  async function send(groupId,text){
+  async function send(groupId,text,topicId=null){
     if(!String(text||"").trim())throw new Error("Mensagem vazia.");
-    const result=await ensure().sendMessage(peer(groupId),{message:text,parseMode:undefined});
-    return {id:Number(result.id),date:new Date().toISOString()};
+    const entity=peer(groupId);
+    const number=topicId==null?null:Number(topicId);
+    if(entity.forum && number===null)throw new Error("Selecione um tópico antes de enviar ao grupo com tópicos.");
+    if(number!==null && (!Number.isInteger(number)||number<1))throw new Error("Tópico inválido.");
+    const args={message:text,parseMode:undefined};
+    // O tópico Geral (1) é o destino padrão; outros exigem replyTo com ID do tópico.
+    if(number!==null && number!==1)args.replyTo=number;
+    const result=await ensure().sendMessage(entity,args);
+    return {id:Number(result.id),topicId:number===null?null:String(number),date:new Date().toISOString()};
   }
   async function disconnect(){
     if(client)try{await client.disconnect();}finally{client=null;ownId="";peers.clear();}
   }
-  window.TelegramBridge={connect,groups,scan,reactions,send,disconnect,getMeId:()=>ownId,connected:()=>!!client};
+  window.TelegramBridge={connect,groups,topics,scan,reactions,send,disconnect,getMeId:()=>ownId,connected:()=>!!client};
 })();
