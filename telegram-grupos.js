@@ -134,18 +134,41 @@
       '<p id="tgNotice" class="tg-notice" role="status" aria-live="polite"></p></section></div>';
     renderModelChoices();updatePreview();
   }
+  function routingSummary(){
+    const rows=state.groups.map(g=>{
+      const attached=models.filter(m=>state.mappings[m.id]===g.id);
+      const valid=!!g.telegramId && (!g.isForum||g.topicId!=null);
+      const actual=g.telegramName||g.name;
+      const topic=g.topicName?" / "+g.topicName:g.isForum?" / Tópico não selecionado":"";
+      return '<button type="button" class="tg-overview-card '+(g.id===groupId?"selected":"")+'" data-tg-destination="'+esc(g.id)+'">'+
+        '<div class="tg-overview-head"><strong>'+esc(g.name)+'</strong><span class="tg-status-text '+(valid?"ready":"pending")+'">'+(valid?"Vinculado":"Pendente")+'</span></div>'+
+        '<small>'+esc(actual+topic)+'</small>'+
+        '<div class="tg-overview-tags">'+(attached.length?attached.map(m=>'<span>'+esc(m.name)+'</span>').join(""):'<em>Nenhum modelo associado</em>')+'</div></button>';
+    }).join("");
+    return '<section class="tg-setup-section"><div class="tg-step-header"><span class="tg-step-number">✓</span><div><h4>Visão geral dos destinos</h4><p>Confira de uma vez para onde cada modelo será enviado.</p></div></div>'+
+      '<div class="tg-summary-counts"><span>'+state.groups.length+' destino(s)</span><span>'+Object.keys(state.mappings).length+' modelo(s) vinculado(s)</span><span>'+(models.length-Object.keys(state.mappings).length)+' sem destino</span></div>'+
+      '<div class="tg-overview-grid">'+(rows||'<p class="tg-muted">Nenhum destino criado ainda.</p>')+'</div></section>';
+  }
   function renderGroups(){
     const selected=getGroup(groupId);
-    pane.innerHTML=header("Grupos e modelos","Defina quais tipos de solicitação cada grupo receberá. Um modelo só pode ter um destino por vez.")+
-      '<div class="tg-information tg-info-inline"><strong>Grupos reais do Telegram</strong><p>Conecte sua conta em Configurações. Depois selecione abaixo uma conversa da lista autorizada para vinculá-la ao destino configurado.</p></div>'+
-      '<div id="tgRealGroupChooser"></div>'+
-      (selected?'<div class="tg-group-setup-head"><div><small>GRUPO SELECIONADO</small><h4>'+esc(selected.name)+'</h4></div><div class="tg-group-actions"><button type="button" id="tgRenameGroup" class="btn btn-ghost btn-small">Renomear</button><button type="button" id="tgDeleteGroup" class="btn btn-ghost btn-small">Excluir</button></div></div>'+
-        '<p class="tg-config-explain">Destino real: <b>'+(selected.telegramId?esc(selected.telegramName||'Grupo')+(selected.topicName?' / '+esc(selected.topicName):selected.isForum?' / tópico não selecionado':''):'ainda não vinculado')+'</b>. Você pode vincular vários destinos ao mesmo grupo, escolhendo tópicos diferentes. Cada destino recebe os modelos marcados abaixo.</p>'+
-        '<div class="tg-model-list">'+models.map(m=>{
-          const assigned=destination(m.id),checked=assigned?.id===selected.id;
-          return '<label class="tg-model-assignment"><input type="checkbox" data-tg-map="'+esc(m.id)+'" '+(checked?"checked":"")+'><span><strong>'+esc(m.name)+'</strong><small>'+esc(m.category)+'</small></span><em>'+(assigned&&!checked?'Em: '+esc(assigned.name):checked?'Destino definido':'Livre')+'</em></label>';
-        }).join("")+'</div>':
-        '<div class="tg-information"><strong>Configure um grupo</strong><p>Clique em + Grupo na sidebar para cadastrar um destino e marcar os modelos que deverão ir para ele.</p></div>');
+    const select=state.groups.map(g=>'<option value="'+esc(g.id)+'"'+(g.id===groupId?' selected':'')+'>'+esc(g.name)+'</option>').join("");
+    pane.innerHTML=header("Grupos, tópicos e modelos","Configure uma vez. Ao escolher o modelo de solicitação, o site já saberá para qual tópico enviar.")+
+      '<div class="tg-guide-banner"><strong>Como funciona?</strong><p><b>1.</b> Escolha um destino · <b>2.</b> Selecione o grupo e o tópico reais · <b>3.</b> Marque todos os modelos que vão para esse tópico.</p><p>Exemplo: <b>Cadastro</b> e <b>Nomenclatura</b> no mesmo tópico, <b>Atualização de CB</b> em outro. No envio, o destino será automático.</p></div>'+
+      routingSummary()+
+      '<section class="tg-setup-section"><div class="tg-step-header"><span class="tg-step-number">1</span><div><h4>Escolha um destino</h4><p>É o conjunto grupo + tópico, que pode receber vários modelos.</p></div></div>'+
+      '<div class="tg-config-select"><label>Destino que deseja configurar<select id="tgConfiguredDestination">'+(select||'<option value="">Nenhum destino criado</option>')+'</select></label><button type="button" class="btn btn-soft btn-small" id="tgCreateGroup">+ Novo destino</button></div>'+
+      (selected?'<div class="tg-group-actions"><button type="button" class="btn btn-ghost btn-small" id="tgRenameGroup">Renomear destino</button><button type="button" class="btn btn-ghost btn-small" id="tgDeleteGroup">Excluir destino</button></div>':'')+'</section>'+
+      '<section class="tg-setup-section"><div class="tg-step-header"><span class="tg-step-number">2</span><div><h4>Conecte ao grupo e ao tópico</h4><p>Escolha primeiro o grupo do Telegram e depois o tópico (se existir).</p></div></div>'+
+      (selected?'<p class="tg-linked-description">'+(selected.telegramId?'Destino atual: '+esc(selected.telegramName||selected.name)+(selected.topicName?' / '+esc(selected.topicName):selected.isForum?' / tópico não selecionado':''):'Este destino ainda não foi vinculado a um grupo real.')+'</p><div id="tgRealGroupChooser"></div>':
+        '<p class="tg-muted">Crie um destino na etapa 1 para começar.</p>')+'</section>'+
+      '<section class="tg-setup-section"><div class="tg-step-header"><span class="tg-step-number">3</span><div><h4>Defina os modelos deste tópico</h4><p>Marque quantos tipos de solicitação desejar. Um modelo terá um único destino automático.</p></div></div>'+
+      (selected?'<div class="tg-model-list">'+templates.categories.map(cat=>{
+        return '<div class="tg-config-category"><div class="tg-config-category-title">'+esc(cat.name)+'</div>'+cat.ids.map(id=>{
+          const m=modelMap.get(id),current=destination(id),checked=current?.id===selected.id;
+          return '<label class="tg-model-assignment"><input type="checkbox" data-tg-map="'+esc(id)+'"'+(checked?" checked":"")+'><span><strong>'+esc(m.name)+'</strong><small>'+(checked?'Vai para este destino':current?'Atualmente: '+esc(current.name):'Sem destino definido')+'</small></span><em class="'+(checked?'tg-assigned-current':current?'tg-assigned-elsewhere':'')+'">'+(checked?'✓ Neste tópico':current?'Trocar destino':'Disponível')+'</em></label>';
+        }).join("")+'</div>';
+      }).join("")+'</div>':'<p class="tg-muted">Configure um destino para selecionar seus modelos.</p>')+'</section>'+
+      '<section class="tg-final-step"><strong>Pronto! Agora é só solicitar.</strong><p>Em <b>Nova solicitação</b>, selecione o modelo, preencha os produtos e revise a prévia. O destino já aparecerá preenchido; você só confirma o envio.</p><button type="button" class="btn btn-primary btn-small" id="tgGoCompose">Ir para Nova solicitação</button></section>';
   }
   function renderMonitoring(){
     pane.innerHTML=header("Monitoramento","Histórico de solicitações, reações e alterações por mensagem.")+
@@ -221,6 +244,10 @@
   pane.addEventListener("change",e=>{
     const el=e.target;
     if(el.id==="tgRealGroupSelect"){loadTopicChoices();return;}
+    if(el.id==="tgConfiguredDestination"){
+      if(state.groups.some(g=>g.id===el.value)){groupId=el.value;render();}
+      return;
+    }
     if(el.id==="tgModelSelect"){
       if(!modelMap.has(el.value))return;
       modelId=el.value;render();return;
@@ -249,6 +276,14 @@
     store();updatePreview();
   });
   pane.addEventListener("click",async e=>{
+    const overview=e.target.closest("[data-tg-destination]");
+    if(overview){groupId=overview.dataset.tgDestination;render();return;}
+    if(e.target.closest("#tgCreateGroup")){$("tgAddGroup").click();return;}
+    if(e.target.closest("#tgGoCompose")){section="solicitacoes";render();return;}
+    if(e.target.closest("#tgClearDraft")){
+      if(confirm("Limpar os campos deste modelo?")){state.drafts[modelId]=templates.defaults(modelId);store();renderCompose();}
+      return;
+    }
     const remove=e.target.closest("[data-tg-remove-row]");
     if(remove){
       const i=Number(remove.dataset.tgRemoveRow),d=draft();
@@ -269,6 +304,8 @@
         return alert("Este grupo e tópico já estão vinculados a outro destino. Edite os modelos desse destino.");
       g.telegramId=id;g.telegramName=actual.name;g.isForum=actual.isForum;
       g.topicId=topicId;g.topicName=selectedTopic?.name||"";
+      // Identificação amigável distingue subchats do mesmo grupo.
+      g.name=actual.name+(selectedTopic?" / "+selectedTopic.name:"");
       store();render();return;
     }
     if(e.target.closest("#tgSaveDraft")){store();notice("Rascunho salvo neste navegador.");return;}
