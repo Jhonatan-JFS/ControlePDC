@@ -10,7 +10,7 @@
   const encoder=new TextEncoder(), decoder=new TextDecoder();
   const enc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   let current=null, myGroups=[], busy=false;
-  let activeMonitorGroup="",activeMonitorTopic="all",monitorSettingsOpen=false;
+  let activeMonitorGroup="",activeMonitorTopic="all",activeMonitorDirection="enviadas",monitorSettingsOpen=false;
   let draftMonitorGroup="",draftMonitorTopics=[],topicRequestVersion=0;
   const monitorTopicCache=new Map();
   function bytesToBase64(bytes){let str="";for(const b of bytes)str+=String.fromCharCode(b);return btoa(str);}
@@ -191,22 +191,37 @@
     try{localStorage.setItem(MONITOR_KEY,JSON.stringify(state));return true;}
     catch(_){throw new Error("O navegador ficou sem espaço para o histórico. Faça backup antes de continuar.");}
   }
+  function directionOf(m,ownId){
+    return m.out || (ownId && String(m.senderId||"")===String(ownId))?"enviadas":"recebidas";
+  }
+  function recordDirection(record){
+    // Compatibilidade com o histórico das versões anteriores, sem alterar os registros antigos.
+    return record.direction==="enviadas"||record.direction==="recebidas"
+      ?record.direction
+      :record.kind==="solicitacao"||!record.kind?"enviadas":"recebidas";
+  }
   function recognize(m,ownId){
-    if(m.out||m.senderId===ownId)return "solicitacao";
+    if(directionOf(m,ownId)==="enviadas")return "solicitacao";
     const txt=String(m.text||"");
     if(/\b(?:aumentou|abaixou|baixou|subiu)\s*(?:para)?\s*(?:R\$\s*)?\d+[.,]\d{2}/i.test(txt))return "preco";
     if(/\bproduto(?:s)?\s+novo(?:s)?\b/i.test(txt))return "produto";
-    return "";
+    return "recebida";
   }
-  function insertMessage(state,g,m,kind){
+  function insertMessage(state,g,m,kind,direction){
     const key=g.telegramId+":"+m.id;
     let rec=state.records.find(x=>x.key===key);
     const now=new Date().toISOString();
     if(!rec){
-      rec={key,telegramId:g.telegramId,topicId:m.topicId??g.topicId??null,topicName:g.topicName||"",group:g.telegramName||g.name,messageId:m.id,date:m.date,text:m.text,kind,reactionCount:kind==="solicitacao"?(m.reactionCount||0):0,reactions:kind==="solicitacao"?(m.reactions||[]):[],status:kind==="solicitacao"?(m.reactionCount>0?"conferido":"pendente"):"informativo",history:[{at:now,status:kind==="solicitacao"?(m.reactionCount>0?"conferido":"pendente"):"informativo",reason:"Primeira leitura"}]};
+      const sent=direction==="enviadas",status=sent?(m.reactionCount>0?"conferido":"pendente"):"informativo";
+      rec={key,telegramId:g.telegramId,topicId:m.topicId??g.topicId??null,topicName:g.topicName||"",group:g.telegramName||g.name,
+        messageId:m.id,date:m.date,text:String(m.text||""),kind,direction,senderId:String(m.senderId||""),
+        reactionCount:sent?(m.reactionCount||0):0,reactions:sent?(m.reactions||[]):[],
+        status,history:[{at:now,status,reason:"Primeira leitura"}]};
       state.records.push(rec);
     }else {
-      rec.text=m.text||rec.text;rec.date=m.date||rec.date;
+      rec.text=String(m.text??rec.text??"");
+      rec.date=m.date||rec.date;
+      rec.direction=direction;rec.kind=kind;rec.senderId=String(m.senderId||rec.senderId||"");
       if(m.topicId!=null)rec.topicId=m.topicId;
       if(g.topicName)rec.topicName=g.topicName;
     }
@@ -237,12 +252,10 @@
           const cursor=Number((db.cursors[cursorKey]??(group.topicId==null?db.cursors[group.telegramId]:0))||0);
           const page=await window.TelegramBridge.scan(group.telegramId,cursor,1200,group.topicId??null);
           for(const msg of page.messages){
-            const kind=recognize(msg,meId);
-            if(kind){
-              const key=group.telegramId+":"+msg.id;
-              if(!db.records.some(r=>r.key===key))added++;
-              insertMessage(db,group,msg,kind);
-            }
+            const direction=directionOf(msg,meId),kind=recognize(msg,meId);
+            const key=group.telegramId+":"+msg.id;
+            if(!db.records.some(r=>r.key===key))added++;
+            insertMessage(db,group,msg,kind,direction);
           }
           db.cursors[cursorKey]=Math.max(cursor,page.lastId);
           writeHistory(db);
@@ -251,7 +264,7 @@
         if(more)errors.push(group.name+": há mais mensagens para recuperar. Sincronize novamente.");
         const records=db.records.filter(r=>r.telegramId===group.telegramId &&
           (group.topicId==null || String(r.topicId??"")===String(group.topicId)) &&
-          (!r.kind||r.kind==="solicitacao"));
+          recordDirection(r)==="enviadas");
         for(let i=0;i<records.length;i+=50){
           const chunk=records.slice(i,i+50),reactionData=await window.TelegramBridge.reactions(group.telegramId,chunk.map(x=>x.messageId));
           const byId=new Map(reactionData.map(x=>[x.id,x]));
