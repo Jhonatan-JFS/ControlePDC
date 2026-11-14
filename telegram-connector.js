@@ -8,7 +8,7 @@
   const MONITOR_KEY="controle-pdc-telegram-historico-local-v1";
   const encoder=new TextEncoder(), decoder=new TextDecoder();
   const enc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  let current=null, myGroups=[], busy=false, keyPhrase="";
+  let current=null, myGroups=[], busy=false;
   function bytesToBase64(bytes){let str="";for(const b of bytes)str+=String.fromCharCode(b);return btoa(str);}
   function base64ToBytes(s){return Uint8Array.from(atob(s),c=>c.charCodeAt(0));}
   async function keyFrom(pass,salt){
@@ -92,7 +92,7 @@
       delete data.phone;
       const encrypted=await seal(data,pass);
       localStorage.setItem(KEY,encrypted);
-      keyPhrase=pass;current=profile;
+      current=profile;
       try{myGroups=await window.TelegramBridge.groups();}catch(_){myGroups=[];}
       renderLogin();
       window.dispatchEvent(new CustomEvent("tg-connection-changed",{detail:{connected:true}}));
@@ -103,7 +103,7 @@
   async function disconnect(forget=false){
     if(window.TelegramBridge?.connected?.())await window.TelegramBridge.disconnect();
     if(forget)localStorage.removeItem(KEY);
-    current=null;myGroups=[];keyPhrase="";
+    current=null;myGroups=[];
     renderLogin();
     window.dispatchEvent(new CustomEvent("tg-connection-changed",{detail:{connected:false}}));
     setNote(forget?"Sessão local esquecida.":"Conexão encerrada neste navegador.");
@@ -127,12 +127,19 @@
     try{localStorage.setItem(MONITOR_KEY,JSON.stringify(state));return true;}
     catch(_){throw new Error("O navegador ficou sem espaço para o histórico. Faça backup antes de continuar.");}
   }
-  function insertMessage(state,g,m){
+  function recognize(m,ownId){
+    if(m.out||m.senderId===ownId)return "solicitacao";
+    const txt=String(m.text||"");
+    if(/\b(?:aumentou|abaixou|baixou|subiu)\s*(?:para)?\s*(?:R\$\s*)?\d+[.,]\d{2}/i.test(txt))return "preco";
+    if(/\bproduto(?:s)?\s+novo(?:s)?\b/i.test(txt))return "produto";
+    return "";
+  }
+  function insertMessage(state,g,m,kind){
     const key=g.telegramId+":"+m.id;
     let rec=state.records.find(x=>x.key===key);
     const now=new Date().toISOString();
     if(!rec){
-      rec={key,telegramId:g.telegramId,group:g.name,messageId:m.id,date:m.date,text:m.text,reactionCount:m.reactionCount||0,reactions:m.reactions||[],status:m.reactionCount>0?"conferido":"pendente",history:[{at:now,status:m.reactionCount>0?"conferido":"pendente",reason:"Primeira leitura"}]};
+      rec={key,telegramId:g.telegramId,group:g.name,messageId:m.id,date:m.date,text:m.text,kind,reactionCount:kind==="solicitacao"?(m.reactionCount||0):0,reactions:kind==="solicitacao"?(m.reactions||[]):[],status:kind==="solicitacao"?(m.reactionCount>0?"conferido":"pendente"):"informativo",history:[{at:now,status:kind==="solicitacao"?(m.reactionCount>0?"conferido":"pendente"):"informativo",reason:"Primeira leitura"}]};
       state.records.push(rec);
     }else {
       rec.text=m.text||rec.text;rec.date=m.date||rec.date;
@@ -163,10 +170,11 @@
           const cursor=Number(db.cursors[group.telegramId]||0);
           const page=await window.TelegramBridge.scan(group.telegramId,cursor,1200);
           for(const msg of page.messages){
-            if(msg.out || msg.senderId===meId){
+            const kind=recognize(msg,meId);
+            if(kind){
               const key=group.telegramId+":"+msg.id;
               if(!db.records.some(r=>r.key===key))added++;
-              insertMessage(db,group,msg);
+              insertMessage(db,group,msg,kind);
             }
           }
           db.cursors[group.telegramId]=Math.max(cursor,page.lastId);
@@ -174,7 +182,7 @@
           more=page.truncated;pages++;
         }
         if(more)errors.push(group.name+": há mais mensagens para recuperar. Sincronize novamente.");
-        const records=db.records.filter(r=>r.telegramId===group.telegramId);
+        const records=db.records.filter(r=>r.telegramId===group.telegramId && (!r.kind||r.kind==="solicitacao"));
         for(let i=0;i<records.length;i+=50){
           const chunk=records.slice(i,i+50),reactionData=await window.TelegramBridge.reactions(group.telegramId,chunk.map(x=>x.messageId));
           const byId=new Map(reactionData.map(x=>[x.id,x]));
@@ -202,7 +210,7 @@
     return '<div class="tg-monitor-head"><div><strong>'+items.length+' mensagem(ns) registrada(s)</strong><small>Última sincronização: '+(db.lastSync?enc(new Date(db.lastSync).toLocaleString("pt-BR")):"nunca")+'</small></div><button type="button" class="btn btn-primary btn-small" id="tgSyncNow">↻ Sincronizar agora</button></div>'+
       '<p class="tg-auth-message" id="tgMonitorStatus" role="status" aria-live="polite">'+(logged()?"Verifique novas mensagens e reações antigas.":"Conecte sua conta em Configurações.")+'</p>'+
       (items.length?'<div class="tg-records">'+items.map(rec=>{
-        const parsed=extract(rec.text),status=rec.unavailable?"Mensagem indisponível":rec.status==="conferido"?"Conferido":"Não conferido";
+        const parsed=extract(rec.text),status=rec.unavailable?"Mensagem indisponível":rec.kind==="preco"?"Atualização de preço":rec.kind==="produto"?"Produto novo":rec.status==="conferido"?"Conferido":"Não conferido";
         const rows=parsed.length?parsed.map(p=>'<div class="tg-monitor-item"><strong>'+enc(p.ci)+' - '+enc(p.name)+'</strong>'+(p.cb?'<small>CB: '+enc(p.cb)+'</small>':'')+'</div>').join(""):'<pre>'+enc(rec.text)+'</pre>';
         return '<article class="tg-record"><div class="tg-record-top"><strong>'+enc(rec.group)+'</strong><span class="tg-rec-state '+(rec.status==="conferido"&&!rec.unavailable?"ok":"")+'">'+enc(status)+'</span></div><small>'+enc(new Date(rec.date).toLocaleString("pt-BR"))+' · Mensagem #'+rec.messageId+'</small><div class="tg-record-content">'+rows+'</div><small>'+(rec.reactionCount||0)+' reação(ões) · '+(rec.history?.length||0)+' evento(s) no histórico</small></article>';
       }).join("")+'</div>':'<div class="tg-information"><strong>Nenhuma solicitação registrada.</strong><p>Conecte a conta, vincule os grupos reais e inicie a primeira sincronização. Ela examinará inicialmente as últimas 200 mensagens de cada grupo; depois recuperará as novas por identificador.</p></div>');
