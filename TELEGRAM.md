@@ -44,3 +44,24 @@ A terceira aba **Telegram** é independente de **Controle PDC** e **Solicitaçõ
 - O **resumo dos destinos** mostra qual grupo/tópico e quais modelos estão associados. Ao transferir um modelo já vinculado, o site exige confirmação; não altera o vínculo silenciosamente.
 - Em **Nova solicitação**, os 13 modelos e campos seguem a página Solicitações existente. O destino aparece automaticamente em função do modelo; o usuário revisa o texto antes de enviar. A página Solicitações original e o fluxo da Supervisão não foram alterados.
 - O padrão das mensagens com múltiplos produtos mantém o nome original e códigos separados e legíveis, incluindo linha em branco entre os blocos.
+
+
+## Novo modelo: Cadastro com NF-e
+Na terceira aba Telegram → Nova solicitação → Cadastros, foi incluído **Cadastro com NF-e**, separado do modelo Cadastro de Produto já existente. Campos obrigatórios: **Nome da empresa**, **Número da NF-e** e **Nome de cada produto**. Campos opcionais por produto: CB e Venda (R$). É permitido incluir vários produtos por nota.
+
+Formato exato (CB e venda aparecem somente se preenchidos):
+
+\`\`\`text
+Por favor, cadastrar:
+Empresa [Nome da empresa]; NF-e: [Número da nota].
+[Nome do produto]
+CB: [Código de barras]
+Venda: [Valor de venda]
+
+[Outro produto]
+\`\`\`
+
+Os produtos ficam na ordem de digitação, com uma linha em branco entre os blocos. Valores preenchidos são formatados com duas casas decimais em padrão brasileiro. Ao escolher este novo modelo, será necessário configurar seu destino (grupo/tópico) em Grupos, tópicos e modelos, como em qualquer outro modelo.
+
+## Identidade visual da terceira aba
+Inspirada na estrutura do protótipo \`monitor_telegram_demo.html\`: cores escuras, painéis com bordas discretas, cartões de indicadores, status de conferência e hierarquia de leitura. A nova paleta usa azul-petróleo, grafite, ciano e verde de confirmação, em vez de copiar a paleta do protótipo. A estilização fica em \`telegram-tema.css\` com escopo \`#telegramPage\` para não alterar **Controle PDC** ou **Solicitações**.
