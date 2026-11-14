@@ -8,8 +8,10 @@
   <title>Controle PDC — Atualizações</title>
   <link rel="stylesheet" href="./style.css?v=2.0.2">
   <link rel="stylesheet" href="./solicitacoes.css?v=2.0.1">
+  <link rel="stylesheet" href="./telegram-grupos.css?v=1">
   <script defer src="./app.js?v=2.0.2"></script>
   <script defer src="./solicitacoes.js?v=2.0.3"></script>
+  <script defer src="./telegram-grupos.js?v=1"></script>
   <script type="module" src="./cloud.js?v=2.0.0"></script>
 </head>
 <body>
@@ -178,6 +180,7 @@
         <div class="req-page-head"><div><h2>Solicitações</h2><p>Modelos padronizados, registros e acompanhamento pela supervisão.</p></div></div>
         <div class="req-layout">
           <aside class="req-menu" aria-label="Categorias e modelos">
+            <section class="tg-destinations" aria-label="Grupos de destino"><div class="tg-destinations-head"><strong>Grupos de destino</strong><button type="button" class="btn btn-ghost btn-small" id="tgAddGroup">+ Grupo</button></div><p>Organize modelos por grupo, sem alterar as solicitações existentes.</p><div id="tgGroupList" class="tg-group-list"></div></section>
             <div class="req-menu-filter">
               <input id="reqModelSearch" type="search" placeholder="Buscar modelo..." aria-label="Buscar modelos">
               <select id="reqModelCategory" aria-label="Filtrar categorias"><option value="all">Todas as categorias</option><option>Cadastros</option><option>Códigos e Identificação</option><option>Preços e Custos</option><option>Grades e Unidades</option><option>Promoções e Validades</option><option>Dados do Produto</option></select>
