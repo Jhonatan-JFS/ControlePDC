@@ -36,3 +36,11 @@ A terceira aba **Telegram** é independente de **Controle PDC** e **Solicitaçõ
 - Na sincronização, cada tópico configurado possui cursor independente de leitura; as solicitações registram o tópico de origem, permitindo revisar reações de mensagens específicas.
 - **Limitação de leitura:** o tópico Geral é filtrado no histórico global do grupo. A primeira leitura é limitada às 200 mensagens mais recentes deste histórico. Para tópicos nomeados, a leitura é feita pela thread específica, também limitada inicialmente às 200 mais recentes. Mensagens antigas anteriores à primeira sincronização podem ficar fora da janela inicial.
 - Tópicos fechados aparecem identificados e não podem ser selecionados como destino de envio.
+
+## Configuração guiada de destinos e modelos (interface)
+- A aba Telegram possui uma **sidebar recolhível** com Nova solicitação, Grupos, tópicos e modelos, Monitoramento e Configurações. O botão Menu Telegram abre/oculta o painel; em celulares ele começa fechado.
+- Em **Grupos, tópicos e modelos**, o assistente visual oferece 3 etapas: (1) escolher ou criar destino, (2) selecionar grupo e tópico reais, (3) marcar todos os modelos que esse tópico receberá.
+- Um mesmo grupo real aceita múltiplos destinos locais quando os tópicos são diferentes. Um destino pode receber vários modelos: por exemplo, Cadastro de Produto + Alteração de Nomenclatura no tópico Cadastros, e Atualização de CB no tópico Códigos de Barras.
+- O **resumo dos destinos** mostra qual grupo/tópico e quais modelos estão associados. Ao transferir um modelo já vinculado, o site exige confirmação; não altera o vínculo silenciosamente.
+- Em **Nova solicitação**, os 13 modelos e campos seguem a página Solicitações existente. O destino aparece automaticamente em função do modelo; o usuário revisa o texto antes de enviar. A página Solicitações original e o fluxo da Supervisão não foram alterados.
+- O padrão das mensagens com múltiplos produtos mantém o nome original e códigos separados e legíveis, incluindo linha em branco entre os blocos.
