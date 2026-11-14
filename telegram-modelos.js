@@ -3,7 +3,7 @@
 (() => {
  "use strict";
  const categories=[
-  {name:"Cadastros",ids:["cadastro","grade"]},
+  {name:"Cadastros",ids:["cadastro","cadastroNFe","grade"]},
   {name:"Códigos e Identificação",ids:["cb","ean"]},
   {name:"Preços e Custos",ids:["preco","verificarPreco","custo"]},
   {name:"Grades e Unidades",ids:["desmembrar"]},
@@ -12,6 +12,7 @@
  ];
  const catalog={
   cadastro:{name:"Cadastro de Produto",multi:true,cat:"new"},
+  cadastroNFe:{name:"Cadastro com NF-e",multi:true,cat:"new"},
   grade:{name:"Cadastro em Grade",multi:true,cat:"new"},
   cb:{name:"Atualização de CB",multi:true,cat:"other"},
   ean:{name:"Adicionar CI ou CB no EAN",cat:"other"},
@@ -51,6 +52,10 @@
   const qty=val(d.qty);
   switch(id){
    case "cadastro": case "grade":return line;
+   case "cadastroNFe":{
+    const description=val(r.name),barcode=val(r.cb),sale=val(r.sale);
+    return description+(barcode?"\nCB: "+barcode:"")+(sale?"\nVenda: "+(formatMoney(sale)||sale):"");
+   }
    case "cb":return line+"\nCB: "+val(r.newCB);
    case "desmembrar":return line+(qty?" - "+qty:"");
    case "promoEntrar":return line+(val(r.qty)?" - "+val(r.qty):"")+(val(r.date)?" - Até data: "+(dateValue(r.date)||r.date):"");
@@ -69,10 +74,11 @@
   }
  }
  function message(id,d){
-  const text=rows(id,d).filter(r=>code(r)).map(r=>rowMessage(id,d,r)).filter(Boolean);
+  const text=rows(id,d).filter(r=>id==="cadastroNFe"?val(r.name):code(r)).map(r=>rowMessage(id,d,r)).filter(Boolean);
   // Separação aprovada: uma linha em branco entre produtos, sem separar CI e CB.
   switch(id){
    case "cadastro":return "Por favor, cadastrar:\n"+text.join("\n\n");
+   case "cadastroNFe":return "Por favor, cadastrar:\nEmpresa "+val(d.company)+"; NF-e: "+val(d.nfeNumber)+".\n"+text.join("\n\n");
    case "grade":return "Por favor, cadastrar na grade do CI "+val(d.rootCI)+" - "+val(d.rootName)+".\n"+text.join("\n\n");
    case "cb":return "Por favor, atualizar CB:\n"+text.join("\n\n");
    case "desmembrar":return "Por favor, desmembrar em "+(d.unit==="Personalizado"?val(d.customUnit):d.unit)+(val(d.qty)?" ("+val(d.qty)+")":"")+":\n"+text.join("\n────────\n");
@@ -87,6 +93,13 @@
  }
  function validate(id,d){
   if(!catalog[id])return "Modelo desconhecido.";
+  if(id==="cadastroNFe"){
+    if(!val(d.company))return "Informe o nome da empresa.";
+    if(!val(d.nfeNumber))return "Informe o número da nota fiscal (NF-e).";
+    if(!Array.isArray(d.rows)||!d.rows.length||d.rows.some(r=>!val(r.name)))return "Informe o nome de cada produto ou remova as linhas vazias.";
+    if(d.rows.some(r=>val(r.sale)&&formatMoney(r.sale)===null))return "Verifique os valores de venda: use números positivos.";
+    return "";
+  }
   const all=rows(id,d),filled=all.filter(r=>code(r));
   if(!filled.length)return "Informe o CI ou CB de pelo menos um produto.";
   if(catalog[id].multi && all.some(r=>!code(r)))return "Complete ou remova as linhas de produtos vazias.";
@@ -116,10 +129,19 @@
   const meta=catalog[id];if(!meta)return '<p class="req-warning">Modelo indisponível.</p>';
   let extras="";
   if(id==="grade")extras=field(d,"rootCI","CI principal")+field(d,"rootName","Nome da grade");
+  if(id==="cadastroNFe")extras=field(d,"company","Nome da empresa",{wide:true})+field(d,"nfeNumber","Número da NF-e",{wide:true,inputmode:"numeric"});
   if(id==="desmembrar")extras=select(d,"unit","Unidade",[["Un","Un."],["Metro","Metro"],["1/2 Metro","1/2 Metro"],["Personalizado","Personalizado"]])+field(d,"qty","Quantidade (opcional)")+(d.unit==="Personalizado"?field(d,"customUnit","Nome da unidade"):"");
   if(id==="ean")extras=select(d,"eanMode","Código a adicionar no EAN",[["CI","CI"],["CB","CB"]]);
   const extra='<div class="req-fields">'+extras+'</div>';
   function rowForm(r,i){
+    if(id==="cadastroNFe"){
+      return '<div class="req-product-row"><div class="req-product-head"><b>Produto '+(i+1)+'</b>'+
+        (d.rows.length>1?'<button type="button" data-tg-remove-row="'+i+'" class="btn btn-link">Remover</button>':'')+
+        '</div><div class="req-fields">'+rowField(d,i,"name","Nome do produto")+
+        rowField(d,i,"cb","CB (opcional)")+
+        rowField(d,i,"sale","Venda (R$) — opcional")+
+        '</div><div class="req-row-copy"><button type="button" data-tg-copy-row="'+i+'" class="btn btn-ghost btn-small">Copiar produto</button></div></div>';
+    }
     return '<div class="req-product-row"><div class="req-product-head"><b>Produto '+(i+1)+'</b>'+(d.rows.length>1?'<button type="button" data-tg-remove-row="'+i+'" class="btn btn-link">Remover</button>':"")+'</div><div class="req-fields">'+
        rowField(d,i,"ci","CI")+rowField(d,i,"cb","CB (opcional)")+rowField(d,i,"name","Nome do produto")+
        (id==="cb"?rowField(d,i,"newCB","Novo CB"):"")+

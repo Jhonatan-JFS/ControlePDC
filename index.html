@@ -9,12 +9,13 @@
   <link rel="stylesheet" href="./style.css?v=2.0.2">
   <link rel="stylesheet" href="./solicitacoes.css?v=2.0.1">
   <link rel="stylesheet" href="./telegram-grupos.css?v=5">
+  <link rel="stylesheet" href="./telegram-tema.css?v=1">
   <script defer src="./app.js?v=2.0.2"></script>
   <script defer src="./solicitacoes.js?v=2.0.3"></script>
   <script defer src="./telegram-client.bundle.js?v=2"></script>
   <script defer src="./telegram-connector.js?v=2"></script>
-  <script defer src="./telegram-modelos.js?v=1"></script>
-  <script defer src="./telegram-grupos.js?v=6"></script>
+  <script defer src="./telegram-modelos.js?v=2"></script>
+  <script defer src="./telegram-grupos.js?v=7"></script>
   <script type="module" src="./cloud.js?v=2.0.0"></script>
 </head>
 <body>
@@ -199,7 +200,7 @@
       <section id="telegramPage" class="tg-page" hidden aria-label="Central de solicitações Telegram">
         <div class="tg-page-head">
           <div><h2>Telegram</h2><p>Grupos configuráveis para receber diferentes modelos de solicitação.</p></div>
-          <span class="tg-warning-label">Conexão Telegram ainda não ativada</span>
+          <span class="tg-warning-label" id="tgConnectionBadge">Conta Telegram não conectada</span>
         </div>
         <button type="button" id="tgMenuToggle" class="btn btn-soft btn-small tg-menu-toggle" aria-expanded="false" aria-controls="tgSidebar">☰ Menu Telegram</button>
         <div class="tg-layout">

@@ -167,6 +167,8 @@
     window.TelegramConnector?.renderLogin?.();
   }
   function render(){
+    const badge=$("tgConnectionBadge"),connected=!!window.TelegramConnector?.connected?.();
+    if(badge){badge.textContent=connected?"Conta Telegram conectada":"Conta Telegram não conectada";badge.classList.toggle("connected",connected);}
     menu();
     if(section==="grupos"){renderGroups();renderRealGroupChooser();}
     else if(section==="monitoramento")renderMonitoring();
@@ -272,11 +274,11 @@
     const d=draft();
     if(el.dataset.tgRow!==undefined){
       const i=Number(el.dataset.tgRow),key=el.dataset.tgKey;
-      if(!Number.isInteger(i)||i<0||i>=d.rows.length||!["ci","cb","name","newCB","date","qty"].includes(key))return;
+      if(!Number.isInteger(i)||i<0||i>=d.rows.length||!["ci","cb","name","newCB","date","qty","sale"].includes(key))return;
       d.rows[i][key]=el.value;
     }else if(el.dataset.tgField!==undefined){
       const key=el.dataset.tgField;
-      if(!["ci","cb","name","rootCI","rootName","unit","qty","customUnit","eanMode","oldName","newName","cost","sale","memo","category"].includes(key))return;
+      if(!["ci","cb","name","rootCI","rootName","unit","qty","customUnit","eanMode","oldName","newName","cost","sale","memo","category","company","nfeNumber"].includes(key))return;
       d[key]=el.value;
       if(["unit","eanMode"].includes(key)){store();renderCompose();return;}
     }else return;
