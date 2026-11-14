@@ -79,3 +79,17 @@ Na parte superior do monitoramento surgem **abas horizontais com os grupos escol
 - O histórico é filtrado na apresentação por grupo/tópico; mensagens de fontes desmarcadas não aparecem na lista, mesmo que existam no histórico local.
 - A primeira sincronização ainda obedece à janela inicial do cliente (até 200 mensagens recentes por fonte, quando aplicável). A sincronização é sob demanda, não 24 horas, e não recupera mensagens apagadas antes da consulta.
 - As preferências de monitoramento ficam somente no navegador atual. Para acompanhar grupos em outro aparelho, é necessário configurá-los nele.
+
+
+## Monitoramento de mensagens enviadas e recebidas
+
+Em cada grupo/tópico monitorado, há **duas visualizações independentes**: **Minhas mensagens** (mensagens da conta conectada) e **Mensagens recebidas** (mensagens de outros participantes).
+
+**Mensagens recebidas** possuem filtros: Todas, Solicitações dos colegas, Alterações de preço, Produtos novos e Outras. Não se descarta uma mensagem recebida só porque ela não corresponde a um modelo reconhecido; nesse caso ela aparece em Outras. Se uma solicitação de colega vier sem um cabeçalho reconhecível, é possível usar **Marcar como solicitação** para permitir sua conferência no próximo clique em Sincronizar selecionados.
+
+**Qualquer reação em mensagem de solicitação**, enviada pela própria conta ou por outra pessoa, significa Conferido. Sem reações significa Não conferido. Se a última reação for removida, a próxima sincronização reverte automaticamente o status; registrar a alteração não comprova que o Solidcon foi efetivamente atualizado. A conferência é por mensagem inteira, não por cada produto individual. A sincronização reconsulta reações de todas as solicitações salvas nos grupos/tópicos escolhidos.
+
+A classificação inicial prioriza comandos de solicitação (ex.: Por favor, cadastrar, atualizar CB, alterar nomenclatura), depois avisos de preço (ex.: AUMENTOU, ABAIXOU) e produtos novos. Outras mensagens recebidas ficam visíveis e não são silenciosamente descartadas.
+
+### Compatibilidade com histórico anterior
+O monitoramento anterior armazenava principalmente as mensagens da conta conectada e alguns avisos reconhecidos de terceiros. Na primeira sincronização de cada grupo/tópico após a atualização, a integração faz uma reconsulta das **200 mensagens mais recentes disponíveis** para recuperar parte das mensagens de colegas que o filtro antigo ignorava, sem apagar os registros ou reiniciar os marcadores de leitura. Mensagens mais antigas que essa janela ou apagadas antes da consulta podem não ser recuperáveis.
