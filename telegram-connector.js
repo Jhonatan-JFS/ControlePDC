@@ -6,9 +6,13 @@
   const $=id=>document.getElementById(id);
   const KEY="controle-pdc-telegram-sessao-cifrada-v1";
   const MONITOR_KEY="controle-pdc-telegram-historico-local-v1";
+  const MONITOR_SELECTION_KEY="controle-pdc-telegram-selecao-monitor-v1";
   const encoder=new TextEncoder(), decoder=new TextDecoder();
   const enc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   let current=null, myGroups=[], busy=false;
+  let activeMonitorGroup="",activeMonitorTopic="all",monitorSettingsOpen=false;
+  let draftMonitorGroup="",draftMonitorTopics=[],topicRequestVersion=0;
+  const monitorTopicCache=new Map();
   function bytesToBase64(bytes){let str="";for(const b of bytes)str+=String.fromCharCode(b);return btoa(str);}
   function base64ToBytes(s){return Uint8Array.from(atob(s),c=>c.charCodeAt(0));}
   async function keyFrom(pass,salt){
@@ -120,14 +124,60 @@
     try{setNote("Consultando grupos…");myGroups=await window.TelegramBridge.groups();setNote(myGroups.length+" grupos/canais encontrados.");window.dispatchEvent(new Event("tg-groups-updated"));}
     catch(e){setNote(String(e.message||e),true);}
   }
-  function linked(){
-    const entries=window.TelegramRouting?.groups?.()||[];
-    const targets=entries.filter(g=>{
-      if(!g.telegramId)return false;
-      const actual=myGroups.find(x=>x.id===g.telegramId);
-      return actual && (!actual.isForum || (g.topicId!=null && String(g.topicId)!==""));
-    });
-    return targets.filter((g,i)=>targets.findIndex(x=>x.telegramId===g.telegramId&&String(x.topicId??"")===String(g.topicId??""))===i);
+  function readMonitorSelection(){
+    try{
+      const saved=JSON.parse(localStorage.getItem(MONITOR_SELECTION_KEY)||"{}");
+      const list=Array.isArray(saved.groups)?saved.groups:[];
+      const ids=new Set();
+      const selected=[];
+      for(const entry of list.slice(0,100)){
+        if(!entry||typeof entry.id!=="string"||!entry.id||ids.has(entry.id))continue;
+        ids.add(entry.id);
+        const topics=Array.isArray(entry.topics)?entry.topics.filter(t=>t&&typeof t.id==="string"&&/^\d+$/.test(t.id)).slice(0,500):[];
+        selected.push({
+          id:entry.id,name:String(entry.name||entry.id).slice(0,120),
+          isForum:!!entry.isForum,
+          topics:[...new Map(topics.map(t=>[t.id,{id:t.id,name:String(t.name||t.id).slice(0,120)}])).values()]
+        });
+      }
+      return {groups:selected};
+    }catch(_){return {groups:[]};}
+  }
+  function saveMonitorSelection(config){
+    try{
+      localStorage.setItem(MONITOR_SELECTION_KEY,JSON.stringify({groups:config.groups}));
+      return true;
+    }catch(_){throw new Error("Não foi possível salvar os grupos monitorados neste navegador.");}
+  }
+  function selectedTargets(){
+    const saved=readMonitorSelection(),targets=[];
+    for(const selected of saved.groups){
+      const actual=myGroups.find(g=>g.id===selected.id);
+      if(!actual)continue;
+      if(actual.isForum){
+        for(const thread of selected.topics){
+          targets.push({telegramId:actual.id,telegramName:actual.name,topicId:thread.id,topicName:thread.name,name:actual.name+" / "+thread.name,isForum:true});
+        }
+      }else{
+        targets.push({telegramId:actual.id,telegramName:actual.name,topicId:null,topicName:"",name:actual.name,isForum:false});
+      }
+    }
+    return targets;
+  }
+  function monitorScope(){
+    const selection=readMonitorSelection();
+    if(!selection.groups.some(g=>g.id===activeMonitorGroup)){
+      activeMonitorGroup=selection.groups[0]?.id||"";
+      activeMonitorTopic="all";
+    }
+    return {selection,group:selection.groups.find(g=>g.id===activeMonitorGroup)||null};
+  }
+  function matchesMonitorScope(record,group,topic){
+    if(!group||record.telegramId!==group.id)return false;
+    if(!group.isForum)return true;
+    const id=record.topicId==null?"":String(record.topicId);
+    if(!group.topics.some(t=>t.id===id))return false;
+    return topic==="all"||topic===id;
   }
   function readHistory(){
     try{
@@ -173,8 +223,8 @@
   }
   async function synchronize(){
     if(!logged())throw new Error("Conecte sua conta Telegram para sincronizar.");
-    const targets=linked();
-    if(!targets.length)throw new Error("Vincule ao menos um grupo ou tópico do Telegram aos destinos configurados.");
+    const targets=selectedTargets();
+    if(!targets.length)throw new Error("Escolha os grupos e tópicos em Monitoramento → Configurar monitoramento.");
     const db=readHistory(),errors=[],meId=window.TelegramBridge.getMeId();
     let added=0,checked=0;
     for(const group of targets){
@@ -198,7 +248,7 @@
         }
         if(more)errors.push(group.name+": há mais mensagens para recuperar. Sincronize novamente.");
         const records=db.records.filter(r=>r.telegramId===group.telegramId &&
-          (group.topicId==null || r.topicId==null || String(r.topicId)===String(group.topicId)) &&
+          (group.topicId==null || String(r.topicId??"")===String(group.topicId)) &&
           (!r.kind||r.kind==="solicitacao"));
         for(let i=0;i<records.length;i+=50){
           const chunk=records.slice(i,i+50),reactionData=await window.TelegramBridge.reactions(group.telegramId,chunk.map(x=>x.messageId));
