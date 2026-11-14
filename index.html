@@ -9,11 +9,11 @@
   <link rel="stylesheet" href="./style.css?v=2.0.2">
   <link rel="stylesheet" href="./solicitacoes.css?v=2.0.1">
   <link rel="stylesheet" href="./telegram-grupos.css?v=5">
-  <link rel="stylesheet" href="./telegram-tema.css?v=1">
+  <link rel="stylesheet" href="./telegram-tema.css?v=2">
   <script defer src="./app.js?v=2.0.2"></script>
   <script defer src="./solicitacoes.js?v=2.0.3"></script>
   <script defer src="./telegram-client.bundle.js?v=2"></script>
-  <script defer src="./telegram-connector.js?v=2"></script>
+  <script defer src="./telegram-connector.js?v=3"></script>
   <script defer src="./telegram-modelos.js?v=2"></script>
   <script defer src="./telegram-grupos.js?v=7"></script>
   <script type="module" src="./cloud.js?v=2.0.0"></script>
@@ -25,7 +25,7 @@
         <div class="brand-mark" aria-hidden="true">P<span>·</span></div>
         <div><h1>Controle PDC</h1><p>Atualizações de produtos</p></div>
       </div>
-      <nav class="pdc-nav" aria-label="Páginas do sistema"><button type="button" data-page="pdc" class="active" aria-current="page">Controle PDC</button><button type="button" data-page="requests">Solicitações</button><button type="button" data-page="telegram">Telegram</button></nav>
+      <nav class="pdc-nav" aria-label="Páginas do sistema"><button type="button" data-page="pdc" class="active" aria-current="page">Controle PDC</button><button type="button" data-page="requests">Solicitações</button><button type="button" data-page="telegram">Telegram</button><button type="button" data-page="monitor">Monitoramento</button></nav>
       <div class="header-actions">
         <span class="mode-pill" id="modePill"><span class="online-dot"></span> Aguardando login</span>
         <button class="btn btn-primary btn-small" id="loginButton">Entrar com Google</button>
@@ -210,11 +210,19 @@
             <button type="button" class="tg-section-link" data-tg-section="grupos">▦ Grupos, tópicos e modelos</button>
             <div class="tg-groups-heading"><strong>Destinos configurados</strong><button type="button" class="btn btn-soft btn-small" id="tgAddGroup">+ Grupo</button></div>
             <nav id="tgGroupList" class="tg-group-list" aria-label="Grupos de destino"></nav>
-            <button type="button" class="tg-section-link" data-tg-section="monitoramento">◉ Monitoramento</button>
             <button type="button" class="tg-section-link" data-tg-section="configuracoes">⚙ Configurações</button>
           </aside>
           <section id="tgWorkspace" class="tg-workspace" aria-label="Conteúdo do Telegram"></section>
         </div>
+      </section>
+      <section id="monitorPage" class="tg-page" hidden aria-label="Monitoramento Telegram">
+        <div class="tg-page-head">
+          <div><h2>Monitoramento Telegram</h2><p>Escolha quais grupos e tópicos acompanhar. Use as abas para visualizar cada grupo separadamente.</p></div>
+          <span class="tg-warning-label">Sincronização sob demanda</span>
+        </div>
+        <section class="tg-workspace tg-monitor-workspace" aria-label="Painel de monitoramento">
+          <div id="tgMonitorMount"></div>
+        </section>
       </section>
       <footer class="footer"><span id="storageStatus">Salvamento local ativo</span><span>Controle PDC v2.0 · solicitações integradas</span></footer>
     </main>
