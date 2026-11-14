@@ -237,10 +237,25 @@
     const item=e.target.closest("[data-tg-section]");if(!item)return;
     section=item.dataset.tgSection;render();closeMobile();
   });
-  const toggle=$("tgMenuToggle");
+  const toggle=$("tgMenuToggle"),sideKey="controle-pdc-telegram-menu-collapsed-v1";
+  if(localStorage.getItem(sideKey)==="1")page.classList.add("sidebar-collapsed");
   if(toggle)toggle.addEventListener("click",()=>{
-    const open=side.classList.toggle("open");toggle.setAttribute("aria-expanded",String(open));
+    if(window.innerWidth<=760)side.classList.toggle("open");
+    else{
+      page.classList.toggle("sidebar-collapsed");
+      localStorage.setItem(sideKey,page.classList.contains("sidebar-collapsed")?"1":"0");
+    }
+    updateMenuState();
   });
+  $("tgMenuClose")?.addEventListener("click",()=>{
+    if(window.innerWidth<=760)side.classList.remove("open");
+    else{
+      page.classList.add("sidebar-collapsed");
+      localStorage.setItem(sideKey,"1");
+    }
+    updateMenuState();
+  });
+  window.addEventListener("resize",updateMenuState);
   pane.addEventListener("change",e=>{
     const el=e.target;
     if(el.id==="tgRealGroupSelect"){loadTopicChoices();return;}
@@ -248,6 +263,7 @@
       if(state.groups.some(g=>g.id===el.value)){groupId=el.value;render();}
       return;
     }
+    if(el.id==="tgModelCategory"){modelCategory=el.value;openModelCategory=el.value==="all"?model().category:el.value;renderModelChoices();return;}
     if(el.id==="tgModelSelect"){
       if(!modelMap.has(el.value))return;
       modelId=el.value;render();return;
@@ -266,16 +282,40 @@
     }
   });
   pane.addEventListener("input",e=>{
-    const el=e.target,d=draft();
+    const el=e.target;
+    if(el.id==="tgModelSearch"){modelSearch=el.value;renderModelChoices();return;}
+    const d=draft();
     if(el.dataset.tgRow!==undefined){
       const i=Number(el.dataset.tgRow),key=el.dataset.tgKey;
-      if(!Number.isInteger(i)||i<0||i>=d.rows.length||!["ci","name","cb","newName"].includes(key))return;
+      if(!Number.isInteger(i)||i<0||i>=d.rows.length||!["ci","cb","name","newCB","date","qty"].includes(key))return;
       d.rows[i][key]=el.value;
-    }else if(el.dataset.tgField==="freeText")d.freeText=el.value;
-    else return;
+    }else if(el.dataset.tgField!==undefined){
+      const key=el.dataset.tgField;
+      if(!["ci","cb","name","rootCI","rootName","unit","qty","customUnit","eanMode","oldName","newName","cost","sale","memo","category"].includes(key))return;
+      d[key]=el.value;
+      if(["unit","eanMode"].includes(key)){store();renderCompose();return;}
+    }else return;
     store();updatePreview();
   });
   pane.addEventListener("click",async e=>{
+    const category=e.target.closest("[data-tg-cat]");
+    if(category){openModelCategory=openModelCategory===category.dataset.tgCat?"":category.dataset.tgCat;renderModelChoices();return;}
+    const selectedModel=e.target.closest("[data-tg-model]");
+    if(selectedModel){
+      modelId=selectedModel.dataset.tgModel;
+      openModelCategory=model().category;
+      renderCompose();return;
+    }
+    const part=e.target.closest("[data-tg-copy-part]");
+    const product=e.target.closest("[data-tg-copy-row]");
+    if(part||product){
+      const index=Number((part?.dataset.tgWhich??product?.dataset.tgCopyRow??0));
+      const d=draft(),r=models.find(x=>x.id===modelId)?.multi?d.rows[index]:(d||{});
+      const text=product?templates.rowMessage(modelId,d,r||{}):String(r?.[part.dataset.tgCopyPart]||"");
+      try{await navigator.clipboard.writeText(text);notice("Campo copiado.");}
+      catch(_){notice("Não foi possível copiar. Verifique a permissão do navegador.",true);}
+      return;
+    }
     const overview=e.target.closest("[data-tg-destination]");
     if(overview){groupId=overview.dataset.tgDestination;render();return;}
     if(e.target.closest("#tgCreateGroup")){$("tgAddGroup").click();return;}
@@ -323,29 +363,30 @@
       groupId=state.groups[0]?.id||"";store();render();return;
     }
     if(e.target.closest("#tgSendMessage")){
+      const problem=templates.validate(modelId,draft());
+      if(problem)return notice(problem,true);
       const dest=destination(modelId);
       const actual=window.TelegramConnector?.groups?.().find(x=>x.id===dest?.telegramId);
-      if(!dest||!dest.telegramId||((actual?.isForum??dest.isForum)&&dest.topicId==null))return notice("Vincule o grupo e seu tópico para este modelo.",true);
-      if(!window.TelegramConnector?.connected?.())return notice("Conecte o Telegram na aba Configurações.",true);
-      const txt=getMessage();if(!txt.trim())return notice("Preencha o texto da solicitação.",true);
-      const d=draft(),m=model();if(m.kind){const items=d.rows.filter(r=>val(r.ci)||val(r.name)||val(r.cb)||val(r.newName));if(!items.length||items.some(r=>!val(r.ci)||!val(r.name)||(m.kind==="cb"&&!val(r.cb))||(m.kind==="nome"&&!val(r.newName))))return notice("Complete os campos obrigatórios dos produtos.",true);}
+      if(!dest||!dest.telegramId||((actual?.isForum??dest.isForum)&&dest.topicId==null))return notice("Configure grupo e tópico deste modelo em Grupos e modelos.",true);
+      if(!window.TelegramConnector?.connected?.())return notice("Conecte o Telegram em Configurações.",true);
+      const txt=getMessage();
+      if(!txt.trim())return notice("Preencha o texto da solicitação.",true);
       const destinationLabel=(dest.telegramName||dest.name)+(dest.topicName?" / "+dest.topicName:"");
       if(!confirm("Enviar esta solicitação para "+destinationLabel+"?\n\n"+txt))return;
-      try{const result=await window.TelegramConnector.send(dest.telegramId,txt,dest.topicId??null);notice("Mensagem enviada para "+destinationLabel+" (ID "+result.id+"). Sincronize o monitor para acompanhar as reações.");}
-      catch(err){notice("Falha no envio: "+String(err.message||err),true);}return;
+      try{
+        const result=await window.TelegramConnector.send(dest.telegramId,txt,dest.topicId??null);
+        notice("Mensagem enviada para "+destinationLabel+" (ID "+result.id+"). Sincronize o monitor para acompanhar as reações.");
+      }catch(err){notice("Falha no envio: "+String(err.message||err),true);}return;
     }
     if(e.target.closest("#tgCopyMessage")){
-      if(!destination(modelId))return notice("Associe um grupo de destino a este modelo antes de copiar para envio.",true);
-      const m=model(),d=draft();
-      if(m.kind){
-        const items=d.rows.filter(r=>val(r.ci)||val(r.name)||val(r.cb)||val(r.newName));
-        if(!items.length||items.some(r=>!val(r.ci)||!val(r.name)||(m.kind==="cb"&&!val(r.cb))||(m.kind==="nome"&&!val(r.newName)))){
-          return notice("Complete CI, nome e os campos obrigatórios de cada item.",true);
-        }
-      }else if(!val(d.freeText))return notice("Informe o conteúdo do modelo antes de copiar.",true);
-      try{await navigator.clipboard.writeText(getMessage());notice("Mensagem copiada. Destino previsto: "+destination(modelId).name+". Nenhum envio realizado.");}
-      catch(_){notice("Não foi possível copiar. Verifique a permissão do navegador.",true);}
+      const problem=templates.validate(modelId,draft());
+      if(problem)return notice(problem,true);
+      try{
+        await navigator.clipboard.writeText(getMessage());
+        const group=destination(modelId);
+        notice("Mensagem copiada."+(group?" Destino configurado: "+group.name+".":" Nenhum destino configurado.")+" Nenhum envio realizado.");
+      }catch(_){notice("Não foi possível copiar. Verifique a permissão do navegador.",true);}
     }
   });
-  render();
+  render();updateMenuState();
 })();
