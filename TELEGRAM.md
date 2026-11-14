@@ -65,3 +65,17 @@ Os produtos ficam na ordem de digitação, com uma linha em branco entre os bloc
 
 ## Identidade visual da terceira aba
 Inspirada na estrutura do protótipo \`monitor_telegram_demo.html\`: cores escuras, painéis com bordas discretas, cartões de indicadores, status de conferência e hierarquia de leitura. A nova paleta usa azul-petróleo, grafite, ciano e verde de confirmação, em vez de copiar a paleta do protótipo. A estilização fica em \`telegram-tema.css\` com escopo \`#telegramPage\` para não alterar **Controle PDC** ou **Solicitações**.
+
+## Monitoramento independente — quarta aba principal
+
+O site possui **quatro abas principais**: Controle PDC, Solicitações, Telegram (envio e configuração de modelos) e **Monitoramento** (leitura de mensagens). Monitoramento não aparece mais dentro da sidebar de Telegram.
+
+Na aba **Monitoramento**, o botão **Selecionar grupos e tópicos** permite escolher exatamente quais grupos e quais tópicos de fórum devem ser consultados. Essa seleção é salva no navegador usando uma chave local própria, sem depender do vínculo de modelos de envio. Por exemplo, é possível enviar Cadastro e Nomenclatura para um tópico e optar por monitorar somente outro grupo.
+
+Na parte superior do monitoramento surgem **abas horizontais com os grupos escolhidos**. Clicar em uma aba altera os resultados e os indicadores para aquele grupo. Se o grupo possui tópicos, há filtros logo abaixo para mostrar todos os tópicos selecionados ou somente um deles.
+
+- **Sincronizar selecionados** busca novas mensagens somente nos grupos/tópicos monitorados e reconsulta as reações das mensagens anteriormente registradas que pertencem a essas fontes.
+- A remoção de um grupo ou tópico do monitoramento **não apaga seu histórico local** e **não altera os modelos ou destinos das solicitações**.
+- O histórico é filtrado na apresentação por grupo/tópico; mensagens de fontes desmarcadas não aparecem na lista, mesmo que existam no histórico local.
+- A primeira sincronização ainda obedece à janela inicial do cliente (até 200 mensagens recentes por fonte, quando aplicável). A sincronização é sob demanda, não 24 horas, e não recupera mensagens apagadas antes da consulta.
+- As preferências de monitoramento ficam somente no navegador atual. Para acompanhar grupos em outro aparelho, é necessário configurá-los nele.
