@@ -8,10 +8,10 @@
   <title>Controle PDC — Atualizações</title>
   <link rel="stylesheet" href="./style.css?v=2.0.2">
   <link rel="stylesheet" href="./solicitacoes.css?v=2.0.1">
-  <link rel="stylesheet" href="./telegram-grupos.css?v=2">
+  <link rel="stylesheet" href="./telegram-grupos.css?v=3">
   <script defer src="./app.js?v=2.0.2"></script>
   <script defer src="./solicitacoes.js?v=2.0.3"></script>
-  <script defer src="./telegram-grupos.js?v=2"></script>
+  <script defer src="./telegram-grupos.js?v=3"></script>
   <script type="module" src="./cloud.js?v=2.0.0"></script>
 </head>
 <body>
@@ -195,15 +195,16 @@
       </section>
       <section id="telegramPage" class="tg-page" hidden aria-label="Central de solicitações Telegram">
         <div class="tg-page-head">
-          <div><h2>Telegram</h2><p>Área independente para organizar solicitações por grupo e preparar mensagens.</p></div>
+          <div><h2>Telegram</h2><p>Grupos configuráveis para receber diferentes modelos de solicitação.</p></div>
           <span class="tg-warning-label">Conexão Telegram ainda não ativada</span>
         </div>
         <button type="button" id="tgMenuToggle" class="btn btn-soft btn-small tg-menu-toggle" aria-expanded="false" aria-controls="tgSidebar">☰ Grupos e módulos</button>
         <div class="tg-layout">
           <aside id="tgSidebar" class="tg-sidebar" aria-label="Navegação Telegram">
             <div class="tg-sidebar-title">CENTRAL TELEGRAM</div>
-            <button type="button" class="tg-section-link active" data-tg-section="solicitacoes">✉ Solicitações</button>
-            <div class="tg-groups-heading"><strong>Grupos configurados</strong><button type="button" class="btn btn-soft btn-small" id="tgAddGroup">+ Grupo</button></div>
+            <button type="button" class="tg-section-link active" data-tg-section="solicitacoes">✉ Nova solicitação</button>
+            <button type="button" class="tg-section-link" data-tg-section="grupos">▦ Grupos e modelos</button>
+            <div class="tg-groups-heading"><strong>Destinos configurados</strong><button type="button" class="btn btn-soft btn-small" id="tgAddGroup">+ Grupo</button></div>
             <nav id="tgGroupList" class="tg-group-list" aria-label="Grupos de destino"></nav>
             <button type="button" class="tg-section-link" data-tg-section="monitoramento">◉ Monitoramento</button>
             <button type="button" class="tg-section-link" data-tg-section="configuracoes">⚙ Configurações</button>
