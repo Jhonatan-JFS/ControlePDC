@@ -91,21 +91,6 @@
     const detail=g?.telegramId ? esc(g.telegramName||g.name)+(g.topicName?' / '+esc(g.topicName):'') : "";
     return '<div class="tg-route '+(ready?"assigned":"unassigned")+'"><div><small>DESTINO AUTOMÁTICO</small><strong>'+(g?esc(g.name):'Nenhum grupo associado')+'</strong><p>'+(g?(ready?'Telegram: '+detail:'Selecione o tópico dentro do grupo antes do envio.'):'Configure um grupo ou tópico para receber este modelo.')+'</p></div><span class="tg-route-mark">'+(ready?'✓ Vinculado':'! Pendente')+'</span></div>';
   }
-  function itemInputs(){
-    const m=model(),d=draft();
-    return d.rows.map((r,i)=>'<div class="tg-product"><div class="tg-product-head"><strong>Item '+(i+1)+'</strong>'+(d.rows.length>1?'<button type="button" class="tg-text-button" data-tg-remove-row="'+i+'">Remover</button>':'')+'</div>'+
-      '<div class="tg-fields"><label>CI<input autocomplete="off" inputmode="numeric" data-tg-row="'+i+'" data-tg-key="ci" value="'+esc(r.ci||"")+'" placeholder="Código interno"></label>'+
-      '<label>Nome original do produto<input autocomplete="off" data-tg-row="'+i+'" data-tg-key="name" value="'+esc(r.name||"")+'" placeholder="Descrição exata do produto"></label>'+
-      '<label>CB (quando disponível)<input autocomplete="off" inputmode="numeric" data-tg-row="'+i+'" data-tg-key="cb" value="'+esc(r.cb||"")+'" placeholder="Código de barras"></label>'+
-      (m.kind==="nome"?'<label>Novo nome solicitado<input autocomplete="off" data-tg-row="'+i+'" data-tg-key="newName" value="'+esc(r.newName||"")+'" placeholder="Descrição desejada"></label>':'')+'</div></div>').join("");
-  }
-  function formatItem(r,kind){
-    const ci=val(r.ci),name=val(r.name),cb=val(r.cb);
-    const line=ci+(name?" - "+name:"");
-    if(!ci && !name && !cb)return "";
-    if(kind==="nome")return "CI - "+ci+"\n\nDE:\n"+name+"\n\nPARA:\n"+val(r.newName);
-    return line+(cb?(line?"\n":"")+"CB: "+cb:"");
-  }
   function getMessage(){return templates.message(modelId,draft());}
   function updatePreview(){const el=$("tgPreview");if(el)el.textContent=getMessage();}
   function renderModelChoices(){
