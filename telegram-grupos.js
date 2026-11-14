@@ -27,7 +27,7 @@
   function load(){
     try{
       const s=JSON.parse(localStorage.getItem(STORAGE)||"{}");
-      const groups=(Array.isArray(s.groups)?s.groups:[]).filter(g=>g&&typeof g.id==="string"&&typeof g.name==="string").slice(0,40).map(g=>({id:g.id,name:g.name.slice(0,80)}));
+      const groups=(Array.isArray(s.groups)?s.groups:[]).filter(g=>g&&typeof g.id==="string"&&typeof g.name==="string").slice(0,40).map(g=>({id:g.id,name:g.name.slice(0,80),telegramId:typeof g.telegramId==="string"?g.telegramId:""}));
       const ids=new Set(groups.map(g=>g.id));
       const mappings={};
       const prior=s.mappings&&typeof s.mappings==="object"?s.mappings:{};
@@ -79,7 +79,7 @@
   }
   function routeBox(){
     const g=destination(modelId);
-    return '<div class="tg-route '+(g?"assigned":"unassigned")+'"><div><small>DESTINO AUTOMÁTICO</small><strong>'+(g?esc(g.name):'Nenhum grupo associado')+'</strong><p>'+(g?'Todas as solicitações deste modelo estão destinadas a esse grupo.':'Configure um grupo que receberá este tipo de solicitação.')+'</p></div><span class="tg-route-mark">'+(g?'✓ Configurado':'! Pendente')+'</span></div>';
+    return '<div class="tg-route '+(g?"assigned":"unassigned")+'"><div><small>DESTINO AUTOMÁTICO</small><strong>'+(g?esc(g.name):'Nenhum grupo associado')+'</strong><p>'+(g?(g.telegramId?'Grupo do Telegram vinculado à conta.':'Grupo ainda não vinculado a uma conversa real.'):'Configure um grupo que receberá este tipo de solicitação.')+'</p></div><span class="tg-route-mark">'+(g?(g.telegramId?'✓ Vinculado':'! Não vinculado'):'! Pendente')+'</span></div>';
   }
   function itemInputs(){
     const m=model(),d=draft();
@@ -113,20 +113,21 @@
     pane.innerHTML=header("Nova solicitação","Selecione o modelo; o grupo de destino será preenchido automaticamente.")+
       '<div class="tg-editor-toolbar"><label>Tipo de solicitação<select id="tgModelSelect">'+options+'</select></label></div>'+
       routeBox()+
-      '<div class="tg-information tg-info-inline"><strong>Simulação de envio</strong><p>Ainda não há conexão com sua conta Telegram. Você poderá preparar, salvar e copiar o texto, mas nenhum grupo receberá mensagens nesta etapa.</p></div>'+
+      '<div class="tg-information tg-info-inline"><strong>Envio com confirmação</strong><p>Se a conta estiver conectada e o destino vinculado, você poderá revisar e enviar a mensagem ao grupo. Sem conexão, use o botão Copiar.</p></div>'+
       (m.kind?'<div id="tgRows" class="tg-rows">'+itemInputs()+'</div><button type="button" class="btn btn-soft btn-small" id="tgAddRow">+ Adicionar item</button>':
        '<div class="tg-custom"><label>Conteúdo da solicitação — modelo ainda sem variáveis automatizadas<textarea data-tg-field="freeText" rows="8" placeholder="Preencha o texto deste modelo manualmente até definirmos suas variáveis.">'+esc(draft().freeText||"")+'</textarea></label><small>As variáveis deste modelo serão configuradas posteriormente, sem alterar os modelos já definidos.</small></div>')+
       '<div class="tg-preview-panel"><div class="tg-preview-head"><strong>Mensagem e destino</strong><span>Prévia antes do envio</span></div><pre id="tgPreview"></pre></div>'+
-      '<div class="tg-editor-actions"><button type="button" class="btn btn-soft" id="tgSaveDraft">Salvar rascunho</button><button type="button" class="btn btn-primary" id="tgCopyMessage">Copiar mensagem</button></div>'+
+      '<div class="tg-editor-actions"><button type="button" class="btn btn-soft" id="tgSaveDraft">Salvar rascunho</button><button type="button" class="btn btn-primary" id="tgCopyMessage">Copiar mensagem</button><button type="button" class="btn btn-soft" id="tgSendMessage">Enviar pelo Telegram</button></div>'+
       '<p id="tgNotice" class="tg-notice" role="status" aria-live="polite"></p>';
     updatePreview();
   }
   function renderGroups(){
     const selected=getGroup(groupId);
     pane.innerHTML=header("Grupos e modelos","Defina quais tipos de solicitação cada grupo receberá. Um modelo só pode ter um destino por vez.")+
-      '<div class="tg-information tg-info-inline"><strong>Ligação real ao Telegram: pendente</strong><p>Os grupos abaixo são referências locais para testar o roteamento. Quando a autenticação estiver pronta, você poderá selecionar os grupos reais acessíveis à sua conta.</p></div>'+
+      '<div class="tg-information tg-info-inline"><strong>Grupos reais do Telegram</strong><p>Conecte sua conta em Configurações. Depois selecione abaixo uma conversa da lista autorizada para vinculá-la ao destino configurado.</p></div>'+
+      '<div id="tgRealGroupChooser"></div>'+
       (selected?'<div class="tg-group-setup-head"><div><small>GRUPO SELECIONADO</small><h4>'+esc(selected.name)+'</h4></div><div class="tg-group-actions"><button type="button" id="tgRenameGroup" class="btn btn-ghost btn-small">Renomear</button><button type="button" id="tgDeleteGroup" class="btn btn-ghost btn-small">Excluir</button></div></div>'+
-        '<p class="tg-config-explain">Marque quantos modelos desejar. Exemplo: <b>Cadastro de Produto</b> e <b>Alteração de Nomenclatura</b> podem pertencer ao mesmo grupo.</p>'+
+        '<p class="tg-config-explain">Destino real: <b>'+(selected.telegramId?'vinculado ao ID '+esc(selected.telegramId):'ainda não vinculado')+'</b>. Marque quantos modelos desejar: Cadastro de Produto e Alteração de Nomenclatura podem ir ao mesmo grupo.</p>'+
         '<div class="tg-model-list">'+models.map(m=>{
           const assigned=destination(m.id),checked=assigned?.id===selected.id;
           return '<label class="tg-model-assignment"><input type="checkbox" data-tg-map="'+esc(m.id)+'" '+(checked?"checked":"")+'><span><strong>'+esc(m.name)+'</strong><small>'+esc(m.category)+'</small></span><em>'+(assigned&&!checked?'Em: '+esc(assigned.name):checked?'Destino definido':'Livre')+'</em></label>';
@@ -135,20 +136,32 @@
   }
   function renderMonitoring(){
     pane.innerHTML=header("Monitoramento","Histórico de solicitações, reações e alterações por mensagem.")+
-      '<div class="tg-information"><strong>Integração ainda não ativada</strong><p>Após conectar sua conta autorizada, este módulo acompanhará as solicitações, identificando qualquer reação como Conferido e retornando a Não conferido quando todas as reações forem removidas. A sincronização será sob demanda.</p></div>';
+      '<div id="tgMonitorMount"></div>';
+    window.TelegramConnector?.renderMonitor?.();
   }
   function renderSettings(){
-    pane.innerHTML=header("Configurações","Conexão segura, destinos e sincronização sob demanda.")+
-      '<div class="tg-information"><strong>Conectar conta Telegram: etapa futura</strong><p>Será necessário um serviço de backend para autenticar sua conta com segurança, obter os grupos reais e enviar mensagens. Os grupos configurados agora estão somente neste navegador.</p></div>'+
+    pane.innerHTML=header("Configurações","Conexão de conta e sincronização sob demanda no navegador.")+
+      '<div id="tgAuthMount"></div>'+
       '<div class="tg-route assigned"><div><small>ROTEAMENTO DEFINIDO</small><strong>'+Object.keys(state.mappings).length+' modelo(s) com destino</strong><p>Ao escolher o modelo, o site identifica o grupo configurado sem seleção manual.</p></div></div>';
+    window.TelegramConnector?.renderLogin?.();
   }
   function render(){
     menu();
-    if(section==="grupos")renderGroups();
+    if(section==="grupos"){renderGroups();renderRealGroupChooser();}
     else if(section==="monitoramento")renderMonitoring();
     else if(section==="configuracoes")renderSettings();
     else renderCompose();
   }
+  function renderRealGroupChooser(){
+    const mount=$("tgRealGroupChooser");if(!mount)return;
+    const connected=window.TelegramConnector?.connected?.();
+    if(!connected){mount.innerHTML='<p class="tg-muted">Conecte a conta em Configurações para escolher grupos existentes.</p>';return;}
+    const available=window.TelegramConnector.groups();
+    mount.innerHTML='<div class="tg-real-picker"><label>Selecionar grupo real<select id="tgRealGroupSelect"><option value="">Escolha uma conversa</option>'+available.map(g=>'<option value="'+esc(g.id)+'">'+esc(g.name)+'</option>').join("")+'</select></label><button type="button" id="tgLinkRealGroup" class="btn btn-soft btn-small">Vincular ao grupo selecionado</button></div>';
+  }
+  window.TelegramRouting={groups:()=>state.groups.map(g=>({...g})),refresh:render};
+  window.addEventListener("tg-connection-changed",()=>render());
+  window.addEventListener("tg-groups-updated",()=>{if(section==="grupos")renderRealGroupChooser();});
   $("tgAddGroup").addEventListener("click",()=>{
     const raw=prompt("Nome do grupo de destino:","");if(raw===null)return;
     const name=val(raw);if(!name||name.length>80)return alert("Informe um nome de até 80 caracteres.");
@@ -205,6 +218,13 @@
       return;
     }
     if(e.target.closest("#tgAddRow")){draft().rows.push({});store();renderCompose();return;}
+    if(e.target.closest("#tgLinkRealGroup")){
+      const g=getGroup(groupId),id=$("tgRealGroupSelect")?.value||"";
+      const actual=window.TelegramConnector?.groups?.().find(x=>x.id===id);
+      if(!g||!actual)return notice("Escolha um grupo real.",true);
+      if(state.groups.some(x=>x.id!==g.id&&x.telegramId===id))return alert("Este grupo já está vinculado a outro destino.");
+      g.telegramId=id;g.name=actual.name;store();render();return;
+    }
     if(e.target.closest("#tgSaveDraft")){store();notice("Rascunho salvo neste navegador.");return;}
     if(e.target.closest("#tgRenameGroup")){
       const g=getGroup(groupId);if(!g)return;
@@ -218,6 +238,16 @@
       state.groups=state.groups.filter(x=>x.id!==g.id);
       for(const m of Object.keys(state.mappings))if(state.mappings[m]===g.id)delete state.mappings[m];
       groupId=state.groups[0]?.id||"";store();render();return;
+    }
+    if(e.target.closest("#tgSendMessage")){
+      const dest=destination(modelId);
+      if(!dest||!dest.telegramId)return notice("Configure e vincule um grupo real para este modelo.",true);
+      if(!window.TelegramConnector?.connected?.())return notice("Conecte o Telegram na aba Configurações.",true);
+      const txt=getMessage();if(!txt.trim())return notice("Preencha o texto da solicitação.",true);
+      const d=draft(),m=model();if(m.kind){const items=d.rows.filter(r=>val(r.ci)||val(r.name)||val(r.cb)||val(r.newName));if(!items.length||items.some(r=>!val(r.ci)||!val(r.name)||(m.kind==="cb"&&!val(r.cb))||(m.kind==="nome"&&!val(r.newName))))return notice("Complete os campos obrigatórios dos produtos.",true);}
+      if(!confirm("Enviar esta solicitação para o grupo "+dest.name+"?\n\n"+txt))return;
+      try{const result=await window.TelegramConnector.send(dest.telegramId,txt);notice("Mensagem enviada ao grupo "+dest.name+" (ID "+result.id+"). Sincronize o monitor para acompanhar as reações.");}
+      catch(err){notice("Falha no envio: "+String(err.message||err),true);}return;
     }
     if(e.target.closest("#tgCopyMessage")){
       if(!destination(modelId))return notice("Associe um grupo de destino a este modelo antes de copiar para envio.",true);
