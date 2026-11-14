@@ -167,6 +167,8 @@
     window.TelegramConnector?.renderLogin?.();
   }
   function render(){
+    const badge=$("tgConnectionBadge"),connected=!!window.TelegramConnector?.connected?.();
+    if(badge){badge.textContent=connected?"Conta Telegram conectada":"Conta Telegram não conectada";badge.classList.toggle("connected",connected);}
     menu();
     if(section==="grupos"){renderGroups();renderRealGroupChooser();}
     else if(section==="monitoramento")renderMonitoring();
