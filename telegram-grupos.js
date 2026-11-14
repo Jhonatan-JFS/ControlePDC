@@ -160,7 +160,7 @@
     if(!connected){mount.innerHTML='<p class="tg-muted">Conecte a conta em Configurações para escolher grupos e tópicos.</p>';return;}
     const available=window.TelegramConnector.groups();
     const selected=getGroup(groupId);
-    mount.innerHTML='<div class="tg-real-picker"><label>1. Selecione o grupo<select id="tgRealGroupSelect"><option value="">Escolha uma conversa</option>'+available.map(g=>'<option value="'+esc(g.id)+'"'+(selected?.telegramId===g.id?' selected':'')+'>'+esc(g.name)+(g.isForum?' (com tópicos)':'')+'</option>').join("")+'</select></label><div id="tgRealTopicChooser" class="tg-topic-chooser"></div><button type="button" id="tgLinkRealGroup" class="btn btn-soft btn-small">Vincular destino</button></div>';
+    mount.innerHTML='<div class="tg-real-picker"><label>1. Selecione o grupo<select id="tgRealGroupSelect"><option value="">Escolha uma conversa</option>'+available.map(g=>'<option value="'+esc(g.id)+'"'+(selected?.telegramId===g.id?' selected':'')+'>'+esc(g.name)+(g.isForum?' (com tópicos)':'')+'</option>').join("")+'</select></label><div id="tgRealTopicChooser" class="tg-topic-chooser"></div><button type="button" id="tgRefreshTopics" class="btn btn-ghost btn-small">↻ Atualizar tópicos</button><button type="button" id="tgLinkRealGroup" class="btn btn-soft btn-small">Vincular destino</button></div>';
     if(selected?.telegramId)loadTopicChoices();
   }
   async function loadTopicChoices(){
@@ -245,6 +245,7 @@
       return;
     }
     if(e.target.closest("#tgAddRow")){draft().rows.push({});store();renderCompose();return;}
+    if(e.target.closest("#tgRefreshTopics")){const id=$("tgRealGroupSelect")?.value||"";if(id)topicCache.delete(id);await loadTopicChoices();return;}
     if(e.target.closest("#tgLinkRealGroup")){
       const g=getGroup(groupId),id=$("tgRealGroupSelect")?.value||"";
       const actual=window.TelegramConnector?.groups?.().find(x=>x.id===id);
