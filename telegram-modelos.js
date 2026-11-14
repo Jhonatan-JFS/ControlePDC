@@ -78,7 +78,7 @@
   // Separação aprovada: uma linha em branco entre produtos, sem separar CI e CB.
   switch(id){
    case "cadastro":return "Por favor, cadastrar:\n"+text.join("\n\n");
-   case "cadastroNFe":return "Por favor, cadastrar:\nEmpresa "+val(d.company)+"; NF-e: "+val(d.nfeNumber)+".\n\n"+text.join("\n\n");
+   case "cadastroNFe":return "Por favor, cadastrar:\nEmpresa "+val(d.company)+"; NF-e: "+val(d.nfeNumber)+".\n"+text.join("\n\n");
    case "grade":return "Por favor, cadastrar na grade do CI "+val(d.rootCI)+" - "+val(d.rootName)+".\n"+text.join("\n\n");
    case "cb":return "Por favor, atualizar CB:\n"+text.join("\n\n");
    case "desmembrar":return "Por favor, desmembrar em "+(d.unit==="Personalizado"?val(d.customUnit):d.unit)+(val(d.qty)?" ("+val(d.qty)+")":"")+":\n"+text.join("\n────────\n");
@@ -129,7 +129,7 @@
   const meta=catalog[id];if(!meta)return '<p class="req-warning">Modelo indisponível.</p>';
   let extras="";
   if(id==="grade")extras=field(d,"rootCI","CI principal")+field(d,"rootName","Nome da grade");
-  if(id==="cadastroNFe")extras=field(d,"company","Nome da empresa",{wide:true})+field(d,"nfeNumber","Número da NF-e",{wide:true});
+  if(id==="cadastroNFe")extras=field(d,"company","Nome da empresa",{wide:true})+field(d,"nfeNumber","Número da NF-e",{wide:true,inputmode:"numeric"});
   if(id==="desmembrar")extras=select(d,"unit","Unidade",[["Un","Un."],["Metro","Metro"],["1/2 Metro","1/2 Metro"],["Personalizado","Personalizado"]])+field(d,"qty","Quantidade (opcional)")+(d.unit==="Personalizado"?field(d,"customUnit","Nome da unidade"):"");
   if(id==="ean")extras=select(d,"eanMode","Código a adicionar no EAN",[["CI","CI"],["CB","CB"]]);
   const extra='<div class="req-fields">'+extras+'</div>';
