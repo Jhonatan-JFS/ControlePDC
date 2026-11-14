@@ -1,14 +1,14 @@
 # Telegram no Controle PDC — primeira integração de navegador
 
 ## Objetivo e alcance
-A terceira aba **Telegram** é independente de **Controle PDC** e **Solicitações**. Permite configurar um destino real do Telegram, associar **mais de um modelo** a um mesmo grupo, preparar mensagem, confirmar envio e sincronizar mensagens **sob demanda**.
+A terceira aba **Telegram** é independente de **Controle PDC** e **Solicitações**. Permite configurar um destino real do Telegram **por grupo e, em grupos com fórum, por tópico (subchat)**, associar **mais de um modelo** ao mesmo destino, preparar mensagem, confirmar envio e sincronizar mensagens **sob demanda**.
 
 ### Como conectar (sem bot, sem APK)
 1. Entre no site publicado via Google, abra **Telegram → Configurações**.
 2. Obtenha seu **API ID** e **API hash** pelo portal oficial https://my.telegram.org > API development tools, com sua própria conta. **Nunca compartilhe esses dados no chat.**
 3. Digite API ID, API hash, número com DDI e uma **senha local de proteção** com pelo menos 12 caracteres. O Telegram poderá solicitar um código enviado a outro dispositivo, e a senha de duas etapas.
 4. O site se comunica diretamente com os servidores Telegram pelo WebSocket MTProto usando a biblioteca `teleproto` e grava a sessão **cifrada por AES-GCM/PBKDF2 no armazenamento deste navegador**. A senha local não é enviada ao Telegram, não é incluída no GitHub e não é salva.
-5. Em **Grupos e modelos**, adicione um nome de grupo, escolha um grupo real da conta e vincule. Marque, por exemplo, **Cadastro de Produto** e **Alteração de Nomenclatura** para o mesmo destino.
+5. Em **Grupos e modelos**, adicione um destino, escolha o grupo real. Se o grupo possuir tópicos (fórum), **selecione também o tópico específico** antes de vincular. Marque os modelos que devem ir a esse tópico, por exemplo Cadastro de Produto e Alteração de Nomenclatura. Um mesmo grupo pode ser utilizado por diversos destinos, em tópicos diferentes.
 6. Em **Nova solicitação**, escolha o modelo: a aba selecionará automaticamente o destino configurado. Confira a prévia e confirme o envio.
 7. Em **Monitoramento**, clique em **Sincronizar agora** para capturar novas mensagens relevantes e revisar reações das solicitações anteriores.
 
@@ -28,3 +28,11 @@ A terceira aba **Telegram** é independente de **Controle PDC** e **Solicitaçõ
 - Dependência de conexão Telegram real e autenticação do usuário. O projeto não inclui credenciais nem conta pré-autorizada; sem esses dados, o monitor não lê nada.
 - Não foi possível testar a autenticação real sem uma conta Telegram autorizada. O código e a compilação do cliente web foram validados; a primeira autenticação e a leitura de grupos devem ser verificadas no próprio navegador do usuário.
 - O app opera sobre a conta do Telegram com permissões amplas; revogue sessões não reconhecidas em Telegram → Configurações → Dispositivos.
+
+## Grupos com tópicos (fórum)
+- O seletor exibe os tópicos disponíveis quando a conversa possui o modo **Fórum** ativado. Use **Atualizar tópicos** se um tópico tiver sido criado ou renomeado recentemente.
+- O tópico **Geral** é identificado por ID 1, e o envio ocorre normalmente sem responder a uma mensagem. Outros tópicos recebem as mensagens como respostas ao ID de criação do tópico.
+- Cada destino salva **ID do grupo + ID do tópico**, sem confundir um tópico com outro. É possível cadastrar dois destinos apontando para tópicos diferentes do mesmo grupo, cada qual com seus modelos.
+- Na sincronização, cada tópico configurado possui cursor independente de leitura; as solicitações registram o tópico de origem, permitindo revisar reações de mensagens específicas.
+- **Limitação de leitura:** o tópico Geral é filtrado no histórico global do grupo. A primeira leitura é limitada às 200 mensagens mais recentes deste histórico. Para tópicos nomeados, a leitura é feita pela thread específica, também limitada inicialmente às 200 mais recentes. Mensagens antigas anteriores à primeira sincronização podem ficar fora da janela inicial.
+- Tópicos fechados aparecem identificados e não podem ser selecionados como destino de envio.
