@@ -223,8 +223,18 @@
     return items;
   }
   function monitorHtml(){
-    const db=readHistory(),items=db.records.slice().sort((a,b)=>new Date(a.date)-new Date(b.date));
-    return '<div class="tg-monitor-head"><div><strong>'+items.length+' mensagem(ns) registrada(s)</strong><small>Última sincronização: '+(db.lastSync?enc(new Date(db.lastSync).toLocaleString("pt-BR")):"nunca")+'</small></div><button type="button" class="btn btn-primary btn-small" id="tgSyncNow">↻ Sincronizar agora</button></div>'+
+    const db=readHistory(),items=db.records.slice().sort((a,b)=>new Date(b.date)-new Date(a.date));
+    const requests=items.filter(r=>r.kind==="solicitacao"||!r.kind);
+    const verified=requests.filter(r=>r.status==="conferido"&&!r.unavailable).length;
+    const pending=requests.filter(r=>r.status==="pendente"&&!r.unavailable).length;
+    const sources=(window.TelegramRouting?.groups?.()||[]).filter(g=>g.telegramId&&(!g.isForum||g.topicId!=null)).length;
+    const metric=(title,value,tone,note)=>'<div class="tg-stat" data-tone="'+tone+'"><div class="tg-stat-label">'+title+'</div><strong class="tg-stat-value">'+value+'</strong><div class="tg-stat-note">'+note+'</div></div>';
+    const stats='<section class="tg-stats" aria-label="Resumo do monitoramento">'+
+      metric("Mensagens registradas",items.length,"info","Histórico disponível")+
+      metric("Conferidas",verified,"success","Com reação atualmente")+
+      metric("Não conferidas",pending,"warning","Sem reação no último exame")+
+      metric("Destinos vinculados",sources,"info","Grupos / tópicos configurados")+'</section>';
+    return stats+'<div class="tg-monitor-head"><div><strong>'+items.length+' mensagem(ns) registrada(s)</strong><small>Última sincronização: '+(db.lastSync?enc(new Date(db.lastSync).toLocaleString("pt-BR")):"nunca")+'</small></div><button type="button" class="btn btn-primary btn-small" id="tgSyncNow">↻ Sincronizar agora</button></div>'+
       '<p class="tg-auth-message" id="tgMonitorStatus" role="status" aria-live="polite">'+(logged()?"Verifique novas mensagens e reações antigas.":"Conecte sua conta em Configurações.")+'</p>'+
       (items.length?'<div class="tg-records">'+items.map(rec=>{
         const parsed=extract(rec.text),status=rec.unavailable?"Mensagem indisponível":rec.kind==="preco"?"Atualização de preço":rec.kind==="produto"?"Produto novo":rec.status==="conferido"?"Conferido":"Não conferido";
