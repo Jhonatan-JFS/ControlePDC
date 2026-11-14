@@ -44,6 +44,10 @@
         ||line.match(/^(\d{1,12})\s*[-–]\s*(\S.*)$/);
       if(code){
         current={ci:code[1],name:(code[2]||"").trim(),cb:"",sale:"",cost:""};
+        if(category==="preco"){
+          const trailing=current.name.match(/\s+-\s+(?:R\$\s*)?(\d+[.,]\d{2})\s*$/);
+          if(trailing){current.sale=trailing[1];current.name=current.name.slice(0,trailing.index).trim();}
+        }
         items.push(current);continue;
       }
       const cb=line.match(/^(?:CB|C[OÓ]DIGO\s+DE\s+BARRAS)\s*[:=-]\s*(\S+)/i);
