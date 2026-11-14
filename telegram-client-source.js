@@ -69,7 +69,7 @@ import { Api } from "teleproto";
         seen.add(topicId);
         result.push({id:String(topicId),name:String(t.title),closed:!!t.closed,hidden:!!t.hidden});
       }
-      if(!batch.length||result.length>=Number(response.count||0)||batch.length<100)break;
+      if(!batch.length||(Number(response.count||0)>0 && result.length>=Number(response.count)))break;
       const last=batch[batch.length-1];
       const top=Number(last.topMessage||0);
       const anchor=(response.messages||[]).find(m=>Number(m.id)===top);
@@ -101,7 +101,7 @@ import { Api } from "teleproto";
     if(thread!==null && (!Number.isInteger(thread)||thread<2))throw new Error("ID de tópico inválido.");
     const params=thread!==null?{replyTo:thread}:{};
     let messages=[];
-    let max=old;
+    let max=old,examined=0;
     if(!old){
       const initial=await tg.getMessages(entity,{...params,limit:Math.min(200,limit)});
       messages=initial.filter(Boolean).map(normalize).filter(m=>requested==null|| (thread!==null?true:m.topicId==="1")).sort((a,b)=>a.id-b.id);
@@ -110,6 +110,7 @@ import { Api } from "teleproto";
     } else {
       for await(const m of tg.iterMessages(entity,{...params,minId:old,reverse:true,limit})){
         if(!m)continue;
+        examined++;
         const item=normalize(m);
         max=Math.max(max,Number(m.id));
         if(requested!=null && thread===null && item.topicId!=="1")continue;
@@ -117,7 +118,7 @@ import { Api } from "teleproto";
         messages.push(item);
       }
     }
-    return {messages,lastId:max,truncated:old>0&&messages.length>=limit,initial:!old,ownId};
+    return {messages,lastId:max,truncated:old>0&&examined>=limit,initial:!old,ownId};
   }
   async function reactions(groupId,ids){
     const tg=ensure(),entity=peer(groupId),output=[];
