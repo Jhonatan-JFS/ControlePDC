@@ -41,7 +41,7 @@ import { Api } from "teleproto";
     for(const dialog of dialogs){
       const entity=dialog.entity;
       if(!entity || !(dialog.isGroup||dialog.isChannel))continue;
-      const id=String(entity.id);
+      const id=(dialog.isChannel?"channel:":"chat:")+String(entity.id);
       peers.set(id,entity);
       output.push({id,name:dialog.name||entity.title||id,isChannel:!!dialog.isChannel,isGroup:!!dialog.isGroup});
     }
