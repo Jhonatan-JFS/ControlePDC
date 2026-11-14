@@ -403,8 +403,9 @@
            'Mensagem informativa, sem status de conferência')+'</small>'+requestAction+'</article>';
     }).join("")+'</div>':'<div class="tg-information"><strong>Nenhuma mensagem nesta visualização.</strong><p>'+
       (!group?"Configure um grupo para começar.":"Não há mensagens nesta categoria no histórico local. Use Sincronizar selecionados para consultar novas mensagens.")+'</p></div>';
+    const txtReport=window.TelegramReports?.panelHtml?.({group,activeTopic:activeMonitorTopic})||"";
     return top+(monitorSettingsOpen?monitorConfigHtml(selection):"")+tabs+topics+directionTabs+
-      (activeMonitorDirection==="recebidas"?receivedFilters:"")+stats+sync+status+content;
+      (activeMonitorDirection==="recebidas"?receivedFilters:"")+stats+txtReport+sync+status+content;
   }
   async function renderMonitorTopicChoices(){
     const mount=$("tgMonTopicOptions"),select=$("tgMonGroupPick");
@@ -537,6 +538,7 @@
     topics,
     reloadGroups,
     send:async(groupId,text,topicId=null)=>{if(!logged())throw new Error("Conecte sua conta.");return window.TelegramBridge.send(groupId,text,topicId);},
-    renderLogin,renderMonitor,synchronize,readHistory
+    renderLogin,renderMonitor,synchronize,readHistory,
+    getReportScope:()=>{const {group}=monitorScope();return {group,activeTopic:activeMonitorTopic};}
   };
 })();

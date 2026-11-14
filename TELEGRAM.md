@@ -93,3 +93,21 @@ A classificação inicial prioriza comandos de solicitação (ex.: Por favor, ca
 
 ### Compatibilidade com histórico anterior
 O monitoramento anterior armazenava principalmente as mensagens da conta conectada e alguns avisos reconhecidos de terceiros. Na primeira sincronização de cada grupo/tópico após a atualização, a integração faz uma reconsulta das **200 mensagens mais recentes disponíveis** para recuperar parte das mensagens de colegas que o filtro antigo ignorava, sem apagar os registros ou reiniciar os marcadores de leitura. Mensagens mais antigas que essa janela ou apagadas antes da consulta podem não ser recuperáveis.
+
+
+## Exportação de relatórios TXT por grupo e tópico (Monitoramento)
+
+O relatório planejado agora é gerado diretamente na **quarta aba Monitoramento**:
+
+1. Selecione a aba do **grupo** e, se o grupo usar tópicos, escolha qual **tópico específico** será o chat de origem do TXT.
+2. No cartão **Relatório TXT deste chat**, defina o filtro **Iniciar a partir de (data e hora)**. Ex.: \`12/11/2026 às 14:30\`. O horário é interpretado no fuso local do navegador.
+3. Escolha **Todas as categorias** ou apenas **Atualizações de CB**, **Produtos novos**, **Alterações de preço**, **Solicitações** ou **Outras mensagens**. Também é possível filtrar pela autoria: minhas, recebidas ou ambas.
+4. Use **Visualizar TXT** para conferir o conteúdo antes de baixar ou **Baixar relatório TXT** para salvar um arquivo \`.txt\` no dispositivo. O nome contém grupo/tópico e início do período.
+
+**Cada TXT pertence a um chat:** em grupos com tópicos, o exportador sempre gera um tópico por vez; não mistura mensagens de outros tópicos. O relatório contém:
+- Cabeçalho com grupo, tópico, data/hora inicial, geração e filtros aplicados.
+- Seção de **últimas informações registradas por CI**: descrição mais recente encontrada, data e ID da última mensagem do CI, CB, venda e custo *somente quando explicitamente informados*. CI e CB permanecem identificadores independentes.
+- Seções separadas de **Atualizações de CB**, **Produtos novos**, **Alterações de preço**, **Solicitações** e **Outras mensagens**; cada registro mantém o título original, data, autor (próprio/participante), mensagem original e campos identificados.
+- Quando o mesmo CI aparece mais de uma vez, o resumo destaca a última menção registrada no recorte e mostra a última informação explícita de cada campo, sem descartar mensagens anteriores do histórico.
+
+**Limites importantes:** o TXT utiliza **somente mensagens já armazenadas no histórico local do dispositivo**, não realiza leitura retroativa do Telegram nem consulta o Solidcon quando exportado. Para atualizar o relatório, clique antes em **Sincronizar selecionados**. A leitura inicial do Telegram é limitada conforme as regras vigentes; mensagens antigas que nunca foram sincronizadas, apagadas ou indisponíveis não são recuperadas automaticamente. O TXT não inventa CI, CB, preços ou nomes ausentes.
