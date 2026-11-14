@@ -6,21 +6,9 @@
   const page=$("telegramPage"), pane=$("tgWorkspace"), side=$("tgSidebar"), groupsEl=$("tgGroupList");
   if(!page||!pane||!side||!groupsEl)return;
   const STORAGE="controle-pdc-telegram-destinos-v1";
-  const models=[
-    {id:"cadastro",name:"Cadastro de Produto",category:"Cadastros",kind:"cadastro"},
-    {id:"grade",name:"Cadastro em Grade",category:"Cadastros"},
-    {id:"cb",name:"Atualização de CB",category:"Códigos e Identificação",kind:"cb"},
-    {id:"ean",name:"Adicionar CI ou CB no EAN",category:"Códigos e Identificação"},
-    {id:"preco",name:"Ajuste de Preço",category:"Preços e Custos"},
-    {id:"verificarPreco",name:"Verificação de Preço",category:"Preços e Custos"},
-    {id:"custo",name:"Adicionar Valor de Custo",category:"Preços e Custos"},
-    {id:"desmembrar",name:"Desmembramento em Grade",category:"Grades e Unidades"},
-    {id:"promoEntrar",name:"Entrada de Promoção",category:"Promoções e Validades"},
-    {id:"promoSair",name:"Retirada de Promoção",category:"Promoções e Validades"},
-    {id:"validadeAdd",name:"Adição de Validade",category:"Promoções e Validades"},
-    {id:"validadeRemove",name:"Remoção de Validade",category:"Promoções e Validades"},
-    {id:"nome",name:"Alteração de Nomenclatura",category:"Dados do Produto",kind:"nome"}
-  ];
+  const templates=window.TelegramTemplates;
+  if(!templates){pane.innerHTML="<p>Não foi possível carregar os modelos de solicitações. Atualize a página.</p>";return;}
+  const models=templates.models;
   const modelMap=new Map(models.map(m=>[m.id,m]));
   const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const val=v=>String(v??"").trim();
@@ -48,18 +36,35 @@
   function destination(id){return getGroup(state.mappings[id]);}
   function model(){return modelMap.get(modelId)||models[0];}
   function draft(){
-    let existing=state.drafts[modelId];
-    if(!existing || typeof existing!=="object" || !Array.isArray(existing.rows)){
-      const old=state.drafts[state.mappings[modelId]];
-      existing=old&&Array.isArray(old.rows)&&modelId==="cb"?{rows:old.rows.map(r=>({...r}))}:{rows:[{}],freeText:""};
-      state.drafts[modelId]=existing;
+    let d=state.drafts[modelId];
+    if(!d||typeof d!=="object"){
+      const prior=state.drafts[state.mappings[modelId]];
+      d=prior&&Array.isArray(prior.rows)&&modelId==="cb"?{...templates.defaults(modelId),rows:prior.rows.map(r=>({...r}))}:templates.defaults(modelId);
+      state.drafts[modelId]=d;
     }
-    if(!existing.rows.length)existing.rows=[{}];
-    return existing;
+    if(!Array.isArray(d.rows)||!d.rows.length)d.rows=[{}];
+    // Compatibilidade com rascunhos das versões anteriores do editor Telegram.
+    if(modelId==="cb")d.rows.forEach(r=>{if(!r.newCB&&r.cb)r.newCB=r.cb;});
+    if(modelId==="nome"&&d.rows[0]){
+      if(!d.ci&&d.rows[0].ci)d.ci=d.rows[0].ci;
+      if(!d.oldName&&d.rows[0].name)d.oldName=d.rows[0].name;
+      if(!d.newName&&d.rows[0].newName)d.newName=d.rows[0].newName;
+    }
+    if(!d.unit)d.unit="Un";
+    if(!d.eanMode)d.eanMode="CI";
+    return d;
   }
+  let modelSearch="", modelCategory="all", openModelCategory="Cadastros";
   function closeMobile(){
+    if(window.innerWidth>760)return;
     side.classList.remove("open");
-    const toggle=$("tgMenuToggle");if(toggle)toggle.setAttribute("aria-expanded","false");
+    $("tgMenuToggle")?.setAttribute("aria-expanded","false");
+  }
+  function updateMenuState(){
+    const mobile=window.innerWidth<=760;
+    const expanded=mobile?side.classList.contains("open"):!page.classList.contains("sidebar-collapsed");
+    $("tgMenuToggle")?.setAttribute("aria-expanded",String(expanded));
+    $("tgMenuToggle")?.setAttribute("aria-label",expanded?"Esconder menu Telegram":"Mostrar menu Telegram");
   }
   function notice(txt,error=false){
     const el=$("tgNotice");
@@ -101,29 +106,33 @@
     if(kind==="nome")return "CI - "+ci+"\n\nDE:\n"+name+"\n\nPARA:\n"+val(r.newName);
     return line+(cb?(line?"\n":"")+"CB: "+cb:"");
   }
-  function getMessage(){
-    const m=model(),d=draft();
-    if(!m.kind)return val(d.freeText);
-    const list=d.rows.map(r=>formatItem(r,m.kind)).filter(Boolean);
-    const title={cb:"Por favor, atualizar CB:",cadastro:"Por favor, cadastrar:",nome:"Por favor, alterar nomenclatura:"}[m.kind];
-    return title+(list.length?"\n\n"+list.join("\n\n"):"");
-  }
-  function updatePreview(){
-    const pre=$("tgPreview");if(pre)pre.textContent=getMessage();
+  function getMessage(){return templates.message(modelId,draft());}
+  function updatePreview(){const el=$("tgPreview");if(el)el.textContent=getMessage();}
+  function renderModelChoices(){
+    const mount=$("tgModelChoices");if(!mount)return;
+    const norm=t=>String(t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+    mount.innerHTML=templates.categories.map(cat=>{
+      if(modelCategory!=="all"&&modelCategory!==cat.name)return "";
+      const visible=cat.ids.filter(id=>norm(modelMap.get(id)?.name).includes(norm(modelSearch))||norm(cat.name).includes(norm(modelSearch)));
+      if(!visible.length)return "";
+      const expanded=openModelCategory===cat.name||!!modelSearch;
+      return '<div class="req-model-group"><button type="button" class="req-group-title" data-tg-cat="'+esc(cat.name)+'" aria-expanded="'+expanded+'"><strong>'+esc(cat.name)+'</strong><span>'+visible.length+' modelos '+(expanded?'⌃':'⌄')+'</span></button>'+
+        (expanded?'<div class="req-model-choices">'+visible.map(id=>'<button type="button" class="req-model-chip '+(id===modelId?'active':'')+'" data-tg-model="'+id+'">'+esc(modelMap.get(id).name)+'</button>').join("")+'</div>':"")+'</div>';
+    }).join("")||'<p class="req-muted">Nenhum modelo encontrado.</p>';
   }
   function renderCompose(){
-    const m=model(),dest=destination(modelId);
-    const options=models.map(x=>'<option value="'+esc(x.id)+'"'+(x.id===m.id?" selected":"")+'>'+esc(x.name)+'</option>').join("");
-    pane.innerHTML=header("Nova solicitação","Selecione o modelo; o grupo de destino será preenchido automaticamente.")+
-      '<div class="tg-editor-toolbar"><label>Tipo de solicitação<select id="tgModelSelect">'+options+'</select></label></div>'+
+    const m=model();
+    const categoryOptions='<option value="all">Todas as categorias</option>'+templates.categories.map(c=>'<option value="'+esc(c.name)+'"'+(modelCategory===c.name?' selected':'')+'>'+esc(c.name)+'</option>').join("");
+    pane.innerHTML=header("Nova solicitação","Mesmos modelos e campos de Solicitações. O destino é determinado automaticamente pelo modelo escolhido.")+
+      '<div class="tg-compose-layout"><aside class="tg-model-catalog"><div class="tg-setup-eyebrow">ESCOLHA O MODELO</div>'+
+      '<div class="tg-model-filters"><input id="tgModelSearch" type="search" placeholder="Buscar modelo…" value="'+esc(modelSearch)+'" aria-label="Buscar modelo"><select id="tgModelCategory" aria-label="Filtrar categorias">'+categoryOptions+'</select></div><div id="tgModelChoices"></div></aside>'+
+      '<section class="tg-compose-form">'+
+      '<div id="tgRequestForm">'+templates.form(modelId,draft())+'</div>'+
       routeBox()+
-      '<div class="tg-information tg-info-inline"><strong>Envio com confirmação</strong><p>Se a conta estiver conectada e o destino vinculado, você poderá revisar e enviar a mensagem ao grupo. Sem conexão, use o botão Copiar.</p></div>'+
-      (m.kind?'<div id="tgRows" class="tg-rows">'+itemInputs()+'</div><button type="button" class="btn btn-soft btn-small" id="tgAddRow">+ Adicionar item</button>':
-       '<div class="tg-custom"><label>Conteúdo da solicitação — modelo ainda sem variáveis automatizadas<textarea data-tg-field="freeText" rows="8" placeholder="Preencha o texto deste modelo manualmente até definirmos suas variáveis.">'+esc(draft().freeText||"")+'</textarea></label><small>As variáveis deste modelo serão configuradas posteriormente, sem alterar os modelos já definidos.</small></div>')+
-      '<div class="tg-preview-panel"><div class="tg-preview-head"><strong>Mensagem e destino</strong><span>Prévia antes do envio</span></div><pre id="tgPreview"></pre></div>'+
-      '<div class="tg-editor-actions"><button type="button" class="btn btn-soft" id="tgSaveDraft">Salvar rascunho</button><button type="button" class="btn btn-primary" id="tgCopyMessage">Copiar mensagem</button><button type="button" class="btn btn-soft" id="tgSendMessage">Enviar pelo Telegram</button></div>'+
-      '<p id="tgNotice" class="tg-notice" role="status" aria-live="polite"></p>';
-    updatePreview();
+      '<div class="tg-preview-panel"><div class="tg-preview-head"><strong>Prévia da mensagem</strong><span>Separação entre produtos preservada</span></div><pre id="tgPreview"></pre></div>'+
+      '<div class="tg-editor-actions"><button type="button" class="btn btn-soft" id="tgSaveDraft">Salvar rascunho</button><button type="button" class="btn btn-ghost" id="tgCopyMessage">Copiar mensagem</button><button type="button" class="btn btn-primary" id="tgSendMessage">Enviar pelo Telegram</button></div>'+
+      '<p id="tgNotice" class="tg-notice" role="status" aria-live="polite"></p></section></div>';
+    renderModelChoices();updatePreview();
   }
   function renderGroups(){
     const selected=getGroup(groupId);
