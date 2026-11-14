@@ -10,7 +10,7 @@
   const encoder=new TextEncoder(), decoder=new TextDecoder();
   const enc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   let current=null, myGroups=[], busy=false;
-  let activeMonitorGroup="",activeMonitorTopic="all",activeMonitorDirection="enviadas",activeReceivedCategory="todas",monitorSettingsOpen=false;
+  let activeMonitorGroup="",activeMonitorTopic="all",activeMonitorDirection="enviadas",activeReceivedCategory="todas",monitorSettingsOpen=false,monitorReportOpen=false;
   let draftMonitorGroup="",draftMonitorTopics=[],topicRequestVersion=0;
   const monitorTopicCache=new Map();
   function bytesToBase64(bytes){let str="";for(const b of bytes)str+=String.fromCharCode(b);return btoa(str);}
@@ -403,9 +403,13 @@
            'Mensagem informativa, sem status de conferência')+'</small>'+requestAction+'</article>';
     }).join("")+'</div>':'<div class="tg-information"><strong>Nenhuma mensagem nesta visualização.</strong><p>'+
       (!group?"Configure um grupo para começar.":"Não há mensagens nesta categoria no histórico local. Use Sincronizar selecionados para consultar novas mensagens.")+'</p></div>';
-    const txtReport=window.TelegramReports?.panelHtml?.({group,activeTopic:activeMonitorTopic})||"";
-    return top+(monitorSettingsOpen?monitorConfigHtml(selection):"")+tabs+topics+directionTabs+
-      (activeMonitorDirection==="recebidas"?receivedFilters:"")+stats+txtReport+sync+status+content;
+    const txtReport=monitorReportOpen?
+      '<div id="tgReportContainer" class="tg-report-container">'+
+        (window.TelegramReports?.panelHtml?.({group,activeTopic:activeMonitorTopic})||
+          '<p class="tg-muted">Não foi possível carregar o gerador de relatórios. Atualize a página.</p>')+
+      '</div>':'';
+    return top+txtReport+(monitorSettingsOpen?monitorConfigHtml(selection):"")+tabs+topics+directionTabs+
+      (activeMonitorDirection==="recebidas"?receivedFilters:"")+stats+sync+status+content;
   }
   async function renderMonitorTopicChoices(){
     const mount=$("tgMonTopicOptions"),select=$("tgMonGroupPick");
@@ -432,6 +436,11 @@
     const mount=$("tgMonitorMount");
     if(!mount)return;
     mount.innerHTML=monitorHtml();
+    const launcher=$("tgReportOpen");
+    if(launcher){
+      launcher.setAttribute("aria-expanded",String(monitorReportOpen));
+      launcher.textContent=monitorReportOpen?"▤ Ocultar relatório TXT":"▤ Relatório TXT";
+    }
     if(monitorSettingsOpen&&draftMonitorGroup){
       const picker=$("tgMonGroupPick");
       if(picker)picker.value=draftMonitorGroup;
@@ -450,6 +459,12 @@
     }
   });
   document.addEventListener("click",async e=>{
+    if(e.target.closest("#tgReportOpen")){
+      monitorReportOpen=!monitorReportOpen;
+      renderMonitor();
+      if(monitorReportOpen)$("tgReportContainer")?.scrollIntoView?.({behavior:"smooth",block:"start"});
+      return;
+    }
     if(e.target.closest("#tgMonToggleConfig")){
       monitorSettingsOpen=!monitorSettingsOpen;draftMonitorGroup="";draftMonitorTopics=[];renderMonitor();return;
     }
