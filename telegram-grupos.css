@@ -123,3 +123,11 @@
  .tg-editor-actions{justify-content:stretch}
  .tg-editor-actions button{flex:1}
 }
+
+/* Seleção de tópicos (subchats) dentro de um supergrupo Telegram */
+.tg-topic-chooser{flex:1 1 100%;min-width:190px}
+.tg-topic-chooser label{display:grid;gap:6px;font:700 11px Manrope,Arial,sans-serif;color:#4e6e60}
+.tg-topic-chooser select{width:100%;padding:10px;border:1px solid #cfe3d5;border-radius:8px;background:#fff;color:#275941}
+.tg-real-picker #tgRefreshTopics{margin-right:auto}
+.tg-group-button small{white-space:normal;line-height:1.45}
+@media(max-width:760px){.tg-topic-chooser{width:100%}.tg-real-picker #tgLinkRealGroup{width:100%}}
