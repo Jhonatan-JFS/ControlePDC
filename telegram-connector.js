@@ -106,6 +106,7 @@
       current=profile;
       try{myGroups=await window.TelegramBridge.groups();}catch(_){myGroups=[];}
       renderLogin();
+      monitorTopicCache.clear();
       window.dispatchEvent(new CustomEvent("tg-connection-changed",{detail:{connected:true}}));
       setNote("Conectado. "+myGroups.length+" grupos/canais encontrados.");
     }catch(e){setNote("Não foi possível conectar: "+String(e.message||e),true);}
@@ -116,12 +117,13 @@
     if(forget)localStorage.removeItem(KEY);
     current=null;myGroups=[];
     renderLogin();
+    monitorTopicCache.clear();
     window.dispatchEvent(new CustomEvent("tg-connection-changed",{detail:{connected:false}}));
     setNote(forget?"Sessão local esquecida.":"Conexão encerrada neste navegador.");
   }
   async function reloadGroups(){
     if(!logged())return setNote("Conecte a conta primeiro.",true);
-    try{setNote("Consultando grupos…");myGroups=await window.TelegramBridge.groups();setNote(myGroups.length+" grupos/canais encontrados.");window.dispatchEvent(new Event("tg-groups-updated"));}
+    try{setNote("Consultando grupos…");myGroups=await window.TelegramBridge.groups();monitorTopicCache.clear();setNote(myGroups.length+" grupos/canais encontrados.");window.dispatchEvent(new Event("tg-groups-updated"));}
     catch(e){setNote(String(e.message||e),true);}
   }
   function readMonitorSelection(){
@@ -366,7 +368,62 @@
       renderMonitorTopicChoices();
     }
   }
+  document.addEventListener("change",e=>{
+    const el=e.target;
+    if(el.id==="tgMonGroupPick"){
+      draftMonitorGroup=el.value;
+      draftMonitorTopics=readMonitorSelection().groups.find(g=>g.id===el.value)?.topics.map(t=>t.id)||[];
+      renderMonitorTopicChoices();
+    }
+    if(el.matches?.("[data-mon-topic]")){
+      draftMonitorTopics=Array.from(document.querySelectorAll("[data-mon-topic]:checked")).map(x=>x.dataset.monTopic);
+    }
+  });
   document.addEventListener("click",async e=>{
+    if(e.target.closest("#tgMonToggleConfig")){
+      monitorSettingsOpen=!monitorSettingsOpen;draftMonitorGroup="";draftMonitorTopics=[];renderMonitor();return;
+    }
+    const tab=e.target.closest("[data-mon-tab]");
+    if(tab){activeMonitorGroup=tab.dataset.monTab;activeMonitorTopic="all";renderMonitor();return;}
+    const filter=e.target.closest("[data-mon-filter]");
+    if(filter){activeMonitorTopic=filter.dataset.monFilter;renderMonitor();return;}
+    const remove=e.target.closest("[data-mon-remove]");
+    if(remove){
+      const config=readMonitorSelection(),g=config.groups.find(g=>g.id===remove.dataset.monRemove);
+      if(!g||!confirm("Retirar "+g.name+" do monitoramento? Os vínculos de envio e o histórico serão preservados."))return;
+      config.groups=config.groups.filter(x=>x.id!==g.id);
+      try{saveMonitorSelection(config);}catch(err){alert(err.message);return;}
+      if(activeMonitorGroup===g.id){activeMonitorGroup=config.groups[0]?.id||"";activeMonitorTopic="all";}
+      draftMonitorGroup="";draftMonitorTopics=[];renderMonitor();return;
+    }
+    const edit=e.target.closest("[data-mon-edit]");
+    if(edit){
+      const g=readMonitorSelection().groups.find(x=>x.id===edit.dataset.monEdit);
+      if(!g)return;
+      monitorSettingsOpen=true;draftMonitorGroup=g.id;draftMonitorTopics=g.topics.map(t=>t.id);
+      renderMonitor();return;
+    }
+    if(e.target.closest("#tgMonSelectAll")||e.target.closest("#tgMonClearTopics")){
+      const checked=!!e.target.closest("#tgMonSelectAll");
+      document.querySelectorAll("[data-mon-topic]").forEach(x=>{x.checked=checked;});
+      draftMonitorTopics=Array.from(document.querySelectorAll("[data-mon-topic]:checked")).map(x=>x.dataset.monTopic);
+      return;
+    }
+    if(e.target.closest("#tgMonSaveGroup")){
+      const id=$("tgMonGroupPick")?.value||"",g=myGroups.find(x=>x.id===id);
+      if(!g){alert("Selecione um grupo do Telegram.");return;}
+      const available=monitorTopicCache.get(id)||[];
+      const check=Array.from(document.querySelectorAll("[data-mon-topic]:checked")).map(x=>x.dataset.monTopic);
+      const topicsChosen=g.isForum?available.filter(t=>check.includes(t.id)):[];
+      if(g.isForum&&!topicsChosen.length){alert("Escolha ao menos um tópico desse grupo.");return;}
+      const entry={id:g.id,name:g.name,isForum:!!g.isForum,topics:topicsChosen.map(t=>({id:String(t.id),name:String(t.name)}))};
+      const config=readMonitorSelection(),index=config.groups.findIndex(x=>x.id===id);
+      if(index<0)config.groups.push(entry);else config.groups[index]=entry;
+      try{saveMonitorSelection(config);}catch(err){alert(err.message);return;}
+      activeMonitorGroup=id;activeMonitorTopic="all";draftMonitorGroup="";draftMonitorTopics=[];
+      renderMonitor();return;
+    }
+
     if(e.target.closest("#tgConnect")){await connect();return;}
     if(e.target.closest("#tgDisconnect")){await disconnect();return;}
     if(e.target.closest("#tgForget")){if(confirm("Esquecer a sessão local neste dispositivo? A autorização pode ser revogada também em Telegram > Dispositivos."))await disconnect(true);return;}
@@ -379,6 +436,8 @@
       }catch(err){if(status)status.textContent=String(err.message||err);}
     }
   });
+  window.addEventListener("tg-connection-changed",renderMonitor);
+  window.addEventListener("tg-groups-updated",renderMonitor);
   window.TelegramConnector={
     connected:logged,
     groups,
