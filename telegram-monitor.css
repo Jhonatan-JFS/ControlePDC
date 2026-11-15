@@ -76,3 +76,79 @@
  #monitorPage .tg-monitor-direction strong{padding:4px 7px}
  #monitorPage .tg-monitor-categories{gap:5px}
 }
+
+
+/* Comparação de preços por CI — avisos recebidos, valores da conversa. */
+#monitorPage .tg-record-price{
+ border:1px solid #40546a;background:#172331;overflow:hidden;
+}
+#monitorPage .tg-record-price.tg-price-up{
+ border-color:#9c4957;box-shadow:inset 4px 0 0 #ff7888,0 7px 19px #00000022;
+}
+#monitorPage .tg-record-price.tg-price-down{
+ border-color:#357b68;box-shadow:inset 4px 0 0 #57d7ae,0 7px 19px #00000022;
+}
+#monitorPage .tg-record-price .tg-record-content{display:block}
+#monitorPage .tg-record-price.tg-price-up .tg-rec-state,
+#monitorPage .tg-rec-state.tg-price-state-up{
+ background:#542b36;color:#ffbac3;border:1px solid #ac5a67;
+}
+#monitorPage .tg-record-price.tg-price-down .tg-rec-state,
+#monitorPage .tg-rec-state.tg-price-state-down{
+ background:#194a3d;color:#b2fadd;border:1px solid #4e9c7e;
+}
+#monitorPage .tg-price-entries{display:grid;gap:10px}
+#monitorPage .tg-price-entry{
+ background:#152231;border:1px solid #37516a;border-radius:12px;
+ padding:12px 14px;min-width:0;
+}
+#monitorPage .tg-price-entry.tg-price-up{background:#291f2b;border-color:#764453}
+#monitorPage .tg-price-entry.tg-price-down{background:#172a29;border-color:#37695a}
+#monitorPage .tg-price-item-heading{display:flex;gap:9px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:13px}
+#monitorPage .tg-price-item-heading>div{display:flex;flex-direction:column;gap:3px;min-width:140px}
+#monitorPage .tg-price-item-heading strong{font-size:13px;color:#f4f9ff;font-weight:800}
+#monitorPage .tg-price-item-heading span:not(.tg-price-change){font-size:11px;color:#c4d6e6;overflow-wrap:anywhere}
+#monitorPage .tg-price-change{
+ display:inline-flex;align-items:center;gap:4px;padding:5px 9px;
+ border:1px solid #48617a;border-radius:18px;background:#1d3144;color:#b6d5ed;
+ font-size:10px;font-weight:850;letter-spacing:.045em;white-space:nowrap;
+}
+#monitorPage .tg-price-up .tg-price-change{background:#582834;border-color:#a45c67;color:#ffc1c7}
+#monitorPage .tg-price-down .tg-price-change{background:#1c4a3a;border-color:#409576;color:#bbffe0}
+#monitorPage .tg-price-values{
+ display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+ align-items:center;gap:10px;min-width:0;
+}
+#monitorPage .tg-price-value{
+ display:flex;flex-direction:column;justify-content:center;gap:4px;
+ background:#101b29;border:1px solid #364a62;border-radius:9px;
+ padding:10px 13px;min-height:70px;min-width:0;
+}
+#monitorPage .tg-price-value small{font-size:10px;color:#a2b8cc;line-height:1.4}
+#monitorPage .tg-price-value strong{font:800 clamp(13px,2.2vw,17px)/1.2 Manrope,Arial,sans-serif;color:#e4eef8;word-break:break-word}
+#monitorPage .tg-price-current strong{color:#edf8ff}
+#monitorPage .tg-price-up .tg-price-current{background:#3d2530;border-color:#9a4a60}
+#monitorPage .tg-price-up .tg-price-current strong{color:#ffb4be}
+#monitorPage .tg-price-down .tg-price-current{background:#173c33;border-color:#398969}
+#monitorPage .tg-price-down .tg-price-current strong{color:#a6f6d3}
+#monitorPage .tg-price-unavailable span{color:#8298ac;font-size:11px}
+#monitorPage .tg-price-arrow{font-size:18px;color:#8aa8bf}
+#monitorPage .tg-price-barcode{
+ display:inline-block;margin-top:11px;padding:5px 9px;border:1px solid #34506a;
+ border-radius:8px;background:#112236;color:#c6e3f8;font:700 11px ui-monospace,Consolas,monospace;
+}
+#monitorPage .tg-price-source{margin-top:10px;border-top:1px solid #34485c;padding:10px 0 0;color:#a7c1d4}
+#monitorPage .tg-price-source summary{cursor:pointer;font-size:11px;font-weight:700;width:max-content;max-width:100%;color:#a3cbeb}
+#monitorPage .tg-price-source pre{margin:10px 0 0;background:#0d1927;border:1px solid #2f4559;border-radius:8px;padding:11px;color:#d9e8f6;white-space:pre-wrap;overflow-wrap:anywhere}
+#monitorPage .tg-price-alert{
+ margin:10px 0 0;padding:8px 10px;border-radius:8px;border:1px solid #946849;
+ background:#382d24;color:#ffd39b;font-size:11px;line-height:1.6;
+}
+@media(max-width:550px){
+ #monitorPage .tg-price-entry{padding:11px}
+ #monitorPage .tg-price-values{gap:6px}
+ #monitorPage .tg-price-value{padding:9px 8px;min-height:65px}
+ #monitorPage .tg-price-value strong{font-size:13px}
+ #monitorPage .tg-price-arrow{font-size:14px}
+ #monitorPage .tg-price-item-heading{gap:7px}
+}

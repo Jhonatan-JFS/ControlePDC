@@ -121,3 +121,18 @@ CB: 1234567890001
 Somente **uma entrada por CI** aparece no relatório, com a descrição, CB e última direção de preço explicitamente registrados nas mensagens desde o filtro inicial. Campos ausentes são omitidos; não se inventa título, descrição, CB nem aumento/queda. Quando não se reconhece o material por cabeçalho, os itens ficam em **MATERIAL NÃO INFORMADO**; o usuário pode fornecer um **material para itens sem título** (opcional) no formulário.
 
 **Importante:** o TXT é gerado exclusivamente com o histórico já sincronizado no navegador e respeita o corte de data/hora. Não acessa o Solidcon e não confirma alterações no sistema. Clique em **Sincronizar selecionados** antes de exportar para obter as mensagens mais recentes. O arquivo preserva CI e CB em linhas separadas, com uma linha em branco entre produtos.
+
+
+## Comparação visual dos avisos de preços no Monitoramento
+
+Na aba **Monitoramento → Mensagens recebidas → Alterações de preço**, cada aviso reconhecido apresenta:
+
+- **AUMENTOU** em vermelho ou **BAIXOU** em verde, com indicação textual e borda correspondente.
+- Uma linha/cartão por **CI**, com descrição quando fornecida, valor **Antes → Atual** e CB se disponível.
+- Quando a própria mensagem informa explicitamente **De/Antes** e **Para/Atual/Venda**, o painel usa os preços citados.
+- Caso contrário, **Antes** mostra o último preço explicitamente registrado em aviso anterior do **mesmo CI, grupo e tópico**, com identificação **Antes · último aviso**. Não mistura informações de grupos ou tópicos distintos.
+- Se o valor anterior ou atual não estiver disponível nas mensagens sincronizadas, mostra **Não informado**; não inventa valores.
+- Se o sentido escrito (AUMENTOU/BAIXOU) contradizer os valores numéricos, mostra um aviso de conferência.
+- Texto original do Telegram fica acessível em **Ver mensagem original**.
+
+A classificação visual utiliza o conteúdo das mensagens de outros participantes e o histórico local; não consulta nem confirma valores do Solidcon. A sincronização continua manual, por grupo/tópico escolhido. O **TXT simplificado por material/CI/CB** permanece sem alteração.
