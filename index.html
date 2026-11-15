@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f6f3eb">
+  <meta name="theme-color" content="#080b10">
   <meta name="description" content="Controle pessoal de cargas PDC, atualizações e conferência de etiquetas.">
   <title>Controle PDC — Atualizações</title>
   <link rel="stylesheet" href="./style.css?v=2.0.2">
@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="./telegram-tema.css?v=2">
   <link rel="stylesheet" href="./telegram-monitor.css?v=2">
   <link rel="stylesheet" href="./telegram-relatorios.css?v=3">
+  <link rel="stylesheet" href="./site-dark.css?v=1">
   <script defer src="./app.js?v=2.0.2"></script>
   <script defer src="./solicitacoes.js?v=2.0.3"></script>
   <script defer src="./telegram-client.bundle.js?v=2"></script>
@@ -26,9 +27,14 @@
     <header class="topbar">
       <div class="brand">
         <div class="brand-mark" aria-hidden="true">P<span>·</span></div>
-        <div><h1>Controle PDC</h1><p>Atualizações de produtos</p></div>
+        <div><h1>Controle PDC</h1><p>Central de operações e solicitações</p></div>
       </div>
-      <nav class="pdc-nav" aria-label="Páginas do sistema"><button type="button" data-page="pdc" class="active" aria-current="page">Controle PDC</button><button type="button" data-page="requests">Solicitações</button><button type="button" data-page="telegram">Telegram</button><button type="button" data-page="monitor">Monitoramento</button></nav>
+      <nav class="pdc-nav" aria-label="Páginas do sistema">
+        <button type="button" data-page="pdc" class="active" aria-current="page"><span class="nav-icon" aria-hidden="true">▦</span><span>Controle PDC</span></button>
+        <button type="button" data-page="requests"><span class="nav-icon" aria-hidden="true">☷</span><span>Solicitações</span></button>
+        <button type="button" data-page="telegram"><span class="nav-icon" aria-hidden="true">↗</span><span>Telegram</span></button>
+        <button type="button" data-page="monitor"><span class="nav-icon" aria-hidden="true">◉</span><span>Monitoramento</span></button>
+      </nav>
       <div class="header-actions">
         <span class="mode-pill" id="modePill"><span class="online-dot"></span> Aguardando login</span>
         <button class="btn btn-primary btn-small" id="loginButton">Entrar com Google</button>
