@@ -250,10 +250,15 @@
     return iso;
   }
   function lastMessageFor(option,db){
-    const dates=db.records.filter(r=>r.telegramId===option.key.split(":topic:")[0]&&
-      (option.topic===""||String(r.topicId??"")===String(option.key.slice(option.key.lastIndexOf(":")+1))))
-      .map(r=>Date.parse(r.date)).filter(Number.isFinite);
-    return dates.length?new Date(Math.max(...dates)).toISOString():null;
+    const groupId=option.key.slice(0,option.key.lastIndexOf(":topic:"));
+    const threadId=option.key.slice(option.key.lastIndexOf(":topic:")+7);
+    let max=0;
+    for(const rec of db.records){
+      if(rec.telegramId!==groupId||(threadId!=="all"&&String(rec.topicId??"")!==threadId))continue;
+      const date=Date.parse(rec.date);
+      if(Number.isFinite(date)&&date>max)max=date;
+    }
+    return max?new Date(max).toISOString():null;
   }
   function syncStamp(value){
     return value&&Number.isFinite(Date.parse(value))?new Date(value).toLocaleString("pt-BR"):"Ainda não realizada";
@@ -269,8 +274,11 @@
       db.lastSyncBySource?.[syncConfigTarget]?.lastCompletedAt;
     const previousAttempt=syncConfigTarget==="all"?db.lastSync:
       db.lastSyncBySource?.[syncConfigTarget]?.lastAttemptAt;
-    const newest=selected?lastMessageFor(selected,db):
-      (db.records.length?new Date(Math.max(...db.records.map(r=>Date.parse(r.date)).filter(Number.isFinite))).toISOString():null);
+    const newest=selected?lastMessageFor(selected,db):options.reduce((max,o)=>{
+      const time=Date.parse(lastMessageFor(o,db)||"");
+      return Number.isFinite(time)&&time>max?time:max;
+    },0);
+    const newestStamp=typeof newest==="number"?(newest?new Date(newest).toISOString():null):newest;
     const sourceRows=options.map(o=>{
       const item=db.lastSyncBySource?.[o.key],oldStart=!!item?.lastCompletedStartAt&&item.lastCompletedStartAt!==o.startAt;
       const state=db.historyBackfills?.[o.key];
@@ -294,7 +302,7 @@
         '<label>Sincronizar a partir de:<input id="tgSyncFrom" type="datetime-local" value="'+enc(localDateInput(dateValue))+'"></label>'+
         '<div class="tg-sync-buttons"><button type="button" class="btn btn-soft" id="tgSyncSaveStart">Salvar data inicial</button>'+
         '<button type="button" class="btn btn-primary" id="tgSyncRun"'+(!logged()||syncRunning?' disabled':'')+'>'+
-        (syncRunning?"Sincronizando…":"↻ Sincronizar agora")+'</button></div></div>'+
+        (syncRunning?"Sincronizando…":syncConfigTarget==="all"?"↻ Sincronizar todos":"↻ Sincronizar este tópico")+'</button></div></div>'+
         (syncConfigTarget==="all"&&starts.length>1?'<p class="tg-sync-hint">Os tópicos possuem datas diferentes. Escolha uma nova data para unificar ou sincronize mantendo as datas já salvas.</p>':
          '<p class="tg-sync-hint">A data define o início da recuperação. Você pode voltar a uma data anterior sem apagar o histórico.</p>'):
         '<div class="tg-sync-empty">Nenhum grupo monitorado. Em <strong>Monitoramento → Selecionar grupos e tópicos</strong>, escolha as conversas antes de sincronizar.</div>')+
@@ -303,7 +311,7 @@
         enc(syncNotice||"Escolha a data inicial e toque em Sincronizar agora.")+'</p>'+
       '<div class="tg-sync-overview"><div><small>Última sincronização concluída</small><strong>'+enc(syncStamp(previous))+'</strong></div>'+
         '<div><small>Última tentativa</small><strong>'+enc(syncStamp(previousAttempt))+'</strong></div>'+
-        '<div><small>Última mensagem registrada</small><strong>'+enc(syncStamp(newest))+'</strong></div></div>'+
+        '<div><small>Última mensagem registrada</small><strong>'+enc(syncStamp(newestStamp))+'</strong></div></div>'+
       '<details class="tg-sync-history"><summary>Histórico de sincronizações ('+(db.syncSessions?.length||0)+')</summary>'+
         '<div class="tg-sync-log-list">'+(logs||'<p>Nenhuma execução registrada neste navegador.</p>')+'</div>'+
         '<h5>Grupos e tópicos</h5><div class="tg-sync-sources">'+(sourceRows||'<p>Nenhum grupo configurado.</p>')+'</div>'+
@@ -438,10 +446,12 @@
     writeHistory(db);
     return result;
   }
-  async function synchronize(onProgress){
+  async function synchronize(onProgress,targetKey="all"){
     if(syncRunning)throw new Error("Uma sincronização já está em andamento.");
     if(!logged())throw new Error("Conecte sua conta Telegram para sincronizar.");
-    const targets=selectedTargets();
+    const candidates=selectedTargets();
+    const targets=targetKey==="all"?candidates:candidates.filter(t=>
+      t.telegramId+":topic:"+(t.topicId??"all")===targetKey);
     if(!targets.length)throw new Error("Escolha os grupos e tópicos em Monitoramento → Configurar monitoramento.");
     const missing=targets.filter(t=>!t.startAt||!Number.isFinite(Date.parse(t.startAt)));
     if(missing.length)throw new Error("Defina 'Sincronizar a partir de' para: "+missing.map(t=>t.name).slice(0,5).join(", ")+(missing.length>5?" e outros":"")+".");
@@ -450,6 +460,7 @@
     try{
       const db=readHistory(),errors=[],pending=[],meId=window.TelegramBridge.getMeId();
       db.historyBackfills ||= {};db.dateAnchors ||= {};db.recentPending ||= {};
+      db.lastSyncBySource ||= {};db.syncSessions ||= [];
       const cache=new Map(db.records.map(r=>[r.key,r]));
       let added=0,checked=0,examined=0;
       const append=(group,msg)=>{
@@ -530,10 +541,36 @@
             }
             writeHistory(db);
           }
-        }catch(err){errors.push(group.name+": "+String(err.message||err));}
+          const now=new Date().toISOString(),prev=db.lastSyncBySource[cursorKey]||{};
+          const sourceComplete=state.done&&!more;
+          db.lastSyncBySource[cursorKey]={
+            lastAttemptAt:now,
+            lastCompletedAt:sourceComplete?now:(prev.lastCompletedAt||null),
+            lastCompletedStartAt:sourceComplete?group.startAt:(prev.lastCompletedStartAt||null),
+            lastResult:sourceComplete?"concluida":"parcial",startAt:group.startAt,
+            lastMessageAt:db.records.reduce((value,rec)=>{
+              if(rec.telegramId!==group.telegramId||
+                (group.topicId!=null&&String(rec.topicId??"")!==String(group.topicId)))return value;
+              const at=Date.parse(rec.date);
+              return Number.isFinite(at)&&at>value?at:value;
+            },0)||null
+          };
+          writeHistory(db);
+        }catch(err){
+          errors.push(group.name+": "+String(err.message||err));
+          const prev=db.lastSyncBySource[cursorKey]||{};
+          db.lastSyncBySource[cursorKey]={...prev,lastAttemptAt:new Date().toISOString(),
+            lastResult:"erro",startAt:group.startAt};
+          try{writeHistory(db);}catch(_){}
+        }
       }
-      db.lastSync=new Date().toISOString();writeHistory(db);
-      return {added,checked,examined,total:db.records.length,errors,pending,complete:!errors.length&&!pending.length};
+      const at=new Date().toISOString(),complete=!errors.length&&!pending.length;
+      db.lastSync=at;
+      if(complete)db.lastCompleteSync=at;
+      db.syncSessions=[{at,complete,scope:targetKey,sourceCount:targets.length,added,checked,
+        pending:pending.length,errors:errors.length},...(db.syncSessions||[])].slice(0,20);
+      writeHistory(db);
+      return {added,checked,examined,total:db.records.length,errors,pending,complete};
     }finally{syncRunning=false;}
   }
   function extract(text){
