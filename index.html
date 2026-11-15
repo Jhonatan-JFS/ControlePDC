@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f6f3eb">
+  <meta name="theme-color" content="#080b10">
   <meta name="description" content="Controle pessoal de cargas PDC, atualizações e conferência de etiquetas.">
   <title>Controle PDC — Atualizações</title>
   <link rel="stylesheet" href="./style.css?v=2.0.2">
@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="./telegram-tema.css?v=2">
   <link rel="stylesheet" href="./telegram-monitor.css?v=2">
   <link rel="stylesheet" href="./telegram-relatorios.css?v=3">
+  <link rel="stylesheet" href="./site-dark.css?v=1">
   <script defer src="./app.js?v=2.0.2"></script>
   <script defer src="./solicitacoes.js?v=2.0.3"></script>
   <script defer src="./telegram-client.bundle.js?v=2"></script>
@@ -26,9 +27,14 @@
     <header class="topbar">
       <div class="brand">
         <div class="brand-mark" aria-hidden="true">P<span>·</span></div>
-        <div><h1>Controle PDC</h1><p>Atualizações de produtos</p></div>
+        <div><h1>Controle PDC</h1><p>Central de operações e solicitações</p></div>
       </div>
-      <nav class="pdc-nav" aria-label="Páginas do sistema"><button type="button" data-page="pdc" class="active" aria-current="page">Controle PDC</button><button type="button" data-page="requests">Solicitações</button><button type="button" data-page="telegram">Telegram</button><button type="button" data-page="monitor">Monitoramento</button></nav>
+      <nav class="pdc-nav" aria-label="Páginas do sistema">
+        <button type="button" data-page="pdc" class="active" aria-current="page"><span class="nav-icon" aria-hidden="true">▦</span><span>Controle PDC</span></button>
+        <button type="button" data-page="requests"><span class="nav-icon" aria-hidden="true">☷</span><span>Solicitações</span></button>
+        <button type="button" data-page="telegram"><span class="nav-icon" aria-hidden="true">↗</span><span>Telegram</span></button>
+        <button type="button" data-page="monitor"><span class="nav-icon" aria-hidden="true">◉</span><span>Monitoramento</span></button>
+      </nav>
       <div class="header-actions">
         <span class="mode-pill" id="modePill"><span class="online-dot"></span> Aguardando login</span>
         <button class="btn btn-primary btn-small" id="loginButton">Entrar com Google</button>
@@ -46,6 +52,20 @@
 
     <main id="mainWorkspace">
       <section id="pdcPage">
+      <div class="pdc-page-intro" aria-label="Etapas do Controle PDC">
+        <div>
+          <span class="page-eyebrow">01 / CONTROLE OPERACIONAL</span>
+          <h2>Controle de cargas</h2>
+          <p>Organize atualizações de produtos e acompanhe cada etapa até a impressão.</p>
+        </div>
+        <div class="workflow-steps" aria-label="Fluxo das atualizações">
+          <span><i class="step-dot waiting" aria-hidden="true"></i>Pendente</span>
+          <span class="step-separator" aria-hidden="true">›</span>
+          <span><i class="step-dot transit" aria-hidden="true"></i>Carga enviada</span>
+          <span class="step-separator" aria-hidden="true">›</span>
+          <span><i class="step-dot done" aria-hidden="true"></i>Impressão confirmada</span>
+        </div>
+      </div>
       <section class="date-panel" aria-label="Data e pesquisa">
         <div class="day-control">
           <button class="icon-btn" id="prevDay" title="Dia anterior" aria-label="Dia anterior">‹</button>
@@ -184,7 +204,7 @@
       </section>
       </section>
       <section id="requestsPage" class="req-page" hidden aria-label="Modelos de solicitações">
-        <div class="req-page-head"><div><h2>Solicitações</h2><p>Modelos padronizados, registros e acompanhamento pela supervisão.</p></div></div>
+        <div class="req-page-head"><div><span class="page-eyebrow">02 / MODELOS E REGISTROS</span><h2>Solicitações</h2><p>Escolha o modelo, preencha os dados e acompanhe as solicitações pela supervisão.</p></div></div>
         <div class="req-layout">
           <aside class="req-menu" aria-label="Categorias e modelos">
             <div class="req-menu-filter">
@@ -202,7 +222,7 @@
       </section>
       <section id="telegramPage" class="tg-page" hidden aria-label="Central de solicitações Telegram">
         <div class="tg-page-head">
-          <div><h2>Telegram</h2><p>Grupos configuráveis para receber diferentes modelos de solicitação.</p></div>
+          <div><span class="page-eyebrow">03 / COMUNICAÇÃO E DESTINOS</span><h2>Telegram</h2><p>Prepare solicitações e envie automaticamente para os grupos e tópicos vinculados.</p></div>
           <span class="tg-warning-label" id="tgConnectionBadge">Conta Telegram não conectada</span>
         </div>
         <button type="button" id="tgMenuToggle" class="btn btn-soft btn-small tg-menu-toggle" aria-expanded="false" aria-controls="tgSidebar">☰ Menu Telegram</button>
@@ -220,7 +240,7 @@
       </section>
       <section id="monitorPage" class="tg-page" hidden aria-label="Monitoramento Telegram">
         <div class="tg-page-head">
-          <div><h2>Monitoramento Telegram</h2><p>Escolha quais grupos e tópicos acompanhar. Use as abas para visualizar cada grupo separadamente.</p></div>
+          <div><span class="page-eyebrow">04 / CONFERÊNCIA E RELATÓRIOS</span><h2>Monitoramento</h2><p>Acompanhe solicitações e reações por grupo/tópico e exporte relatórios TXT.</p></div>
           <div class="tg-monitor-header-actions"><span class="tg-warning-label">Sincronização sob demanda</span><button type="button" id="tgReportOpen" class="btn btn-primary tg-report-launcher" aria-expanded="false" aria-controls="tgReportContainer">▤ Relatório TXT</button></div>
         </div>
         <section class="tg-workspace tg-monitor-workspace" aria-label="Painel de monitoramento">
