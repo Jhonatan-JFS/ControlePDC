@@ -317,6 +317,37 @@
         '<h5>Grupos e tópicos</h5><div class="tg-sync-sources">'+(sourceRows||'<p>Nenhum grupo configurado.</p>')+'</div>'+
         '</details></section>';
   }
+  function setSyncNotice(message,error=false){
+    syncNotice=message;syncNoticeError=error;
+    const element=$("tgSyncFeedback");
+    if(element){element.textContent=message;element.classList.toggle("error",error);}
+  }
+  async function runSyncFromSettings(){
+    if(syncRunning)return;
+    const options=syncOptions(),chosen=options.find(o=>o.key===syncConfigTarget);
+    if(!options.length)return setSyncNotice("Selecione os grupos e tópicos em Monitoramento primeiro.",true);
+    const raw=$("tgSyncFrom")?.value||"";
+    const starts=[...new Set(options.map(o=>o.startAt||""))];
+    const old=syncConfigTarget==="all"?(starts.length===1?starts[0]:""):(chosen?.startAt||"");
+    if(raw&&raw!==localDateInput(old)){
+      try{saveSyncStart(raw,syncConfigTarget);}
+      catch(e){setSyncNotice(String(e.message||e),true);return;}
+    }
+    setSyncNotice("Iniciando leitura das mensagens…");
+    renderSyncSettings();
+    try{
+      const result=await synchronize(message=>setSyncNotice(message),syncConfigTarget);
+      const status=(result.complete?"Concluída. ":"Parcial — continue sincronizando. ")+
+        result.added+" mensagem(ns) nova(s), "+result.checked+" conferência(s) verificadas."+
+        ([...result.pending,...result.errors].length?" "+[...result.pending,...result.errors].join(" | "):"");
+      syncNotice=status;syncNoticeError=!result.complete;
+      renderSyncSettings();
+      renderMonitor();
+    }catch(err){
+      syncNotice=String(err.message||err);syncNoticeError=true;
+      renderSyncSettings();
+    }
+  }
   function matchesMonitorScope(record,group,topic){
     if(!group||record.telegramId!==group.id)return false;
     let startAt=group.startAt||"";
@@ -761,6 +792,12 @@
   }
   document.addEventListener("change",e=>{
     const el=e.target;
+    if(el.id==="tgSyncTarget"){
+      syncConfigTarget=el.value;
+      syncNotice="";syncNoticeError=false;
+      renderSyncSettings();
+      return;
+    }
 
     if(el.id==="tgMonGroupPick"){
       draftMonitorGroup=el.value;
@@ -772,6 +809,19 @@
     }
   });
   document.addEventListener("click",async e=>{
+    if(e.target.closest("#tgSyncSaveStart")){
+      try{
+        const iso=saveSyncStart($("tgSyncFrom")?.value||"",syncConfigTarget);
+        syncNotice="Data inicial salva: "+syncStamp(iso)+". As mensagens anteriores permanecem no histórico.";
+        syncNoticeError=false;
+        renderSyncSettings();renderMonitor();
+      }catch(err){setSyncNotice(String(err.message||err),true);}
+      return;
+    }
+    if(e.target.closest("#tgSyncRun")){
+      await runSyncFromSettings();
+      return;
+    }
     if(e.target.closest("#tgReportOpen")){
       monitorReportOpen=!monitorReportOpen;
       renderMonitor();
@@ -871,7 +921,7 @@
     topics,
     reloadGroups,
     send:async(groupId,text,topicId=null)=>{if(!logged())throw new Error("Conecte sua conta.");return window.TelegramBridge.send(groupId,text,topicId);},
-    renderLogin,renderMonitor,synchronize,readHistory,
+    renderLogin,renderMonitor,renderSyncSettings,synchronize,readHistory,
     getReportScope:()=>{const {group}=monitorScope();return {group,activeTopic:activeMonitorTopic};}
   };
 })();
