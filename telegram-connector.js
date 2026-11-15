@@ -512,6 +512,15 @@
       ["preco","Alterações de preço",grouped.preco.length],["produto","Produtos novos",grouped.produto.length],
       ["outras","Outras",grouped.outras.length]
     ].map(([key,label,count])=>'<button type="button" class="tg-monitor-category'+(activeReceivedCategory===key?' active':'')+'" data-mon-category="'+key+'" aria-pressed="'+(activeReceivedCategory===key)+'">'+label+' <span>'+count+'</span></button>').join("")+'</nav>';
+    const start=group?'<section class="tg-sync-start" aria-label="Data inicial da sincronização">'+
+      '<div class="tg-sync-start-text"><strong>Sincronizar a partir de</strong><small>'+
+        (group.isForum&&activeMonitorTopic==="all"?'Data para todos os tópicos deste grupo':
+         group.isForum?'Data para o tópico escolhido':'Data para este grupo')+
+        ' · horário local</small></div>'+
+      '<input type="datetime-local" id="tgMonStartDate" aria-label="Data e hora do início da sincronização" value="'+
+        enc(localDateInput(startDateFor(group,activeMonitorTopic)))+'">'+
+      '<button type="button" class="btn btn-ghost btn-small" id="tgMonApplyStartAll" title="Usar a mesma data em todos os grupos e tópicos monitorados">Aplicar a todos</button>'+
+      '<p id="tgMonStartHint" class="tg-sync-start-hint">A data é salva ao alterar o campo. Mensagens anteriores permanecem guardadas, mas não aparecem neste recorte. Para recuperar mais histórico, sincronize novamente enquanto houver pendências.</p></section>':"";
     const stats='<section class="tg-stats" aria-label="Indicadores das mensagens">'+
       (activeMonitorDirection==="enviadas"?
         metric("Minhas mensagens",sent.length,"info","Deste grupo ou tópico")+
@@ -558,7 +567,7 @@
         (window.TelegramReports?.panelHtml?.({group,activeTopic:activeMonitorTopic})||
           '<p class="tg-muted">Não foi possível carregar o gerador de relatórios. Atualize a página.</p>')+
       '</div>':'';
-    return top+txtReport+(monitorSettingsOpen?monitorConfigHtml(selection):"")+tabs+topics+directionTabs+
+    return top+txtReport+(monitorSettingsOpen?monitorConfigHtml(selection):"")+tabs+topics+start+directionTabs+
       (activeMonitorDirection==="recebidas"?receivedFilters:"")+stats+sync+status+content;
   }
   async function renderMonitorTopicChoices(){
@@ -599,6 +608,16 @@
   }
   document.addEventListener("change",e=>{
     const el=e.target;
+    if(el.id==="tgMonStartDate"){
+      const hint=$("tgMonStartHint");
+      try{
+        const iso=saveStartDate(el.value);
+        if(hint){hint.textContent="Início salvo: "+new Date(iso).toLocaleString("pt-BR")+". Agora clique em Sincronizar selecionados.";hint.classList.remove("error");}
+      }catch(err){
+        if(hint){hint.textContent=String(err.message||err);hint.classList.add("error");}
+      }
+      return;
+    }
     if(el.id==="tgMonGroupPick"){
       draftMonitorGroup=el.value;
       draftMonitorTopics=readMonitorSelection().groups.find(g=>g.id===el.value)?.topics.map(t=>t.id)||[];
@@ -609,6 +628,14 @@
     }
   });
   document.addEventListener("click",async e=>{
+    if(e.target.closest("#tgMonApplyStartAll")){
+      const input=$("tgMonStartDate"),hint=$("tgMonStartHint");
+      try{
+        const iso=saveStartDate(input?.value||"","all");
+        if(hint){hint.textContent="A mesma data foi salva para todos os grupos e tópicos: "+new Date(iso).toLocaleString("pt-BR")+".";hint.classList.remove("error");}
+      }catch(err){if(hint){hint.textContent=String(err.message||err);hint.classList.add("error");}}
+      return;
+    }
     if(e.target.closest("#tgReportOpen")){
       monitorReportOpen=!monitorReportOpen;
       renderMonitor();
@@ -675,8 +702,13 @@
       const check=Array.from(document.querySelectorAll("[data-mon-topic]:checked")).map(x=>x.dataset.monTopic);
       const topicsChosen=g.isForum?available.filter(t=>check.includes(t.id)):[];
       if(g.isForum&&!topicsChosen.length){alert("Escolha ao menos um tópico desse grupo.");return;}
-      const entry={id:g.id,name:g.name,isForum:!!g.isForum,topics:topicsChosen.map(t=>({id:String(t.id),name:String(t.name)}))};
       const config=readMonitorSelection(),index=config.groups.findIndex(x=>x.id===id);
+      const previous=index<0?null:config.groups[index];
+      const entry={id:g.id,name:g.name,isForum:!!g.isForum,startAt:previous?.startAt||"",
+        topics:topicsChosen.map(t=>{
+          const earlier=previous?.topics.find(p=>p.id===String(t.id));
+          return {id:String(t.id),name:String(t.name),startAt:earlier?.startAt||previous?.startAt||""};
+        })};
       if(index<0)config.groups.push(entry);else config.groups[index]=entry;
       try{saveMonitorSelection(config);}catch(err){alert(err.message);return;}
       activeMonitorGroup=id;activeMonitorTopic="all";draftMonitorGroup="";draftMonitorTopics=[];
@@ -688,11 +720,18 @@
     if(e.target.closest("#tgForget")){if(confirm("Esquecer a sessão local neste dispositivo? A autorização pode ser revogada também em Telegram > Dispositivos."))await disconnect(true);return;}
     if(e.target.closest("#tgRefreshGroups")){await reloadGroups();return;}
     if(e.target.closest("#tgSyncNow")){
-      const status=$("tgMonitorStatus");if(status)status.textContent="Consultando mensagens e reações…";
+      const status=$("tgMonitorStatus");
+      if(status)status.textContent="Iniciando recuperação do histórico…";
       try{
-        const result=await synchronize();renderMonitor();
-        const el=$("tgMonitorStatus");if(el)el.textContent="Sincronização concluída: "+result.added+" novas, "+result.checked+" verificadas. "+(result.errors.length?"Atenção: "+result.errors.join(" | "):"");
-      }catch(err){if(status)status.textContent=String(err.message||err);}
+        const result=await synchronize(message=>{
+          const el=$("tgMonitorStatus");if(el)el.textContent=message;
+        });
+        renderMonitor();
+        const el=$("tgMonitorStatus");
+        if(el)el.textContent=(result.complete?"Sincronização concluída. ":"Sincronização parcial — há mensagens pendentes. ")+
+          result.added+" novas registradas, "+result.checked+" conferências verificadas. "+
+          [...result.pending,...result.errors].join(" | ");
+      }catch(err){const el=$("tgMonitorStatus")||status;if(el)el.textContent=String(err.message||err);}
     }
   });
   window.addEventListener("tg-connection-changed",renderMonitor);
