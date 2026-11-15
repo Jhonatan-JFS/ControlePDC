@@ -227,8 +227,8 @@
   function readHistory(){
     try{
       const data=JSON.parse(localStorage.getItem(MONITOR_KEY)||"{}");
-      return {cursors:data.cursors&&typeof data.cursors==="object"?data.cursors:{},records:Array.isArray(data.records)?data.records:[],backfills:data.backfills&&typeof data.backfills==="object"?data.backfills:{},historyBackfills:data.historyBackfills&&typeof data.historyBackfills==="object"?data.historyBackfills:{},dateAnchors:data.dateAnchors&&typeof data.dateAnchors==="object"?data.dateAnchors:{},lastSync:data.lastSync||null};
-    }catch(_){return {cursors:{},records:[],backfills:{},historyBackfills:{},dateAnchors:{},lastSync:null};}
+      return {cursors:data.cursors&&typeof data.cursors==="object"?data.cursors:{},records:Array.isArray(data.records)?data.records:[],backfills:data.backfills&&typeof data.backfills==="object"?data.backfills:{},historyBackfills:data.historyBackfills&&typeof data.historyBackfills==="object"?data.historyBackfills:{},dateAnchors:data.dateAnchors&&typeof data.dateAnchors==="object"?data.dateAnchors:{},recentPending:data.recentPending&&typeof data.recentPending==="object"?data.recentPending:{},lastSync:data.lastSync||null};
+    }catch(_){return {cursors:{},records:[],backfills:{},historyBackfills:{},dateAnchors:{},recentPending:{},lastSync:null};}
   }
   function writeHistory(state){
     try{localStorage.setItem(MONITOR_KEY,JSON.stringify(state));return true;}
@@ -313,6 +313,16 @@
       const afterAll={cursor:latestId,latestId,afterAll:true};
       db.dateAnchors[key]=afterAll;writeHistory(db);return afterAll;
     }
+    // Se a data está dentro das 200 mensagens mais recentes,
+    // podemos usar diretamente esse recorte, evitando muitas consultas.
+    const firstRecent=recent.messages[0];
+    if(firstRecent&&Date.parse(firstRecent.date)<=Date.parse(startAt)){
+      const match=recent.messages.find(m=>Date.parse(m.date)>=Date.parse(startAt));
+      if(match){
+        const quick={cursor:Math.max(1,Number(match.id)-2),latestId,afterAll:false};
+        db.dateAnchors[key]=quick;writeHistory(db);return quick;
+      }
+    }
     let lo=2,hi=latestId,probes=0;
     while(lo<hi&&probes<36){
       const mid=Math.floor((lo+hi)/2);
@@ -342,7 +352,7 @@
     const notify=message=>{if(typeof onProgress==="function")onProgress(message);};
     try{
       const db=readHistory(),errors=[],pending=[],meId=window.TelegramBridge.getMeId();
-      db.historyBackfills ||= {};db.dateAnchors ||= {};
+      db.historyBackfills ||= {};db.dateAnchors ||= {};db.recentPending ||= {};
       const cache=new Map(db.records.map(r=>[r.key,r]));
       let added=0,checked=0,examined=0;
       const append=(group,msg)=>{
@@ -386,7 +396,7 @@
             state.done=!page.truncated;
             writeHistory(db);batch++;
           }
-          if(!state.done)pending.push(group.name+": histórico em andamento ("+state.examined+" examinadas). Clique novamente em sincronizar.");
+          if(!state.done)pending.push(group.name+": histórico em andamento ("+state.matched+" mensagens recuperadas). Clique novamente em sincronizar.");
           // Ler novas mensagens desde o último ID salvo. Nunca remover registros
           // anteriores; se a leitura ultrapassar o limite desta rodada, avisar.
           let pages=0,more=true;
@@ -406,6 +416,7 @@
             writeHistory(db);
             more=page.truncated;pages++;
           }
+          db.recentPending[cursorKey]=more;writeHistory(db);
           if(more)pending.push(group.name+": mensagens recentes incompletas; sincronize novamente.");
           // Conferência de solicitações de todos os autores.
           const records=db.records.filter(r=>r.telegramId===group.telegramId &&
@@ -499,6 +510,14 @@
     const verified=allRequests.filter(r=>r.status==="conferido"&&!r.unavailable).length;
     const pending=allRequests.filter(r=>r.status==="pendente"&&!r.unavailable).length;
     const totalSources=selection.groups.reduce((count,g)=>count+(g.isForum?g.topics.length:1),0);
+    const configuredTargets=selectedTargets();
+    const needsStart=configuredTargets.filter(t=>!t.startAt).length;
+    const incomplete=configuredTargets.filter(t=>{
+      if(!t.startAt)return false;
+      const key=t.telegramId+":topic:"+(t.topicId??"all");
+      const state=db.historyBackfills?.[key];
+      return !state||state.startAt!==t.startAt||!state.done||!!db.recentPending?.[key];
+    }).length;
     const metric=(title,value,tone,note)=>'<div class="tg-stat" data-tone="'+tone+'"><div class="tg-stat-label">'+title+'</div><strong class="tg-stat-value">'+value+'</strong><div class="tg-stat-note">'+note+'</div></div>';
     const tabs='<nav class="tg-monitor-tabs" aria-label="Grupos monitorados">'+selection.groups.map(g=>{
       const selected=g.id===activeMonitorGroup;
@@ -537,6 +556,11 @@
         metric("Preços",grouped.preco.length,"info","Atualizações identificadas")+
         metric("Produtos novos",grouped.produto.length,"success","Comunicados identificados"))+
       '</section>';
+    const readiness='<div class="tg-monitor-readiness '+(needsStart||incomplete?'incomplete':'ready')+'">'+
+      (needsStart?'⚠ '+needsStart+' grupo(s)/tópico(s) sem data de início. Configure antes de sincronizar.':
+       incomplete?'◷ Histórico em recuperação: '+incomplete+' fonte(s) ainda incompletas. Continue sincronizando para recuperar tudo que estiver disponível.':
+       configuredTargets.length?'✓ Histórico percorrido até o limite disponível nas fontes escolhidas.':'Selecione grupos para iniciar o monitoramento.')+
+      '</div>';
     const sync='<div class="tg-monitor-head"><div><strong>'+visible.length+' mensagem(ns) exibida(s)</strong>'+
       '<small>Última sincronização: '+(db.lastSync?enc(new Date(db.lastSync).toLocaleString("pt-BR")):"nunca")+
       ' · Solicitações conferidas neste grupo: '+verified+' · pendentes: '+pending+'</small></div>'+
@@ -572,7 +596,7 @@
         (window.TelegramReports?.panelHtml?.({group,activeTopic:activeMonitorTopic})||
           '<p class="tg-muted">Não foi possível carregar o gerador de relatórios. Atualize a página.</p>')+
       '</div>':'';
-    return top+txtReport+(monitorSettingsOpen?monitorConfigHtml(selection):"")+tabs+topics+start+directionTabs+
+    return top+txtReport+(monitorSettingsOpen?monitorConfigHtml(selection):"")+tabs+topics+start+readiness+directionTabs+
       (activeMonitorDirection==="recebidas"?receivedFilters:"")+stats+sync+status+content;
   }
   async function renderMonitorTopicChoices(){
