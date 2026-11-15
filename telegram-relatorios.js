@@ -87,107 +87,134 @@
       return (opts.kind||"all")==="all"||classify(r)===opts.kind;
     }).sort((a,b)=>new Date(a.date)-new Date(b.date)||(Number(a.messageId)||0)-(Number(b.messageId)||0));
   }
+
+  function movementOf(text){
+    const value=String(text||"");
+    if(/\b(?:ABAIXOU|BAIXOU|DIMINUIU|REDUZIU|CAIU|QUEDA)\b/i.test(value))return "BAIXOU";
+    if(/\b(?:AUMENTOU|AUMENTO|SUBIU|REAJUSTOU)\b/i.test(value))return "AUMENTOU";
+    return "";
+  }
+  function materialHeading(line){
+    let value=String(line||"").trim();
+    if(!value || value.length>85)return "";
+    const labeled=value.match(/^(?:MARCA|MATERIAL|FABRICANTE|FAM[IÍ]LIA|LINHA|FORNECEDOR)\s*[:=-]\s*(.+)$/i);
+    if(labeled)value=labeled[1].trim();
+    else{
+      // Ex.: "AUMENTOU - PRAFESTY" e "PRAFESTY - BAIXOU".
+      const actionFirst=value.match(/^(?:AUMENTOU|ABAIXOU|BAIXOU|DIMINUIU|REDUZIU|PRODUTOS?\s+NOVOS?)\s*[:–-]\s*(.+)$/i);
+      const actionLast=value.match(/^(.+?)\s*[:–-]\s*(?:AUMENTOU|ABAIXOU|BAIXOU|DIMINUIU|REDUZIU)$/i);
+      if(actionFirst)value=actionFirst[1].trim();
+      else if(actionLast)value=actionLast[1].trim();
+      else{
+        const uppercase=value===value.toLocaleUpperCase("pt-BR") && /[\p{L}]/u.test(value);
+        const oneWord=/^[\p{L}][\p{L}\p{M}\d&.-]{2,50}$/u.test(value);
+        if(!uppercase&&!oneWord)return "";
+      }
+    }
+    value=value.replace(/[.:;,-]+$/,"").trim();
+    if(value.length<2||value.length>65||/^\d+$/.test(value))return "";
+    if(/^(?:POR\s+FAVOR|SOLICITA[CÇ][AÃ]O|CADASTRO|CADASTROS|PRODUTOS?\s+NOVOS?|NOVOS?\s+PRODUTOS?|AUMENTOU|AUMENTO|BAIXOU|ABAIXOU|DIMINUIU|REDUZIU|REAJUSTOU|ATUALIZA[CÇ][AÃ]O|ALTERA[CÇ][AÃ]O|MATERIAIS|MATERIAL|CB|CI|PRE[CÇ]O|VALOR|VENDA|CUSTO|NOTA\s+FISCAL|NF-E)(?:\s+.*)?$/i.test(value))return "";
+    if(/^(?:\d+\s*[-–]|CB\s*[:=-]|CI\s*[:=-])/i.test(value))return "";
+    return value;
+  }
+  function parseMaterialProducts(record){
+    const lines=plain(record.text).split("\n"),items=[];
+    const category=classify(record);
+    let material="",movement="",current=null;
+    for(const raw of lines){
+      const line=raw.trim();
+      if(!line)continue;
+      const ci=line.match(/^CI\s*[:=#-]\s*(\d{1,12})(?:\s*[-–]\s*(.+))?$/i)
+        ||line.match(/^(\d{1,12})\s*[-–]\s*(\S.*)$/);
+      if(ci){
+        let description=(ci[2]||"").trim();
+        let inlineMovement="";
+        const suffix=description.match(/\s*[-–]\s*(AUMENTOU|AUMENTO|SUBIU|REAJUSTOU|ABAIXOU|BAIXOU|DIMINUIU|REDUZIU|CAIU)\s*$/i);
+        if(suffix){
+          inlineMovement=movementOf(suffix[1]);
+          description=description.slice(0,suffix.index).trim();
+        }
+        // Valores no final da linha de preço não são parte do nome.
+        if(category==="preco"){
+          const price=description.match(/\s*[-–]\s*(?:R\$\s*)?\d+[.,]\d{2}\s*$/i);
+          if(price)description=description.slice(0,price.index).trim();
+        }
+        current={ci:ci[1],name:description,cb:"",material,movement:inlineMovement||(category==="preco"?movement:"")};
+        items.push(current);
+        continue;
+      }
+      const cb=line.match(/^(?:CB|C[OÓ]DIGO\s+DE\s+BARRAS)\s*[:=-]\s*(\S+)/i);
+      if(cb&&current){current.cb=cb[1].trim();continue;}
+      // Valor de venda é ignorado no formato simplificado, não é um CI.
+      const heading=materialHeading(line);
+      if(heading){if(category==="preco"&&movementOf(line))movement=movementOf(line);material=heading;current=null;continue;}
+      if(category==="preco" && /^(?:AUMENTOU|AUMENTO|SUBIU|REAJUSTOU|ABAIXOU|BAIXOU|DIMINUIU|REDUZIU|CAIU)\s*[:.!-]?$/i.test(line)){
+        movement=movementOf(line);current=null;
+      }
+    }
+    return items;
+  }
   function consolidate(records){
     const map=new Map();
     for(const rec of records){
-      const category=classify(rec);
-      const values=parseProducts(rec.text,category);
-      for(const product of values){
-        if(!product.ci)continue;
-        let item=map.get(product.ci);
-        if(!item){item={ci:product.ci,count:0,last:rec,category,fields:{}};map.set(product.ci,item);}
-        item.count++;
-        item.last=rec;item.category=category;
-        for(const field of ["name","cb","sale","cost"]){
-          if(product[field])item.fields[field]={value:product[field],date:rec.date,messageId:rec.messageId};
+      for(const item of parseMaterialProducts(rec)){
+        if(!item.ci)continue;
+        let existing=map.get(item.ci);
+        if(!existing){
+          existing={ci:item.ci,name:"",cb:"",material:"",movement:"",last:rec,count:0};
+          map.set(item.ci,existing);
         }
+        existing.last=rec;existing.count++;
+        if(item.name)existing.name=item.name;
+        if(item.cb)existing.cb=item.cb;
+        if(item.material)existing.material=item.material;
+        if(item.movement)existing.movement=item.movement;
       }
     }
-    return [...map.values()].sort((a,b)=>new Date(b.last.date)-new Date(a.last.date)||(Number(b.last.messageId)||0)-(Number(a.last.messageId)||0)||a.ci.localeCompare(b.ci));
+    return [...map.values()].sort((x,y)=>new Date(y.last.date)-new Date(x.last.date)||
+      (Number(y.last.messageId)||0)-(Number(x.last.messageId)||0)||x.ci.localeCompare(y.ci));
   }
   function generate(all,opts){
     const records=getRecords(all,opts),group=opts.group;
     const topic=group.isForum?group.topics.find(t=>t.id===String(opts.topicId)):null;
-    const items=consolidate(records);
-    const title=group.name+(topic?" / "+topic.name:"");
+    const latest=consolidate(records);
+    const customMaterial=String(opts.material||"").trim().slice(0,65);
+    const materialGroups=new Map();
+    for(const item of latest){
+      const material=(item.material||customMaterial||"MATERIAL NÃO INFORMADO").toLocaleUpperCase("pt-BR");
+      if(!materialGroups.has(material))materialGroups.set(material,[]);
+      materialGroups.get(material).push(item);
+    }
+    const sections=[...materialGroups.entries()].sort((a,b)=>{
+      if(a[0]==="MATERIAL NÃO INFORMADO")return 1;
+      if(b[0]==="MATERIAL NÃO INFORMADO")return -1;
+      return a[0].localeCompare(b[0],"pt-BR");
+    });
+    const lines=[];
+    for(const [material,items] of sections){
+      if(lines.length)lines.push("");
+      lines.push(material,"");
+      items.forEach((item,index)=>{
+        if(index>0)lines.push("");
+        lines.push([item.ci,item.name,item.movement].filter(Boolean).join(" - "));
+        if(item.cb)lines.push("CB: "+item.cb);
+      });
+    }
+    if(!lines.length)lines.push("Nenhum produto com CI identificado neste período.");
     const summary={
-      total:records.length,uniqueCIs:items.length,latest:items,
+      total:records.length,uniqueCIs:latest.length,latest,
+      materials:sections.map(([title,items])=>({title,items})),
       sections:Object.fromEntries(sectionKeys.map(k=>[k,records.filter(r=>classify(r)===k)]))
     };
-    const lines=[
-      "RELATÓRIO DE MONITORAMENTO TELEGRAM",
-      "============================================================",
-      "Grupo: "+group.name,
-      "Tópico: "+(topic?.name||"Conversa principal (sem tópicos)"),
-      "A partir de: "+formatCutoff(opts.from)+" (horário local do navegador)",
-      "Gerado em: "+formatDate(new Date()),
-      "Filtro: "+labels[opts.kind||"all"],
-      "Origem: "+(opts.direction==="enviadas"?"Minhas mensagens":opts.direction==="recebidas"?"Mensagens recebidas":"Todas as mensagens"),
-      "Fonte: mensagens já sincronizadas neste navegador",
-      "Mensagens no período: "+records.length,
-      "CIs identificados: "+items.length,
-      "============================================================",
-      "",
-      "1. ÚLTIMAS INFORMAÇÕES REGISTRADAS POR CI",
-      "------------------------------------------------------------"
-    ];
-    if(!items.length)lines.push("Nenhum CI identificável encontrado neste recorte.");
-    for(const p of items){
-      lines.push(
-        "CI: "+p.ci,
-        "Produto (última descrição registrada): "+(p.fields.name?.value||"Não informado"),
-        "Última mensagem registrada: "+formatDate(p.last.date)+" | ID "+p.last.messageId,
-        "Título da mensagem: "+titleOf(p.last),
-        "Categoria da última mensagem: "+headings[p.category],
-        "Ocorrências deste CI no recorte: "+p.count
-      );
-      for(const [field,name] of [["cb","CB"],["sale","Venda"],["cost","Custo"]]){
-        const source=p.fields[field];
-        if(source)lines.push(name+" (última informação explícita): "+source.value+" | Mensagem "+source.messageId+" em "+formatDate(source.date));
-      }
-      lines.push("");
-    }
-    let n=2;
-    for(const key of sectionKeys){
-      const section=summary.sections[key];
-      if((opts.kind||"all")!=="all"&&key!==opts.kind)continue;
-      lines.push(n+". "+headings[key]+" ("+section.length+")","------------------------------------------------------------");
-      if(!section.length)lines.push("Nenhuma mensagem nesta categoria.");
-      // Histórico por mensagem, mais recente primeiro, preserva o texto de origem.
-      for(const rec of section.slice().reverse()){
-        const itemName=titleOf(rec);
-        const products=parseProducts(rec.text,key);
-        lines.push("["+formatDate(rec.date)+"] "+(recordDirection(rec)==="enviadas"?"ENVIADA":"RECEBIDA")+
-          " | Mensagem "+rec.messageId,
-          "TÍTULO: "+itemName,
-          "AUTOR: "+(recordDirection(rec)==="enviadas"?"Minha conta":"Participante"+(rec.senderId?" ID "+rec.senderId:"")));
-        if(key==="solicitacao")lines.push("CONFERÊNCIA: "+(rec.unavailable?"Indisponível":rec.status==="conferido"?"Conferido":rec.status==="pendente"?"Não conferido":"Não verificada"));
-        if(products.length){
-          for(const p of products){
-            lines.push("CI: "+p.ci,"Produto: "+(p.name||"Não informado"));
-            if(p.cb)lines.push("CB: "+p.cb);
-            if(p.sale)lines.push("Venda: "+p.sale);
-            if(p.cost)lines.push("Custo: "+p.cost);
-          }
-        }
-        lines.push("MENSAGEM ORIGINAL:",plain(rec.text||"(sem texto)"),"------------------------------------------------------------");
-      }
-      lines.push("");
-      n++;
-    }
-    lines.push("OBSERVAÇÕES:",
-      "- O resumo por CI destaca a última informação explícita encontrada neste recorte, sem presumir alterações no Solidcon.",
-      "- CIs e CBs são tratados como identificadores diferentes. Campos ausentes não são inventados.",
-      "- O relatório utiliza somente o histórico disponível no dispositivo; para incluir mensagens novas, sincronize antes de exportar.",
-      "- Mensagens apagadas antes de serem sincronizadas ou anteriores ao histórico disponível podem não estar presentes.");
-    return {text:lines.join("\r\n")+"\r\n",summary,group:group.name,topic:topic?.name||"",fileName:filename(title,opts.from)};
+    return {text:lines.join("\r\n").trimEnd()+"\r\n",summary,group:group.name,
+      topic:topic?.name||"",fileName:filename(group.name+(topic?" / "+topic.name:""),opts.from)};
   }
   function filename(chat,from){
     const safe=chat.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zA-Z0-9_-]+/g,"_").replace(/^_+|_+$/g,"").slice(0,65)||"Chat";
     const date=String(from).replace(/[^0-9]/g,"").slice(0,12);
     return "RELATORIO_TELEGRAM_"+safe+"_"+date+".txt";
   }
-  let opts={from:"",kind:"all",direction:"all"};
+  let opts={from:"",kind:"all",direction:"all",material:""};
   function panelHtml(scope){
     const g=scope?.group;
     if(!g)return '<section class="tg-report-panel"><h3>Relatório TXT por chat</h3><p>Escolha um grupo para habilitar a exportação.</p></section>';
@@ -197,7 +224,7 @@
       ).join("")+'</select></label>':"";
     const typeOptions=Object.entries(labels).map(([id,label])=>'<option value="'+id+'"'+(opts.kind===id?' selected':'')+'>'+label+'</option>').join("");
     return '<section class="tg-report-panel" aria-labelledby="tgReportHeading">'+
-      '<div class="tg-report-head"><div><h3 id="tgReportHeading">Relatório TXT deste chat</h3><p>Escolha o período e exporte um arquivo organizado, com os títulos, produtos, CIs e últimas informações registradas.</p></div>'+
+      '<div class="tg-report-head"><div><h3 id="tgReportHeading">Lista simples de produtos (TXT)</h3><p>Apenas material, CI, descrição, AUMENTOU/BAIXOU e CB quando houver. Uma linha por produto, pronta para copiar.</p></div>'+
       '<span>Arquivo .TXT</span></div>'+
       '<div class="tg-report-fields">'+
       '<label>Iniciar a partir de (data e hora)<input type="datetime-local" id="tgReportFrom" value="'+esc(opts.from)+'"></label>'+
@@ -206,38 +233,65 @@
       '<label>Mensagens<select id="tgReportDirection"><option value="all"'+(opts.direction==="all"?' selected':'')+'>Minhas e recebidas</option>'+
         '<option value="enviadas"'+(opts.direction==="enviadas"?' selected':'')+'>Apenas minhas</option>'+
         '<option value="recebidas"'+(opts.direction==="recebidas"?' selected':'')+'>Apenas recebidas</option></select></label>'+
+      '<label>Material para itens sem título (opcional)<input type="text" id="tgReportMaterial" maxlength="65" placeholder="Ex.: Prafesty" value="'+esc(opts.material)+'"></label>'+ 
       '</div><div class="tg-report-actions"><button type="button" class="btn btn-soft" id="tgReportPreviewBtn">Visualizar TXT</button>'+
       '<button type="button" class="btn btn-primary" id="tgReportDownloadBtn">Baixar relatório TXT</button></div>'+
       '<p id="tgReportStatus" class="tg-report-status" role="status" aria-live="polite">Defina o início do período. O arquivo usará o histórico já sincronizado; não buscará mensagens antigas automaticamente.</p>'+
-      '<pre id="tgReportPreview" class="tg-report-preview" hidden></pre></section>';
+      '<pre id="tgReportPreview" class="tg-report-preview" hidden></pre>'+ 
+      '<div id="tgReportQuickCopy" class="tg-report-quick-copy" hidden></div></section>';
   }
   function controlValues(){
     const scope=window.TelegramConnector?.getReportScope?.();
     if(!scope?.group)throw new Error("Selecione um grupo na aba Monitoramento.");
     return {group:scope.group,topicId:scope.group.isForum?$("tgReportTopic")?.value:null,
       from:$("tgReportFrom")?.value||"",kind:$("tgReportKind")?.value||"all",
-      direction:$("tgReportDirection")?.value||"all"};
+      direction:$("tgReportDirection")?.value||"all",material:$("tgReportMaterial")?.value||""};
   }
   function createCurrent(){
     const values=controlValues();
-    opts={from:values.from,kind:values.kind,direction:values.direction};
+    opts={from:values.from,kind:values.kind,direction:values.direction,material:values.material};
     return generate(window.TelegramConnector.readHistory().records,values);
   }
   function status(message,error=false){
     const el=$("tgReportStatus");
     if(el){el.textContent=message;el.classList.toggle("error",error);}
   }
-  document.addEventListener("click",event=>{
+  function renderQuickCopy(materials){
+    const mount=$("tgReportQuickCopy");
+    if(!mount)return;
+    const groups=materials||[];
+    mount.innerHTML='<h4>Copiar códigos para o sistema</h4>'+
+      groups.map(group=>'<div class="tg-report-copy-group"><strong>'+esc(group.title)+'</strong>'+
+        group.items.map(item=>'<div class="tg-report-copy-row"><span>'+esc([item.ci,item.name,item.movement].filter(Boolean).join(" - "))+'</span>'+
+          '<div class="tg-report-copy-buttons"><button type="button" class="btn btn-soft btn-small" data-tg-report-copy="'+esc(item.ci)+'">Copiar CI</button>'+
+          (item.cb?'<button type="button" class="btn btn-ghost btn-small" data-tg-report-copy="'+esc(item.cb)+'">Copiar CB</button>':'')+
+          '</div></div>').join("")+'</div>').join("");
+    mount.hidden=!groups.length;
+  }
+  document.addEventListener("click",async event=>{
+    const copy=event.target.closest("[data-tg-report-copy]");
+    if(copy){
+      const value=copy.getAttribute("data-tg-report-copy")||"";
+      if(!value)return;
+      try{
+        await navigator.clipboard.writeText(value);
+        status("Código "+value+" copiado para a área de transferência.");
+      }catch(_){status("Não foi possível copiar. Verifique a permissão do navegador.",true);}
+      return;
+    }
+
     const preview=event.target.closest("#tgReportPreviewBtn");
     const download=event.target.closest("#tgReportDownloadBtn");
     if(!preview&&!download)return;
     try{
       const result=createCurrent(),count=result.summary.total;
       if(!count)throw new Error("Não há mensagens sincronizadas para este chat a partir da data escolhida. Confira o período ou sincronize o grupo.");
+      if(!result.summary.uniqueCIs)throw new Error("Nenhum CI encontrado nas mensagens deste período. Confira o filtro ou sincronize novamente.");
       if(preview){
         const target=$("tgReportPreview");
         if(target){target.hidden=false;target.textContent=result.text;}
-        status(count+" mensagens encontradas e "+result.summary.uniqueCIs+" CIs identificados.");
+        renderQuickCopy(result.summary.materials);
+        status(result.summary.uniqueCIs+" CI(s) em "+result.summary.materials.length+" material(is). Lista pronta para copiar.");
       }else{
         const blob=new Blob(["\uFEFF",result.text],{type:"text/plain;charset=utf-8"});
         const url=URL.createObjectURL(blob),link=document.createElement("a");

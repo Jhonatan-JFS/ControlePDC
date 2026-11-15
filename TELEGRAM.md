@@ -95,19 +95,29 @@ A classificação inicial prioriza comandos de solicitação (ex.: Por favor, ca
 O monitoramento anterior armazenava principalmente as mensagens da conta conectada e alguns avisos reconhecidos de terceiros. Na primeira sincronização de cada grupo/tópico após a atualização, a integração faz uma reconsulta das **200 mensagens mais recentes disponíveis** para recuperar parte das mensagens de colegas que o filtro antigo ignorava, sem apagar os registros ou reiniciar os marcadores de leitura. Mensagens mais antigas que essa janela ou apagadas antes da consulta podem não ser recuperáveis.
 
 
-## Exportação de relatórios TXT por grupo e tópico (Monitoramento)
+## Relatório TXT simples por grupo e tópico (Monitoramento)
 
-O relatório planejado agora é gerado diretamente na **quarta aba Monitoramento**:
+O relatório TXT é uma **lista operacional**, voltada à cópia rápida de CIs e CBs para o sistema. A estrutura detalhada anterior (identificadores de mensagens, histórico, observações, valores e metadados) foi removida do **arquivo TXT**, mas o histórico original continua preservado no monitoramento.
 
-1. Selecione a aba do **grupo** e, se o grupo usar tópicos, escolha qual **tópico específico** será o chat de origem do TXT.
-2. No cartão **Relatório TXT deste chat**, defina o filtro **Iniciar a partir de (data e hora)**. Ex.: \`12/11/2026 às 14:30\`. O horário é interpretado no fuso local do navegador.
-3. Escolha **Todas as categorias** ou apenas **Atualizações de CB**, **Produtos novos**, **Alterações de preço**, **Solicitações** ou **Outras mensagens**. Também é possível filtrar pela autoria: minhas, recebidas ou ambas.
-4. Use **Visualizar TXT** para conferir o conteúdo antes de baixar ou **Baixar relatório TXT** para salvar um arquivo \`.txt\` no dispositivo. O nome contém grupo/tópico e início do período.
+Na quarta aba **Monitoramento**, use o botão **Relatório TXT**, selecione um grupo/tópico, informe a data e hora inicial e escolha **Visualizar TXT** ou **Baixar relatório TXT**. Filtros de autoria e tipo de mensagem continuam disponíveis. A prévia exibe os botões **Copiar CI** e **Copiar CB** por produto, usando a área de transferência do navegador.
 
-**Cada TXT pertence a um chat:** em grupos com tópicos, o exportador sempre gera um tópico por vez; não mistura mensagens de outros tópicos. O relatório contém:
-- Cabeçalho com grupo, tópico, data/hora inicial, geração e filtros aplicados.
-- Seção de **últimas informações registradas por CI**: descrição mais recente encontrada, data e ID da última mensagem do CI, CB, venda e custo *somente quando explicitamente informados*. CI e CB permanecem identificadores independentes.
-- Seções separadas de **Atualizações de CB**, **Produtos novos**, **Alterações de preço**, **Solicitações** e **Outras mensagens**; cada registro mantém o título original, data, autor (próprio/participante), mensagem original e campos identificados.
-- Quando o mesmo CI aparece mais de uma vez, o resumo destaca a última menção registrada no recorte e mostra a última informação explícita de cada campo, sem descartar mensagens anteriores do histórico.
+A lista agrupa por **material/marca explicitamente identificado no cabeçalho da mensagem**, por exemplo:
 
-**Limites importantes:** o TXT utiliza **somente mensagens já armazenadas no histórico local do dispositivo**, não realiza leitura retroativa do Telegram nem consulta o Solidcon quando exportado. Para atualizar o relatório, clique antes em **Sincronizar selecionados**. A leitura inicial do Telegram é limitada conforme as regras vigentes; mensagens antigas que nunca foram sincronizadas, apagadas ou indisponíveis não são recuperadas automaticamente. O TXT não inventa CI, CB, preços ou nomes ausentes.
+```text
+PRAFESTY
+
+82840 - KIT PINCEL K20 #0 - AUMENTOU
+CB: 7890265569137
+
+6752 - KIT PINCEL K20 #2 - BAIXOU
+CB: 7890265569144
+
+TILIBRA
+
+49040 - CADERNO 10 MATÉRIAS
+CB: 1234567890001
+```
+
+Somente **uma entrada por CI** aparece no relatório, com a descrição, CB e última direção de preço explicitamente registrados nas mensagens desde o filtro inicial. Campos ausentes são omitidos; não se inventa título, descrição, CB nem aumento/queda. Quando não se reconhece o material por cabeçalho, os itens ficam em **MATERIAL NÃO INFORMADO**; o usuário pode fornecer um **material para itens sem título** (opcional) no formulário.
+
+**Importante:** o TXT é gerado exclusivamente com o histórico já sincronizado no navegador e respeita o corte de data/hora. Não acessa o Solidcon e não confirma alterações no sistema. Clique em **Sincronizar selecionados** antes de exportar para obter as mensagens mais recentes. O arquivo preserva CI e CB em linhas separadas, com uma linha em branco entre produtos.

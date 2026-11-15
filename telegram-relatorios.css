@@ -54,3 +54,30 @@
   #monitorPage .tg-monitor-header-actions{width:100%;justify-content:stretch}
   #monitorPage .tg-report-launcher{width:100%;flex:1}
 }
+
+
+/* Prévia operacional: copiar CI / CB diretamente sem selecionar texto manualmente. */
+#monitorPage .tg-report-quick-copy{
+  margin-top:12px;padding:13px;border:1px solid #355a76;background:#0d2137;border-radius:12px;
+  max-height:460px;overflow:auto;
+}
+#monitorPage .tg-report-quick-copy h4{font-size:12px;font-weight:800;color:#dff4ff;margin:0 0 12px}
+#monitorPage .tg-report-copy-group{display:grid;gap:7px;margin:10px 0 14px}
+#monitorPage .tg-report-copy-group>strong{
+  font-size:11px;font-weight:800;letter-spacing:.06em;color:#78c9ed;
+  padding:8px 0 3px;border-bottom:1px solid #304b64;
+}
+#monitorPage .tg-report-copy-row{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  padding:9px 11px;border:1px solid #29475e;background:#142d45;border-radius:9px;
+}
+#monitorPage .tg-report-copy-row>span{flex:1;min-width:180px;overflow-wrap:anywhere;font:600 11px/1.5 Manrope,Arial,sans-serif;color:#e5f4ff}
+#monitorPage .tg-report-copy-buttons{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+#monitorPage .tg-report-copy-buttons button{font-size:10px;min-height:33px;padding:7px 10px;white-space:nowrap}
+#monitorPage #tgReportMaterial{font-size:12px}
+@media(max-width:760px){
+  #monitorPage .tg-report-copy-row{align-items:stretch}
+  #monitorPage .tg-report-copy-row>span{min-width:0;width:100%}
+  #monitorPage .tg-report-copy-buttons{width:100%}
+  #monitorPage .tg-report-copy-buttons button{flex:1}
+}
