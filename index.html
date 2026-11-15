@@ -52,6 +52,20 @@
 
     <main id="mainWorkspace">
       <section id="pdcPage">
+      <div class="pdc-page-intro" aria-label="Etapas do Controle PDC">
+        <div>
+          <span class="page-eyebrow">01 / CONTROLE OPERACIONAL</span>
+          <h2>Controle de cargas</h2>
+          <p>Organize atualizações de produtos e acompanhe cada etapa até a impressão.</p>
+        </div>
+        <div class="workflow-steps" aria-label="Fluxo das atualizações">
+          <span><i class="step-dot waiting" aria-hidden="true"></i>Pendente</span>
+          <span class="step-separator" aria-hidden="true">›</span>
+          <span><i class="step-dot transit" aria-hidden="true"></i>Carga enviada</span>
+          <span class="step-separator" aria-hidden="true">›</span>
+          <span><i class="step-dot done" aria-hidden="true"></i>Impressão confirmada</span>
+        </div>
+      </div>
       <section class="date-panel" aria-label="Data e pesquisa">
         <div class="day-control">
           <button class="icon-btn" id="prevDay" title="Dia anterior" aria-label="Dia anterior">‹</button>
@@ -190,7 +204,7 @@
       </section>
       </section>
       <section id="requestsPage" class="req-page" hidden aria-label="Modelos de solicitações">
-        <div class="req-page-head"><div><h2>Solicitações</h2><p>Modelos padronizados, registros e acompanhamento pela supervisão.</p></div></div>
+        <div class="req-page-head"><div><span class="page-eyebrow">02 / MODELOS E REGISTROS</span><h2>Solicitações</h2><p>Escolha o modelo, preencha os dados e acompanhe as solicitações pela supervisão.</p></div></div>
         <div class="req-layout">
           <aside class="req-menu" aria-label="Categorias e modelos">
             <div class="req-menu-filter">
