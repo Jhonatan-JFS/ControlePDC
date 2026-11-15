@@ -136,3 +136,16 @@ Na aba **Monitoramento → Mensagens recebidas → Alterações de preço**, cad
 - Texto original do Telegram fica acessível em **Ver mensagem original**.
 
 A classificação visual utiliza o conteúdo das mensagens de outros participantes e o histórico local; não consulta nem confirma valores do Solidcon. A sincronização continua manual, por grupo/tópico escolhido. O **TXT simplificado por material/CI/CB** permanece sem alteração.
+
+
+## Recuperação de histórico sem pular mensagens — data inicial da sincronização
+
+Na quarta aba **Monitoramento**, antes de clicar em **Sincronizar selecionados**, defina **Sincronizar a partir de** (data e hora no fuso local do navegador). Ex.: `12/11/2026 às 14:30`. É uma configuração **por grupo e por tópico**; na aba **Todos os tópicos escolhidos**, a data é aplicada aos tópicos daquele grupo. O botão **Aplicar a todos** usa a mesma data em todos os grupos/tópicos monitorados.
+
+A nova recuperação substitui a leitura limitada a 200 mensagens da primeira sincronização: o cliente localiza por ID cronológico o ponto próximo à data escolhida e percorre o histórico até alcançar as mensagens recentes, em páginas. A posição é salva em `historyBackfills`, permitindo **retomar** em outra sincronização sem descartar registros ou repetir a importação dos mesmos IDs. As 200 mensagens recentes continuam sendo consultadas como atualização, mas **não são mais o único histórico acessível**.
+
+**Proteção contra leitura incompleta:** no Monitoramento aparece um estado de prontidão. Quando restam páginas antigas ou mensagens recentes para percorrer, mostra **Histórico em recuperação**, e o resultado da sincronização é **parcial**. Repita **Sincronizar selecionados** até que o aviso desapareça. Uma fonte sem data inicial é indicada e a leitura não começa até que a data seja definida.
+
+A troca da data inicial não apaga dados já sincronizados; o monitor mostra apenas registros a partir do ponto de partida atualmente selecionado. O relatório TXT mantém seu filtro próprio. Mensagens que o Telegram não fornece à sessão (por exclusão, restrições ou indisponibilidade) não podem ser recuperadas. O site não sincroniza continuamente em segundo plano.
+
+A leitura usa a API de histórico do Telegram por cursores de mensagens, inclusive nos tópicos de fórum, com isolamento por grupo/tópico. O progresso e os registros são salvos no armazenamento local do navegador; ele pode ficar sem espaço em históricos muito grandes. Não limpe os dados do navegador durante a recuperação.

@@ -152,3 +152,38 @@
  #monitorPage .tg-price-arrow{font-size:14px}
  #monitorPage .tg-price-item-heading{gap:7px}
 }
+
+
+/* Controle explícito do ponto de partida da leitura Telegram */
+#monitorPage .tg-sync-start{
+ display:grid;grid-template-columns:minmax(180px,1fr) minmax(205px,270px) auto;
+ gap:9px 12px;align-items:center;
+ padding:14px 15px;margin:10px 0 16px;
+ background:linear-gradient(110deg,#1b2d41,#142434);
+ border:1px solid #477395;border-left:4px solid #70c7f3;border-radius:13px;
+}
+#monitorPage .tg-sync-start-text{min-width:0}
+#monitorPage .tg-sync-start-text strong{display:block;color:#edf9ff;font-size:12px;font-weight:800}
+#monitorPage .tg-sync-start-text small{display:block;color:#a9c3d6;font-size:10.5px;line-height:1.55;margin-top:3px}
+#monitorPage #tgMonStartDate{
+ width:100%;max-width:100%;min-width:0;min-height:41px;
+ padding:9px 11px;border:1px solid #5981a1;border-radius:9px;
+ background:#102235!important;color:#edf8ff!important;
+ color-scheme:dark;font:650 12px Manrope,Arial,sans-serif;
+}
+#monitorPage #tgMonApplyStartAll{min-height:40px;white-space:normal}
+#monitorPage .tg-sync-start-hint{
+ grid-column:1/-1;margin:0;color:#95b4c9;
+ font-size:10.5px;line-height:1.6;
+}
+#monitorPage .tg-sync-start-hint.error{color:#ffa7a7}
+@media(max-width:900px){
+ #monitorPage .tg-sync-start{grid-template-columns:minmax(0,1fr) minmax(190px,1fr)}
+ #monitorPage #tgMonApplyStartAll{grid-column:2;grid-row:2}
+ #monitorPage .tg-sync-start-hint{grid-row:auto}
+}
+@media(max-width:600px){
+ #monitorPage .tg-sync-start{grid-template-columns:1fr;padding:12px;gap:9px}
+ #monitorPage #tgMonStartDate,#monitorPage #tgMonApplyStartAll{grid-column:1;grid-row:auto;width:100%}
+ #monitorPage .tg-sync-start-hint{grid-column:1}
+}
