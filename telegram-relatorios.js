@@ -194,12 +194,11 @@
     for(const [material,items] of sections){
       if(lines.length)lines.push("");
       lines.push(material,"");
-      for(const item of items){
-        const line=[item.ci,item.name,item.movement].filter(Boolean).join(" - ");
-        lines.push(line);
+      items.forEach((item,index)=>{
+        if(index>0)lines.push("");
+        lines.push([item.ci,item.name,item.movement].filter(Boolean).join(" - "));
         if(item.cb)lines.push("CB: "+item.cb);
-        lines.push("");
-      }
+      });
     }
     if(!lines.length)lines.push("Nenhum produto com CI identificado neste período.");
     const summary={
