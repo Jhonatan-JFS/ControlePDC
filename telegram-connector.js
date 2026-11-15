@@ -9,7 +9,7 @@
   const MONITOR_SELECTION_KEY="controle-pdc-telegram-selecao-monitor-v1";
   const encoder=new TextEncoder(), decoder=new TextDecoder();
   const enc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  let current=null, myGroups=[], busy=false;
+  let current=null, myGroups=[], busy=false, syncRunning=false;
   let activeMonitorGroup="",activeMonitorTopic="all",activeMonitorDirection="enviadas",activeReceivedCategory="todas",monitorSettingsOpen=false,monitorReportOpen=false;
   let draftMonitorGroup="",draftMonitorTopics=[],topicRequestVersion=0;
   const monitorTopicCache=new Map();
@@ -138,8 +138,8 @@
         const topics=Array.isArray(entry.topics)?entry.topics.filter(t=>t&&typeof t.id==="string"&&/^\d+$/.test(t.id)).slice(0,500):[];
         selected.push({
           id:entry.id,name:String(entry.name||entry.id).slice(0,120),
-          isForum:!!entry.isForum,
-          topics:[...new Map(topics.map(t=>[t.id,{id:t.id,name:String(t.name||t.id).slice(0,120)}])).values()]
+          isForum:!!entry.isForum,startAt:typeof entry.startAt==="string"?entry.startAt:"",
+          topics:[...new Map(topics.map(t=>[t.id,{id:t.id,name:String(t.name||t.id).slice(0,120),startAt:typeof t.startAt==="string"?t.startAt:""}])).values()]
         });
       }
       return {groups:selected};
@@ -158,10 +158,10 @@
       if(!actual)continue;
       if(actual.isForum){
         for(const thread of selected.topics){
-          targets.push({telegramId:actual.id,telegramName:actual.name,topicId:thread.id,topicName:thread.name,name:actual.name+" / "+thread.name,isForum:true});
+          targets.push({telegramId:actual.id,telegramName:actual.name,topicId:thread.id,topicName:thread.name,name:actual.name+" / "+thread.name,isForum:true,startAt:thread.startAt||selected.startAt||""});
         }
       }else{
-        targets.push({telegramId:actual.id,telegramName:actual.name,topicId:null,topicName:"",name:actual.name,isForum:false});
+        targets.push({telegramId:actual.id,telegramName:actual.name,topicId:null,topicName:"",name:actual.name,isForum:false,startAt:selected.startAt||""});
       }
     }
     return targets;
@@ -174,6 +174,44 @@
     }
     return {selection,group:selection.groups.find(g=>g.id===activeMonitorGroup)||null};
   }
+  function startDateFor(group,topic){
+    if(!group)return "";
+    if(!group.isForum||topic==="all")return group.startAt||"";
+    return group.topics.find(t=>t.id===topic)?.startAt||group.startAt||"";
+  }
+  function localDateInput(iso){
+    if(!iso)return "";
+    const date=new Date(iso);
+    if(!Number.isFinite(date.getTime()))return "";
+    const part=v=>String(v).padStart(2,"0");
+    return date.getFullYear()+"-"+part(date.getMonth()+1)+"-"+part(date.getDate())+"T"+part(date.getHours())+":"+part(date.getMinutes());
+  }
+  function saveStartDate(raw,scope="current"){
+    const date=new Date(raw),ms=date.getTime();
+    if(!raw||!Number.isFinite(ms))throw new Error("Informe uma data e hora válidas.");
+    if(ms>Date.now()+60000)throw new Error("A data inicial não pode ser futura.");
+    const iso=date.toISOString();
+    const config=readMonitorSelection();
+    if(scope==="all"){
+      for(const group of config.groups){
+        group.startAt=iso;
+        for(const topic of group.topics)topic.startAt=iso;
+      }
+    }else{
+      const group=config.groups.find(g=>g.id===activeMonitorGroup);
+      if(!group)throw new Error("Escolha o grupo primeiro.");
+      if(!group.isForum||activeMonitorTopic==="all"){
+        group.startAt=iso;
+        for(const topic of group.topics)topic.startAt=iso;
+      }else{
+        const topic=group.topics.find(t=>t.id===activeMonitorTopic);
+        if(!topic)throw new Error("Escolha um tópico válido.");
+        topic.startAt=iso;
+      }
+    }
+    saveMonitorSelection(config);
+    return iso;
+  }
   function matchesMonitorScope(record,group,topic){
     if(!group||record.telegramId!==group.id)return false;
     if(!group.isForum)return true;
@@ -184,8 +222,8 @@
   function readHistory(){
     try{
       const data=JSON.parse(localStorage.getItem(MONITOR_KEY)||"{}");
-      return {cursors:data.cursors&&typeof data.cursors==="object"?data.cursors:{},records:Array.isArray(data.records)?data.records:[],backfills:data.backfills&&typeof data.backfills==="object"?data.backfills:{},lastSync:data.lastSync||null};
-    }catch(_){return {cursors:{},records:[],backfills:{},lastSync:null};}
+      return {cursors:data.cursors&&typeof data.cursors==="object"?data.cursors:{},records:Array.isArray(data.records)?data.records:[],backfills:data.backfills&&typeof data.backfills==="object"?data.backfills:{},historyBackfills:data.historyBackfills&&typeof data.historyBackfills==="object"?data.historyBackfills:{},lastSync:data.lastSync||null};
+    }catch(_){return {cursors:{},records:[],backfills:{},historyBackfills:{},lastSync:null};}
   }
   function writeHistory(state){
     try{localStorage.setItem(MONITOR_KEY,JSON.stringify(state));return true;}
