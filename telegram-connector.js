@@ -412,8 +412,10 @@
       const received=recordDirection(rec)==="recebidas",request=rec.kind==="solicitacao";
       const parsed=request?extract(rec.text):[];
       const prices=received&&rec.kind==="preco"?(priceIndex.get(String(rec.telegramId||"")+":"+String(rec.messageId))||[]):[];
+      const fallbackState=window.TelegramPriceView?.movement?.(rec.text||"")||"";
       const priceState=prices.length&&prices.every(p=>p.state==="up")?"up":
-        prices.length&&prices.every(p=>p.state==="down")?"down":"neutral";
+        prices.length&&prices.every(p=>p.state==="down")?"down":
+        prices.length?"neutral":(fallbackState||"neutral");
       const priceLabel=priceState==="up"?"↑ AUMENTOU":priceState==="down"?"↓ BAIXOU":"Alteração de preço";
       const label=request?(rec.unavailable?"Mensagem indisponível":rec.status==="conferido"?"Conferido":"Não conferido"):
         rec.kind==="preco"?priceLabel:rec.kind==="produto"?"Produto novo":"Mensagem recebida";
