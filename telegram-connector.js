@@ -214,10 +214,15 @@
   }
   function matchesMonitorScope(record,group,topic){
     if(!group||record.telegramId!==group.id)return false;
-    if(!group.isForum)return true;
-    const id=record.topicId==null?"":String(record.topicId);
-    if(!group.topics.some(t=>t.id===id))return false;
-    return topic==="all"||topic===id;
+    let startAt=group.startAt||"";
+    if(group.isForum){
+      const id=record.topicId==null?"":String(record.topicId);
+      const chosen=group.topics.find(t=>t.id===id);
+      if(!chosen)return false;
+      if(topic!=="all"&&topic!==id)return false;
+      startAt=chosen.startAt||group.startAt||"";
+    }
+    return !startAt||(Number.isFinite(Date.parse(record.date))&&Date.parse(record.date)>=Date.parse(startAt));
   }
   function readHistory(){
     try{
@@ -612,7 +617,9 @@
       const hint=$("tgMonStartHint");
       try{
         const iso=saveStartDate(el.value);
-        if(hint){hint.textContent="Início salvo: "+new Date(iso).toLocaleString("pt-BR")+". Agora clique em Sincronizar selecionados.";hint.classList.remove("error");}
+        renderMonitor();
+        const refreshed=$("tgMonStartHint")||hint;
+        if(refreshed){refreshed.textContent="Início salvo: "+new Date(iso).toLocaleString("pt-BR")+". Agora clique em Sincronizar selecionados.";refreshed.classList.remove("error");}
       }catch(err){
         if(hint){hint.textContent=String(err.message||err);hint.classList.add("error");}
       }
@@ -632,7 +639,9 @@
       const input=$("tgMonStartDate"),hint=$("tgMonStartHint");
       try{
         const iso=saveStartDate(input?.value||"","all");
-        if(hint){hint.textContent="A mesma data foi salva para todos os grupos e tópicos: "+new Date(iso).toLocaleString("pt-BR")+".";hint.classList.remove("error");}
+        renderMonitor();
+        const refreshed=$("tgMonStartHint")||hint;
+        if(refreshed){refreshed.textContent="A mesma data foi salva para todos os grupos e tópicos: "+new Date(iso).toLocaleString("pt-BR")+".";refreshed.classList.remove("error");}
       }catch(err){if(hint){hint.textContent=String(err.message||err);hint.classList.add("error");}}
       return;
     }
