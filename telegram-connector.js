@@ -11,6 +11,7 @@
   const enc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   let current=null, myGroups=[], busy=false, syncRunning=false;
   let activeMonitorGroup="",activeMonitorTopic="all",activeMonitorDirection="enviadas",activeReceivedCategory="todas",monitorSettingsOpen=false,monitorReportOpen=false;
+  let syncConfigTarget="all",syncNotice="",syncNoticeError=false;
   let draftMonitorGroup="",draftMonitorTopics=[],topicRequestVersion=0;
   const monitorTopicCache=new Map();
   function bytesToBase64(bytes){let str="";for(const b of bytes)str+=String.fromCharCode(b);return btoa(str);}
@@ -81,7 +82,8 @@
   }
   function renderLogin(){
     const mount=$("tgAuthMount");if(!mount)return;
-    mount.innerHTML='<section class="tg-auth-box"><h4>Acesso à sua conta Telegram</h4><p>Conexão diretamente do navegador, sem bot e sem servidor permanente. Obtenha seu API ID e API hash em <a href="https://my.telegram.org" target="_blank" rel="noopener noreferrer">my.telegram.org</a>. A sessão fica cifrada neste dispositivo.</p>'+statusMarkup()+'<p class="tg-auth-message" id="tgConnectStatus" role="status" aria-live="polite"></p></section>';
+    mount.innerHTML='<section class="tg-auth-box"><h4>Acesso à sua conta Telegram</h4><p>Conexão diretamente do navegador, sem bot e sem servidor permanente. Obtenha seu API ID e API hash em <a href="https://my.telegram.org" target="_blank" rel="noopener noreferrer">my.telegram.org</a>. A sessão fica cifrada neste dispositivo.</p>'+statusMarkup()+'<p class="tg-auth-message" id="tgConnectStatus" role="status" aria-live="polite"></p></section><div id="tgSyncSettingsMount"></div>';
+    renderSyncSettings();
   }
   async function connect(){
     if(busy)return;
@@ -212,6 +214,101 @@
     saveMonitorSelection(config);
     return iso;
   }
+  // A configuração fica ao lado da conexão Telegram, independente da aba
+  // escolhida no Monitoramento. O histórico e os cursores não são apagados.
+  function syncOptions(){
+    const selection=readMonitorSelection(),options=[];
+    for(const group of selection.groups){
+      if(group.isForum){
+        for(const topic of group.topics){
+          options.push({key:group.id+":topic:"+topic.id,group:group.name,topic:topic.name,
+            name:group.name+" / "+topic.name,startAt:topic.startAt||group.startAt||""});
+        }
+      }else{
+        options.push({key:group.id+":topic:all",group:group.name,topic:"",
+          name:group.name,startAt:group.startAt||""});
+      }
+    }
+    return options;
+  }
+  function saveSyncStart(raw,key){
+    if(key==="all")return saveStartDate(raw,"all");
+    const date=new Date(raw),ms=date.getTime();
+    if(!raw||!Number.isFinite(ms))throw new Error("Selecione uma data e hora válidas.");
+    if(ms>Date.now()+60000)throw new Error("A data inicial não pode ser futura.");
+    const config=readMonitorSelection(),option=syncOptions().find(t=>t.key===key);
+    if(!option)throw new Error("Selecione um grupo/tópico monitorado válido.");
+    const iso=date.toISOString();
+    const group=config.groups.find(g=>key.startsWith(g.id+":topic:"));
+    if(!group)throw new Error("Grupo não encontrado.");
+    if(group.isForum){
+      const topic=group.topics.find(t=>key===group.id+":topic:"+t.id);
+      if(!topic)throw new Error("Tópico não encontrado.");
+      topic.startAt=iso;
+    }else group.startAt=iso;
+    saveMonitorSelection(config);
+    return iso;
+  }
+  function lastMessageFor(option,db){
+    const dates=db.records.filter(r=>r.telegramId===option.key.split(":topic:")[0]&&
+      (option.topic===""||String(r.topicId??"")===String(option.key.slice(option.key.lastIndexOf(":")+1))))
+      .map(r=>Date.parse(r.date)).filter(Number.isFinite);
+    return dates.length?new Date(Math.max(...dates)).toISOString():null;
+  }
+  function syncStamp(value){
+    return value&&Number.isFinite(Date.parse(value))?new Date(value).toLocaleString("pt-BR"):"Ainda não realizada";
+  }
+  function renderSyncSettings(){
+    const mount=$("tgSyncSettingsMount");if(!mount)return;
+    const options=syncOptions(),db=readHistory();
+    if(syncConfigTarget!=="all"&&!options.some(t=>t.key===syncConfigTarget))syncConfigTarget="all";
+    const selected=options.find(t=>t.key===syncConfigTarget);
+    const starts=[...new Set(options.map(t=>t.startAt||""))];
+    const dateValue=syncConfigTarget==="all"?(starts.length===1?starts[0]:""):(selected?.startAt||"");
+    const previous=syncConfigTarget==="all"?db.lastCompleteSync:
+      db.lastSyncBySource?.[syncConfigTarget]?.lastCompletedAt;
+    const previousAttempt=syncConfigTarget==="all"?db.lastSync:
+      db.lastSyncBySource?.[syncConfigTarget]?.lastAttemptAt;
+    const newest=selected?lastMessageFor(selected,db):
+      (db.records.length?new Date(Math.max(...db.records.map(r=>Date.parse(r.date)).filter(Number.isFinite))).toISOString():null);
+    const sourceRows=options.map(o=>{
+      const item=db.lastSyncBySource?.[o.key],oldStart=!!item?.lastCompletedStartAt&&item.lastCompletedStartAt!==o.startAt;
+      const state=db.historyBackfills?.[o.key];
+      const recovered=o.startAt&&state?.startAt===o.startAt&&state.done&&!db.recentPending?.[o.key];
+      const badge=!o.startAt?"Sem data inicial":recovered?"Histórico recuperado":"Recuperação pendente";
+      return '<div class="tg-sync-source"><strong>'+enc(o.name)+'</strong>'+
+        '<small>'+badge+' · Início: '+(o.startAt?enc(syncStamp(o.startAt)):"não definido")+'</small>'+
+        '<small>Última conclusão: '+(item?.lastCompletedAt?enc(syncStamp(item.lastCompletedAt))+(oldStart?" (data inicial anterior)":""):"não realizada")+'</small></div>';
+    }).join("");
+    const logs=(db.syncSessions||[]).slice(0,12).map(item=>
+      '<div class="tg-sync-log"><strong>'+enc(syncStamp(item.at))+'</strong>'+
+      '<small class="'+(item.complete?"tg-sync-done":"tg-sync-partial")+'">'+(item.complete?"Concluída":"Parcial / com pendências")+
+      '</small><span>'+Number(item.added||0)+' novas · '+Number(item.checked||0)+' reações verificadas</span></div>').join("");
+    mount.innerHTML='<section class="tg-sync-console" aria-labelledby="tgSyncConsoleTitle">'+
+      '<div class="tg-sync-console-heading"><div><span class="tg-sync-eyebrow">SINCRONIZAÇÃO E HISTÓRICO</span>'+
+        '<h4 id="tgSyncConsoleTitle">Sincronizar mensagens</h4>'+
+        '<p>Configure a data aqui, junto da conexão. Os dados capturados anteriormente permanecem guardados.</p></div></div>'+
+      (options.length?'<div class="tg-sync-controls">'+
+        '<label>Grupo ou tópico<select id="tgSyncTarget"><option value="all"'+(syncConfigTarget==="all"?' selected':'')+'>Todos os grupos/tópicos monitorados</option>'+
+        options.map(o=>'<option value="'+enc(o.key)+'"'+(syncConfigTarget===o.key?' selected':'')+'>'+enc(o.name)+'</option>').join("")+'</select></label>'+
+        '<label>Sincronizar a partir de:<input id="tgSyncFrom" type="datetime-local" value="'+enc(localDateInput(dateValue))+'"></label>'+
+        '<div class="tg-sync-buttons"><button type="button" class="btn btn-soft" id="tgSyncSaveStart">Salvar data inicial</button>'+
+        '<button type="button" class="btn btn-primary" id="tgSyncRun"'+(!logged()||syncRunning?' disabled':'')+'>'+
+        (syncRunning?"Sincronizando…":"↻ Sincronizar agora")+'</button></div></div>'+
+        (syncConfigTarget==="all"&&starts.length>1?'<p class="tg-sync-hint">Os tópicos possuem datas diferentes. Escolha uma nova data para unificar ou sincronize mantendo as datas já salvas.</p>':
+         '<p class="tg-sync-hint">A data define o início da recuperação. Você pode voltar a uma data anterior sem apagar o histórico.</p>'):
+        '<div class="tg-sync-empty">Nenhum grupo monitorado. Em <strong>Monitoramento → Selecionar grupos e tópicos</strong>, escolha as conversas antes de sincronizar.</div>')+
+      (!logged()?'<p class="tg-sync-hint">Conecte sua conta Telegram acima para habilitar a sincronização.</p>':'')+
+      '<p class="tg-sync-feedback'+(syncNoticeError?' error':'')+'" id="tgSyncFeedback" role="status" aria-live="polite">'+
+        enc(syncNotice||"Escolha a data inicial e toque em Sincronizar agora.")+'</p>'+
+      '<div class="tg-sync-overview"><div><small>Última sincronização concluída</small><strong>'+enc(syncStamp(previous))+'</strong></div>'+
+        '<div><small>Última tentativa</small><strong>'+enc(syncStamp(previousAttempt))+'</strong></div>'+
+        '<div><small>Última mensagem registrada</small><strong>'+enc(syncStamp(newest))+'</strong></div></div>'+
+      '<details class="tg-sync-history"><summary>Histórico de sincronizações ('+(db.syncSessions?.length||0)+')</summary>'+
+        '<div class="tg-sync-log-list">'+(logs||'<p>Nenhuma execução registrada neste navegador.</p>')+'</div>'+
+        '<h5>Grupos e tópicos</h5><div class="tg-sync-sources">'+(sourceRows||'<p>Nenhum grupo configurado.</p>')+'</div>'+
+        '</details></section>';
+  }
   function matchesMonitorScope(record,group,topic){
     if(!group||record.telegramId!==group.id)return false;
     let startAt=group.startAt||"";
@@ -227,8 +324,8 @@
   function readHistory(){
     try{
       const data=JSON.parse(localStorage.getItem(MONITOR_KEY)||"{}");
-      return {cursors:data.cursors&&typeof data.cursors==="object"?data.cursors:{},records:Array.isArray(data.records)?data.records:[],backfills:data.backfills&&typeof data.backfills==="object"?data.backfills:{},historyBackfills:data.historyBackfills&&typeof data.historyBackfills==="object"?data.historyBackfills:{},dateAnchors:data.dateAnchors&&typeof data.dateAnchors==="object"?data.dateAnchors:{},recentPending:data.recentPending&&typeof data.recentPending==="object"?data.recentPending:{},lastSync:data.lastSync||null};
-    }catch(_){return {cursors:{},records:[],backfills:{},historyBackfills:{},dateAnchors:{},recentPending:{},lastSync:null};}
+      return {cursors:data.cursors&&typeof data.cursors==="object"?data.cursors:{},records:Array.isArray(data.records)?data.records:[],backfills:data.backfills&&typeof data.backfills==="object"?data.backfills:{},historyBackfills:data.historyBackfills&&typeof data.historyBackfills==="object"?data.historyBackfills:{},dateAnchors:data.dateAnchors&&typeof data.dateAnchors==="object"?data.dateAnchors:{},recentPending:data.recentPending&&typeof data.recentPending==="object"?data.recentPending:{},lastSync:data.lastSync||null,lastCompleteSync:data.lastCompleteSync||null,lastSyncBySource:data.lastSyncBySource&&typeof data.lastSyncBySource==="object"?data.lastSyncBySource:{},syncSessions:Array.isArray(data.syncSessions)?data.syncSessions.slice(0,20):[]};
+    }catch(_){return {cursors:{},records:[],backfills:{},historyBackfills:{},dateAnchors:{},recentPending:{},lastSync:null,lastCompleteSync:null,lastSyncBySource:{},syncSessions:[]};}
   }
   function writeHistory(state){
     try{localStorage.setItem(MONITOR_KEY,JSON.stringify(state));return true;}
