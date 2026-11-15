@@ -156,7 +156,7 @@
       '<section class="tg-final-step"><strong>Pronto! Agora é só solicitar.</strong><p>Em <b>Nova solicitação</b>, selecione o modelo, preencha os produtos e revise a prévia. O destino já aparecerá preenchido; você só confirma o envio.</p><button type="button" class="btn btn-primary btn-small" id="tgGoCompose">Ir para Nova solicitação</button></section>';
   }
   function renderSettings(){
-    pane.innerHTML=header("Configurações","Conexão de conta e sincronização sob demanda no navegador.")+
+    pane.innerHTML=header("Conexão e sincronização","Desbloqueie sua conta, escolha a data inicial, sincronize mensagens e consulte o último histórico salvo.")+
       '<div id="tgAuthMount"></div>'+
       '<div class="tg-route assigned"><div><small>ROTEAMENTO DEFINIDO</small><strong>'+Object.keys(state.mappings).length+' modelo(s) com destino</strong><p>Ao escolher o modelo, o site identifica o grupo configurado sem seleção manual.</p></div></div>';
     window.TelegramConnector?.renderLogin?.();
@@ -217,6 +217,10 @@
   side.addEventListener("click",e=>{
     const item=e.target.closest("[data-tg-section]");if(!item)return;
     section=item.dataset.tgSection;render();closeMobile();
+  });
+  $("tgHeaderSync")?.addEventListener("click",()=>{
+    section="configuracoes";render();closeMobile();
+    $("tgAuthMount")?.scrollIntoView?.({behavior:"smooth",block:"start"});
   });
   const toggle=$("tgMenuToggle"),sideKey="controle-pdc-telegram-menu-collapsed-v1";
   if(localStorage.getItem(sideKey)==="1")page.classList.add("sidebar-collapsed");

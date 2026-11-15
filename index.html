@@ -10,17 +10,18 @@
   <link rel="stylesheet" href="./solicitacoes.css?v=2.0.1">
   <link rel="stylesheet" href="./telegram-grupos.css?v=5">
   <link rel="stylesheet" href="./telegram-tema.css?v=2">
-  <link rel="stylesheet" href="./telegram-monitor.css?v=4">
+  <link rel="stylesheet" href="./telegram-monitor.css?v=5">
   <link rel="stylesheet" href="./telegram-relatorios.css?v=3">
   <link rel="stylesheet" href="./site-dark.css?v=1">
+  <link rel="stylesheet" href="./telegram-sync.css?v=1">
   <script defer src="./app.js?v=2.0.2"></script>
   <script defer src="./solicitacoes.js?v=2.0.3"></script>
   <script defer src="./telegram-client.bundle.js?v=2"></script>
   <script defer src="./telegram-precos.js?v=1"></script>
-  <script defer src="./telegram-connector.js?v=8"></script>
+  <script defer src="./telegram-connector.js?v=9"></script>
   <script defer src="./telegram-relatorios.js?v=2"></script>
   <script defer src="./telegram-modelos.js?v=2"></script>
-  <script defer src="./telegram-grupos.js?v=7"></script>
+  <script defer src="./telegram-grupos.js?v=8"></script>
   <script type="module" src="./cloud.js?v=2.0.0"></script>
 </head>
 <body>
@@ -224,7 +225,7 @@
       <section id="telegramPage" class="tg-page" hidden aria-label="Central de solicitações Telegram">
         <div class="tg-page-head">
           <div><span class="page-eyebrow">03 / COMUNICAÇÃO E DESTINOS</span><h2>Telegram</h2><p>Prepare solicitações e envie automaticamente para os grupos e tópicos vinculados.</p></div>
-          <span class="tg-warning-label" id="tgConnectionBadge">Conta Telegram não conectada</span>
+          <div class="tg-header-controls"><span class="tg-warning-label" id="tgConnectionBadge">Conta Telegram não conectada</span><button type="button" id="tgHeaderSync" class="tg-header-sync-shortcut">⚙ Conexão e sincronização</button></div>
         </div>
         <button type="button" id="tgMenuToggle" class="btn btn-soft btn-small tg-menu-toggle" aria-expanded="false" aria-controls="tgSidebar">☰ Menu Telegram</button>
         <div class="tg-layout">
