@@ -281,6 +281,7 @@
       const badge=!o.startAt?"Sem data inicial":recovered?"Histórico recuperado":"Recuperação pendente";
       return '<div class="tg-sync-source"><strong>'+enc(o.name)+'</strong>'+
         '<small>'+badge+' · Início: '+(o.startAt?enc(syncStamp(o.startAt)):"não definido")+'</small>'+
+        '<small>Última mensagem coletada: '+enc(syncStamp(item?.lastMessageAt))+'</small>'+
         '<small>Última conclusão: '+(item?.lastCompletedAt?enc(syncStamp(item.lastCompletedAt))+(oldStart?" (data inicial anterior)":""):"não realizada")+'</small></div>';
     }).join("");
     const logs=(db.syncSessions||[]).slice(0,12).map(item=>
