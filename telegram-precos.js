@@ -32,7 +32,9 @@
       const line=raw.trim();
       if(!line)continue;
       const flag=movement(line);
-      if(/^(?:AUMENTOU|AUMENTO|SUBIU|REAJUSTOU|ABAIXOU|BAIXOU|DIMINUIU|REDUZIU|CAIU)\s*[:!.\-]?\s*$/i.test(line)){
+      if(/^(?:AUMENTOU|AUMENTO|SUBIU|REAJUSTOU|ABAIXOU|BAIXOU|DIMINUIU|REDUZIU|CAIU)\s*[:!.\-]?\s*$/i.test(line)||
+        /^(?:AUMENTOU|AUMENTO|SUBIU|REAJUSTOU|ABAIXOU|BAIXOU|DIMINUIU|REDUZIU|CAIU)\s*[:–-]\s*\D/i.test(line)||
+        /^.+\s*[-–:]\s*(?:AUMENTOU|AUMENTO|SUBIU|REAJUSTOU|ABAIXOU|BAIXOU|DIMINUIU|REDUZIU|CAIU)\s*$/i.test(line)){
         groupMove=flag;current=null;continue;
       }
       const code=line.match(/^(?:CI\s*[:=#-]\s*)?(\d{1,16})\s*[-–]\s*(.+)$/i);
