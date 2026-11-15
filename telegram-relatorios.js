@@ -147,7 +147,7 @@
       if(cb&&current){current.cb=cb[1].trim();continue;}
       // Valor de venda é ignorado no formato simplificado, não é um CI.
       const heading=materialHeading(line);
-      if(heading){material=heading;current=null;continue;}
+      if(heading){if(category==="preco"&&movementOf(line))movement=movementOf(line);material=heading;current=null;continue;}
       if(category==="preco" && /^(?:AUMENTOU|AUMENTO|SUBIU|REAJUSTOU|ABAIXOU|BAIXOU|DIMINUIU|REDUZIU|CAIU)\s*[:.!-]?$/i.test(line)){
         movement=movementOf(line);current=null;
       }
@@ -215,7 +215,7 @@
     const date=String(from).replace(/[^0-9]/g,"").slice(0,12);
     return "RELATORIO_TELEGRAM_"+safe+"_"+date+".txt";
   }
-  let opts={from:"",kind:"all",direction:"all"};
+  let opts={from:"",kind:"all",direction:"all",material:""};
   function panelHtml(scope){
     const g=scope?.group;
     if(!g)return '<section class="tg-report-panel"><h3>Relatório TXT por chat</h3><p>Escolha um grupo para habilitar a exportação.</p></section>';
@@ -225,7 +225,7 @@
       ).join("")+'</select></label>':"";
     const typeOptions=Object.entries(labels).map(([id,label])=>'<option value="'+id+'"'+(opts.kind===id?' selected':'')+'>'+label+'</option>').join("");
     return '<section class="tg-report-panel" aria-labelledby="tgReportHeading">'+
-      '<div class="tg-report-head"><div><h3 id="tgReportHeading">Relatório TXT deste chat</h3><p>Escolha o período e exporte um arquivo organizado, com os títulos, produtos, CIs e últimas informações registradas.</p></div>'+
+      '<div class="tg-report-head"><div><h3 id="tgReportHeading">Lista simples de produtos (TXT)</h3><p>Apenas material, CI, descrição, AUMENTOU/BAIXOU e CB quando houver. Uma linha por produto, pronta para copiar.</p></div>'+
       '<span>Arquivo .TXT</span></div>'+
       '<div class="tg-report-fields">'+
       '<label>Iniciar a partir de (data e hora)<input type="datetime-local" id="tgReportFrom" value="'+esc(opts.from)+'"></label>'+
@@ -234,38 +234,65 @@
       '<label>Mensagens<select id="tgReportDirection"><option value="all"'+(opts.direction==="all"?' selected':'')+'>Minhas e recebidas</option>'+
         '<option value="enviadas"'+(opts.direction==="enviadas"?' selected':'')+'>Apenas minhas</option>'+
         '<option value="recebidas"'+(opts.direction==="recebidas"?' selected':'')+'>Apenas recebidas</option></select></label>'+
+      '<label>Material para itens sem título (opcional)<input type="text" id="tgReportMaterial" maxlength="65" placeholder="Ex.: Prafesty" value="'+esc(opts.material)+'"></label>'+ 
       '</div><div class="tg-report-actions"><button type="button" class="btn btn-soft" id="tgReportPreviewBtn">Visualizar TXT</button>'+
       '<button type="button" class="btn btn-primary" id="tgReportDownloadBtn">Baixar relatório TXT</button></div>'+
       '<p id="tgReportStatus" class="tg-report-status" role="status" aria-live="polite">Defina o início do período. O arquivo usará o histórico já sincronizado; não buscará mensagens antigas automaticamente.</p>'+
-      '<pre id="tgReportPreview" class="tg-report-preview" hidden></pre></section>';
+      '<pre id="tgReportPreview" class="tg-report-preview" hidden></pre>'+ 
+      '<div id="tgReportQuickCopy" class="tg-report-quick-copy" hidden></div></section>';
   }
   function controlValues(){
     const scope=window.TelegramConnector?.getReportScope?.();
     if(!scope?.group)throw new Error("Selecione um grupo na aba Monitoramento.");
     return {group:scope.group,topicId:scope.group.isForum?$("tgReportTopic")?.value:null,
       from:$("tgReportFrom")?.value||"",kind:$("tgReportKind")?.value||"all",
-      direction:$("tgReportDirection")?.value||"all"};
+      direction:$("tgReportDirection")?.value||"all",material:$("tgReportMaterial")?.value||""};
   }
   function createCurrent(){
     const values=controlValues();
-    opts={from:values.from,kind:values.kind,direction:values.direction};
+    opts={from:values.from,kind:values.kind,direction:values.direction,material:values.material};
     return generate(window.TelegramConnector.readHistory().records,values);
   }
   function status(message,error=false){
     const el=$("tgReportStatus");
     if(el){el.textContent=message;el.classList.toggle("error",error);}
   }
-  document.addEventListener("click",event=>{
+  function renderQuickCopy(materials){
+    const mount=$("tgReportQuickCopy");
+    if(!mount)return;
+    const groups=materials||[];
+    mount.innerHTML='<h4>Copiar códigos para o sistema</h4>'+
+      groups.map(group=>'<div class="tg-report-copy-group"><strong>'+esc(group.title)+'</strong>'+
+        group.items.map(item=>'<div class="tg-report-copy-row"><span>'+esc([item.ci,item.name,item.movement].filter(Boolean).join(" - "))+'</span>'+
+          '<div class="tg-report-copy-buttons"><button type="button" class="btn btn-soft btn-small" data-tg-report-copy="'+esc(item.ci)+'">Copiar CI</button>'+
+          (item.cb?'<button type="button" class="btn btn-ghost btn-small" data-tg-report-copy="'+esc(item.cb)+'">Copiar CB</button>':'')+
+          '</div></div>').join("")+'</div>').join("");
+    mount.hidden=!groups.length;
+  }
+  document.addEventListener("click",async event=>{
+    const copy=event.target.closest("[data-tg-report-copy]");
+    if(copy){
+      const value=copy.getAttribute("data-tg-report-copy")||"";
+      if(!value)return;
+      try{
+        await navigator.clipboard.writeText(value);
+        status("Código "+value+" copiado para a área de transferência.");
+      }catch(_){status("Não foi possível copiar. Verifique a permissão do navegador.",true);}
+      return;
+    }
+
     const preview=event.target.closest("#tgReportPreviewBtn");
     const download=event.target.closest("#tgReportDownloadBtn");
     if(!preview&&!download)return;
     try{
       const result=createCurrent(),count=result.summary.total;
       if(!count)throw new Error("Não há mensagens sincronizadas para este chat a partir da data escolhida. Confira o período ou sincronize o grupo.");
+      if(!result.summary.uniqueCIs)throw new Error("Nenhum CI encontrado nas mensagens deste período. Confira o filtro ou sincronize novamente.");
       if(preview){
         const target=$("tgReportPreview");
         if(target){target.hidden=false;target.textContent=result.text;}
-        status(count+" mensagens encontradas e "+result.summary.uniqueCIs+" CIs identificados.");
+        renderQuickCopy(result.summary.materials);
+        status(result.summary.uniqueCIs+" CI(s) em "+result.summary.materials.length+" material(is). Lista pronta para copiar.");
       }else{
         const blob=new Blob(["\uFEFF",result.text],{type:"text/plain;charset=utf-8"});
         const url=URL.createObjectURL(blob),link=document.createElement("a");
