@@ -249,17 +249,6 @@
     saveMonitorSelection(config);
     return iso;
   }
-  function lastMessageFor(option,db){
-    const groupId=option.key.slice(0,option.key.lastIndexOf(":topic:"));
-    const threadId=option.key.slice(option.key.lastIndexOf(":topic:")+7);
-    let max=0;
-    for(const rec of db.records){
-      if(rec.telegramId!==groupId||(threadId!=="all"&&String(rec.topicId??"")!==threadId))continue;
-      const date=Date.parse(rec.date);
-      if(Number.isFinite(date)&&date>max)max=date;
-    }
-    return max?new Date(max).toISOString():null;
-  }
   function syncStamp(value){
     return value&&Number.isFinite(Date.parse(value))?new Date(value).toLocaleString("pt-BR"):"Ainda não realizada";
   }
@@ -274,11 +263,17 @@
       db.lastSyncBySource?.[syncConfigTarget]?.lastCompletedAt;
     const previousAttempt=syncConfigTarget==="all"?db.lastSync:
       db.lastSyncBySource?.[syncConfigTarget]?.lastAttemptAt;
-    const newest=selected?lastMessageFor(selected,db):options.reduce((max,o)=>{
-      const time=Date.parse(lastMessageFor(o,db)||"");
-      return Number.isFinite(time)&&time>max?time:max;
-    },0);
-    const newestStamp=typeof newest==="number"?(newest?new Date(newest).toISOString():null):newest;
+    // Calcula a última mensagem de cada fonte em uma única passada:
+    // mesmo com muitos produtos e grupos, abrir Configurações continua leve.
+    const newestBySource=new Map(),permitted=new Set(options.map(o=>o.key));
+    for(const record of db.records){
+      const key=record.telegramId+":topic:"+(record.topicId??"all"),at=Date.parse(record.date);
+      if(!permitted.has(key)||!Number.isFinite(at))continue;
+      if(at>(newestBySource.get(key)||0))newestBySource.set(key,at);
+    }
+    const newest=selected?(newestBySource.get(selected.key)||0):
+      options.reduce((max,o)=>Math.max(max,newestBySource.get(o.key)||0),0);
+    const newestStamp=newest?new Date(newest).toISOString():null;
     const sourceRows=options.map(o=>{
       const item=db.lastSyncBySource?.[o.key],oldStart=!!item?.lastCompletedStartAt&&item.lastCompletedStartAt!==o.startAt;
       const state=db.historyBackfills?.[o.key];
@@ -579,12 +574,15 @@
             lastCompletedAt:sourceComplete?now:(prev.lastCompletedAt||null),
             lastCompletedStartAt:sourceComplete?group.startAt:(prev.lastCompletedStartAt||null),
             lastResult:sourceComplete?"concluida":"parcial",startAt:group.startAt,
-            lastMessageAt:db.records.reduce((value,rec)=>{
-              if(rec.telegramId!==group.telegramId||
-                (group.topicId!=null&&String(rec.topicId??"")!==String(group.topicId)))return value;
-              const at=Date.parse(rec.date);
-              return Number.isFinite(at)&&at>value?at:value;
-            },0)||null
+            lastMessageAt:(()=>{
+              const latest=db.records.reduce((value,rec)=>{
+                if(rec.telegramId!==group.telegramId||
+                  (group.topicId!=null&&String(rec.topicId??"")!==String(group.topicId)))return value;
+                const at=Date.parse(rec.date);
+                return Number.isFinite(at)&&at>value?at:value;
+              },0);
+              return latest?new Date(latest).toISOString():null;
+            })()
           };
           writeHistory(db);
         }catch(err){
