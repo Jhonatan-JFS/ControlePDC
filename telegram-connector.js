@@ -222,8 +222,8 @@
   function readHistory(){
     try{
       const data=JSON.parse(localStorage.getItem(MONITOR_KEY)||"{}");
-      return {cursors:data.cursors&&typeof data.cursors==="object"?data.cursors:{},records:Array.isArray(data.records)?data.records:[],backfills:data.backfills&&typeof data.backfills==="object"?data.backfills:{},historyBackfills:data.historyBackfills&&typeof data.historyBackfills==="object"?data.historyBackfills:{},lastSync:data.lastSync||null};
-    }catch(_){return {cursors:{},records:[],backfills:{},historyBackfills:{},lastSync:null};}
+      return {cursors:data.cursors&&typeof data.cursors==="object"?data.cursors:{},records:Array.isArray(data.records)?data.records:[],backfills:data.backfills&&typeof data.backfills==="object"?data.backfills:{},historyBackfills:data.historyBackfills&&typeof data.historyBackfills==="object"?data.historyBackfills:{},dateAnchors:data.dateAnchors&&typeof data.dateAnchors==="object"?data.dateAnchors:{},lastSync:data.lastSync||null};
+    }catch(_){return {cursors:{},records:[],backfills:{},historyBackfills:{},dateAnchors:{},lastSync:null};}
   }
   function writeHistory(state){
     try{localStorage.setItem(MONITOR_KEY,JSON.stringify(state));return true;}
@@ -253,9 +253,9 @@
     if(/\b(?:produto|item|mercadoria)(?:s)?\s+novo(?:s)?\b|\bnovo(?:s)?\s+(?:produto|item|mercadoria)(?:s)?\b/i.test(txt))return "produto";
     return "recebida";
   }
-  function insertMessage(state,g,m,kind,direction){
+  function insertMessage(state,g,m,kind,direction,index=null){
     const key=g.telegramId+":"+m.id;
-    let rec=state.records.find(x=>x.key===key);
+    let rec=index?.get(key)||state.records.find(x=>x.key===key);
     const now=new Date().toISOString();
     if(!rec){
       const request=kind==="solicitacao",status=request?(m.reactionCount>0?"conferido":"pendente"):"informativo";
@@ -263,7 +263,7 @@
         messageId:m.id,date:m.date,text:String(m.text||""),kind,direction,senderId:String(m.senderId||""),
         reactionCount:request?(m.reactionCount||0):0,reactions:request?(m.reactions||[]):[],
         status,history:[{at:now,status,reason:"Primeira leitura"}]};
-      state.records.push(rec);
+      state.records.push(rec);index?.set(key,rec);
     }else {
       rec.text=String(m.text??rec.text??"");
       rec.date=m.date||rec.date;
@@ -288,57 +288,140 @@
     rec.status=status;rec.reactionCount=count;rec.reactions=m.reactions||[];
     rec.verifiedAt=new Date().toISOString();
   }
-  async function synchronize(){
+  // A versão antiga carregava só 200 mensagens na primeira leitura e avançava
+  // o cursor, deixando intervalos anteriores nunca visitados. Descobrimos o
+  // ponto de corte pelo ID cronológico sem precisar reinstalar a biblioteca.
+  async function findDateAnchor(groupId,startAt,db){
+    db.dateAnchors ||= {};
+    const key=groupId+"|"+startAt;
+    const saved=db.dateAnchors[key];
+    if(saved&&Number.isInteger(saved.cursor)&&saved.cursor>=0)return saved;
+    const tg=window.TelegramBridge;
+    const recent=await tg.scan(groupId,0,200,null);
+    const latestId=Number(recent.lastId||0);
+    if(!latestId){
+      const empty={cursor:0,latestId:0,afterAll:true};
+      db.dateAnchors[key]=empty;writeHistory(db);return empty;
+    }
+    const last=recent.messages[recent.messages.length-1];
+    if(last && Date.parse(last.date)<Date.parse(startAt)){
+      const afterAll={cursor:latestId,latestId,afterAll:true};
+      db.dateAnchors[key]=afterAll;writeHistory(db);return afterAll;
+    }
+    let lo=2,hi=latestId,probes=0;
+    while(lo<hi&&probes<36){
+      const mid=Math.floor((lo+hi)/2);
+      const page=await tg.scan(groupId,mid-1,1,null);
+      const first=page.messages[0];
+      if(!first){hi=mid;probes++;continue;}
+      const at=Date.parse(first.date);
+      if(!Number.isFinite(at))throw new Error("Telegram retornou uma mensagem sem data válida na pesquisa.");
+      if(at>=Date.parse(startAt))hi=mid;
+      else lo=Math.max(mid+1,Number(first.id)+1);
+      probes++;
+    }
+    if(lo<hi)throw new Error("Não foi possível localizar o início do histórico com segurança. Tente novamente.");
+    const result={cursor:Math.max(1,lo-2),latestId,afterAll:false};
+    db.dateAnchors[key]=result;
+    writeHistory(db);
+    return result;
+  }
+  async function synchronize(onProgress){
+    if(syncRunning)throw new Error("Uma sincronização já está em andamento.");
     if(!logged())throw new Error("Conecte sua conta Telegram para sincronizar.");
     const targets=selectedTargets();
     if(!targets.length)throw new Error("Escolha os grupos e tópicos em Monitoramento → Configurar monitoramento.");
-    const db=readHistory(),errors=[],meId=window.TelegramBridge.getMeId();
-    db.backfills ||= {};
-    let added=0,checked=0;
-    for(const group of targets){
-      try{
-        let pages=0,more=true;
-        const cursorKey=group.telegramId+":topic:"+(group.topicId??"all");
-        // A versão anterior descartava solicitações dos colegas. Reconsulta
-        // uma janela recente uma única vez por tópico, sem zerar o cursor.
-        if(!db.backfills[cursorKey]){
-          const recent=await window.TelegramBridge.scan(group.telegramId,0,200,group.topicId??null);
-          for(const msg of recent.messages){
-            const direction=directionOf(msg,meId),kind=recognize(msg,meId);
-            const key=group.telegramId+":"+msg.id;
-            if(!db.records.some(r=>r.key===key))added++;
-            insertMessage(db,group,msg,kind,direction);
+    const missing=targets.filter(t=>!t.startAt||!Number.isFinite(Date.parse(t.startAt)));
+    if(missing.length)throw new Error("Defina 'Sincronizar a partir de' para: "+missing.map(t=>t.name).slice(0,5).join(", ")+(missing.length>5?" e outros":"")+".");
+    syncRunning=true;
+    const notify=message=>{if(typeof onProgress==="function")onProgress(message);};
+    try{
+      const db=readHistory(),errors=[],pending=[],meId=window.TelegramBridge.getMeId();
+      db.historyBackfills ||= {};db.dateAnchors ||= {};
+      const cache=new Map(db.records.map(r=>[r.key,r]));
+      let added=0,checked=0,examined=0;
+      const append=(group,msg)=>{
+        if(!Number.isFinite(Date.parse(msg.date))||Date.parse(msg.date)<Date.parse(group.startAt))return;
+        const key=group.telegramId+":"+msg.id;
+        if(!cache.has(key))added++;
+        insertMessage(db,group,msg,recognize(msg,meId),directionOf(msg,meId),cache);
+      };
+      for(let i=0;i<targets.length;i++){
+        const group=targets[i],cursorKey=group.telegramId+":topic:"+(group.topicId??"all");
+        const prefix="["+ (i+1)+"/"+targets.length+"] "+group.name+": ";
+        try{
+          let state=db.historyBackfills[cursorKey];
+          if(!state||state.startAt!==group.startAt){
+            notify(prefix+"localizando a data de início…");
+            const anchor=await findDateAnchor(group.telegramId,group.startAt,db);
+            state={startAt:group.startAt,cursor:anchor.cursor,done:anchor.afterAll,
+              examined:0,matched:0,lastDate:""};
+            db.historyBackfills[cursorKey]=state;
+            writeHistory(db);
           }
-          db.backfills[cursorKey]=true;
-          writeHistory(db);
-        }
-        while(more&&pages<8){
-          const cursor=Number((db.cursors[cursorKey]??(group.topicId==null?db.cursors[group.telegramId]:0))||0);
-          const page=await window.TelegramBridge.scan(group.telegramId,cursor,1200,group.topicId??null);
-          for(const msg of page.messages){
-            const direction=directionOf(msg,meId),kind=recognize(msg,meId);
-            const key=group.telegramId+":"+msg.id;
-            if(!db.records.some(r=>r.key===key))added++;
-            insertMessage(db,group,msg,kind,direction);
+          // Ler primeiro a parte histórica, de onde o usuário decidiu começar.
+          // O progresso é persistido página a página para retomar sem saltos.
+          let batch=0;
+          while(!state.done&&batch<6){
+            notify(prefix+"recuperando histórico desde "+new Date(group.startAt).toLocaleString("pt-BR")+
+              " — "+state.examined+" examinadas…");
+            const page=await window.TelegramBridge.scan(group.telegramId,state.cursor,400,group.topicId??null);
+            if(page.lastId<=state.cursor){
+              if(page.truncated)throw new Error("A paginação do Telegram não avançou; histórico interrompido com segurança.");
+              state.done=true;writeHistory(db);break;
+            }
+            for(const msg of page.messages){append(group,msg);state.matched++;}
+            // cursor considera a posição lida, inclusive mensagens de outros tópicos
+            // descartadas na visualização Geral.
+            state.cursor=page.lastId;state.examined+=page.examined??page.messages.length;
+            examined+=page.examined??page.messages.length;
+            if(page.messages.length){
+              state.lastDate=page.messages[page.messages.length-1].date;
+            }
+            state.done=!page.truncated;
+            writeHistory(db);batch++;
           }
-          db.cursors[cursorKey]=Math.max(cursor,page.lastId);
-          writeHistory(db);
-          more=page.truncated;pages++;
-        }
-        if(more)errors.push(group.name+": há mais mensagens para recuperar. Sincronize novamente.");
-        const records=db.records.filter(r=>r.telegramId===group.telegramId &&
-          (group.topicId==null || String(r.topicId??"")===String(group.topicId)) &&
-          r.kind==="solicitacao");
-        for(let i=0;i<records.length;i+=50){
-          const chunk=records.slice(i,i+50),reactionData=await window.TelegramBridge.reactions(group.telegramId,chunk.map(x=>x.messageId));
-          const byId=new Map(reactionData.map(x=>[x.id,x]));
-          for(const rec of chunk){const latest=byId.get(rec.messageId);if(latest){applyReaction(rec,latest);checked++;}}
-          writeHistory(db);
-        }
-      }catch(e){errors.push(group.name+": "+String(e.message||e));}
-    }
-    db.lastSync=new Date().toISOString();writeHistory(db);
-    return {added,checked,total:db.records.length,errors};
+          if(!state.done)pending.push(group.name+": histórico em andamento ("+state.examined+" examinadas). Clique novamente em sincronizar.");
+          // Ler novas mensagens desde o último ID salvo. Nunca remover registros
+          // anteriores; se a leitura ultrapassar o limite desta rodada, avisar.
+          let pages=0,more=true;
+          while(more&&pages<7){
+            const old=Number((db.cursors[cursorKey]??(group.topicId==null?db.cursors[group.telegramId]:0))||0);
+            notify(prefix+"verificando mensagens recentes…");
+            const page=await window.TelegramBridge.scan(group.telegramId,old,1200,group.topicId??null);
+            for(const msg of page.messages)append(group,msg);
+            let latest=Number(page.lastId||0);
+            if(old===0&&group.topicId==="1"){
+              const global=await window.TelegramBridge.scan(group.telegramId,0,200,null);
+              latest=Math.max(latest,Number(global.lastId||0));
+            }
+            const next=Math.max(old,latest);
+            if(next===old&&page.truncated)throw new Error("Leitura recente não avançou, será retomada sem descartar mensagens.");
+            db.cursors[cursorKey]=next;
+            writeHistory(db);
+            more=page.truncated;pages++;
+          }
+          if(more)pending.push(group.name+": mensagens recentes incompletas; sincronize novamente.");
+          // Conferência de solicitações de todos os autores.
+          const records=db.records.filter(r=>r.telegramId===group.telegramId &&
+            (group.topicId==null||String(r.topicId??"")===String(group.topicId))&&
+            r.kind==="solicitacao"&&Date.parse(r.date)>=Date.parse(group.startAt));
+          for(let offset=0;offset<records.length;offset+=50){
+            const chunk=records.slice(offset,offset+50);
+            notify(prefix+"conferindo reações ("+Math.min(offset+chunk.length,records.length)+"/"+records.length+")…");
+            const reactions=await window.TelegramBridge.reactions(group.telegramId,chunk.map(r=>r.messageId));
+            const byId=new Map(reactions.map(r=>[r.id,r]));
+            for(const rec of chunk){
+              const data=byId.get(rec.messageId);
+              if(data){applyReaction(rec,data);checked++;}
+            }
+            writeHistory(db);
+          }
+        }catch(err){errors.push(group.name+": "+String(err.message||err));}
+      }
+      db.lastSync=new Date().toISOString();writeHistory(db);
+      return {added,checked,examined,total:db.records.length,errors,pending,complete:!errors.length&&!pending.length};
+    }finally{syncRunning=false;}
   }
   function extract(text){
     const lines=String(text||"").split(/\r?\n/),items=[];
