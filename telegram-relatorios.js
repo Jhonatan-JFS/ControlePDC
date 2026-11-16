@@ -366,7 +366,7 @@
     const typeOptions=Object.entries(labels).map(([id,label])=>'<option value="'+id+'"'+(opts.kind===id?' selected':'')+'>'+label+'</option>').join("");
     return '<section class="tg-report-panel" aria-labelledby="tgReportHeading">'+
       '<div class="tg-report-head"><div><h3 id="tgReportHeading">Lista simples de produtos (TXT)</h3><p>Apenas material, CI, descrição, AUMENTOU/BAIXOU e CB quando houver. Uma linha por produto, pronta para copiar.</p></div>'+
-      '<span>Arquivo .TXT</span></div><p class="tg-report-group-label">Grupo selecionado: <strong>'+esc(g.name)+'</strong>. Para outro grupo, use as abas do Monitoramento.</p>'+
+      '<span>Texto para copiar</span></div><p class="tg-report-group-label">Grupo selecionado: <strong>'+esc(g.name)+'</strong>. Para outro grupo, use as abas do Monitoramento.</p>'+
       '<div class="tg-report-fields">'+
       '<label>Iniciar a partir de (data e hora)<input type="datetime-local" id="tgReportFrom" value="'+esc(opts.from)+'"></label>'+
       topicOptions+
@@ -378,8 +378,8 @@
       '</div><div class="tg-report-sync-tip"><span>Este relatório usa mensagens já capturadas. Se faltar algum registro, sincronize antes de gerar o TXT.</span>'+
       '<button type="button" class="btn btn-soft btn-small" id="tgReportGoSync">↻ Ir para sincronização</button></div>'+
       '<div class="tg-report-actions"><button type="button" class="btn btn-soft" id="tgReportPreviewBtn">Visualizar TXT</button>'+
-      '<button type="button" class="btn btn-primary" id="tgReportDownloadBtn">Baixar relatório TXT</button></div>'+
-      '<p id="tgReportStatus" class="tg-report-status" role="status" aria-live="polite">Defina o início do período. O arquivo usará o histórico já sincronizado; não buscará mensagens antigas automaticamente.</p>'+
+      '<button type="button" class="btn btn-primary" id="tgReportCopyBtn">Copiar relatório</button></div>'+
+      '<p id="tgReportStatus" class="tg-report-status" role="status" aria-live="polite">Defina o início do período. A lista usará o histórico já sincronizado; não buscará mensagens antigas automaticamente.</p>'+
       '<pre id="tgReportPreview" class="tg-report-preview" hidden></pre>'+ 
       '<div id="tgReportQuickCopy" class="tg-report-quick-copy" hidden></div></section>';
   }
@@ -433,6 +433,21 @@
           '</div></div>').join("")+'</div>').join("");
     mount.hidden=!groups.length;
   }
+  async function copyFullReport(text){
+    if(navigator.clipboard?.writeText){
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+    // Compatibilidade com navegadores móveis antigos, sem clipboard API.
+    const field=document.createElement("textarea");
+    field.value=text;field.setAttribute("readonly","");
+    field.style.position="fixed";field.style.opacity="0";
+    document.body.appendChild(field);
+    field.select();
+    try{
+      if(!document.execCommand?.("copy"))throw new Error("Copiar não autorizado pelo navegador.");
+    }finally{field.remove();}
+  }
   document.addEventListener("click",async event=>{
     if(event.target.closest("#tgReportAddTopic")){
       const scope=window.TelegramConnector?.getReportScope?.(),group=scope?.group;
@@ -463,8 +478,8 @@
     }
 
     const preview=event.target.closest("#tgReportPreviewBtn");
-    const download=event.target.closest("#tgReportDownloadBtn");
-    if(!preview&&!download)return;
+    const copyReport=event.target.closest("#tgReportCopyBtn");
+    if(!preview&&!copyReport)return;
     try{
       const result=createCurrent(),count=result.summary.total;
       if(!count){
@@ -480,14 +495,11 @@
         renderQuickCopy(result.summary.materials);
         status(result.summary.uniqueCIs+" CI(s) em "+result.summary.materials.length+" material(is). Lista pronta para copiar.");
       }else{
-        const blob=new Blob(["\uFEFF",result.text],{type:"text/plain;charset=utf-8"});
-        const url=URL.createObjectURL(blob),link=document.createElement("a");
-        link.href=url;link.download=result.fileName;link.style.display="none";
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        setTimeout(()=>URL.revokeObjectURL(url),2000);
-        status("Relatório TXT preparado: "+result.fileName+" ("+count+" mensagens).");
+        await copyFullReport(result.text);
+        const target=$("tgReportPreview");
+        if(target){target.hidden=false;target.textContent=result.text;}
+        renderQuickCopy(result.summary.materials);
+        status("Relatório copiado! "+result.summary.uniqueCIs+" CI(s) · "+result.summary.materials.length+" material(is). Cole no sistema ou bloco de notas.");
       }
     }catch(err){status(String(err.message||err),true);}
   });
