@@ -111,3 +111,20 @@
   #monitorPage .tg-report-copy-buttons{width:100%;display:flex;flex-wrap:wrap}
   #monitorPage .tg-report-copy-buttons .btn{flex:1 1 110px;white-space:normal;min-width:0}
 }
+
+
+/* A origem do TXT agora apresenta tópicos reais do Telegram e status de coleta. */
+#monitorPage .tg-report-topic-help{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;
+  gap:8px 13px;grid-column:1/-1;
+  padding:9px 12px;border:1px solid #355772;border-radius:10px;background:#11283a;
+}
+#monitorPage .tg-report-topic-help small{
+  flex:1 1 220px;color:#b9d5e8;line-height:1.6;font-size:11px;overflow-wrap:anywhere;
+}
+#monitorPage .tg-report-topic-help .btn{flex:0 1 auto;min-width:0;white-space:normal}
+#monitorPage .tg-report-topic-help [hidden]{display:none!important}
+@media(max-width:760px){
+  #monitorPage .tg-report-topic-help{flex-direction:column;align-items:stretch}
+  #monitorPage .tg-report-topic-help .btn{width:100%}
+}
