@@ -96,7 +96,7 @@
   }
   function materialHeading(line){
     let value=String(line||"").trim();
-    if(!value || value.length>85)return "";
+    if(!value || value.length>85 || /^POR\s+FAVOR\b/i.test(value))return "";
     const labeled=value.match(/^(?:MARCA|MATERIAL|FABRICANTE|FAM[IÍ]LIA|LINHA|FORNECEDOR)\s*[:=-]\s*(.+)$/i);
     if(labeled)value=labeled[1].trim();
     else{
