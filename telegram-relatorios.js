@@ -214,7 +214,7 @@
     const date=String(from).replace(/[^0-9]/g,"").slice(0,12);
     return "RELATORIO_TELEGRAM_"+safe+"_"+date+".txt";
   }
-  let opts={from:"",kind:"all",direction:"all",material:""};
+  let opts={from:"",kind:"preco",direction:"recebidas",material:""};
   // O relatório deve listar TODOS os tópicos disponíveis no Telegram.
   // Os tópicos escolhidos para monitoramento são apenas um subconjunto.
   const reportTopicCache=new Map(),reportTopicSelection=new Map(),loadingTopics=new Set();
@@ -298,7 +298,7 @@
     const typeOptions=Object.entries(labels).map(([id,label])=>'<option value="'+id+'"'+(opts.kind===id?' selected':'')+'>'+label+'</option>').join("");
     return '<section class="tg-report-panel" aria-labelledby="tgReportHeading">'+
       '<div class="tg-report-head"><div><h3 id="tgReportHeading">Lista simples de produtos (TXT)</h3><p>Apenas material, CI, descrição, AUMENTOU/BAIXOU e CB quando houver. Uma linha por produto, pronta para copiar.</p></div>'+
-      '<span>Arquivo .TXT</span></div>'+
+      '<span>Arquivo .TXT</span></div><p class="tg-report-group-label">Grupo selecionado: <strong>'+esc(g.name)+'</strong>. Para outro grupo, use as abas do Monitoramento.</p>'+
       '<div class="tg-report-fields">'+
       '<label>Iniciar a partir de (data e hora)<input type="datetime-local" id="tgReportFrom" value="'+esc(opts.from)+'"></label>'+
       topicOptions+
