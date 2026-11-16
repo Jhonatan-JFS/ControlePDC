@@ -79,7 +79,9 @@
   }
   const lookupKey=(record,ci)=>[record.telegramId||"",record.topicId??"principal",ci].join("\u001f");
   function buildIndex(all){
-    const data=(all||[]).filter(r=>r.kind==="preco").slice().sort((a,b)=>
+    const priceNotice=/\b(?:AUMENTOU|AUMENTO|SUBIU|REAJUSTOU|ABAIXOU|BAIXOU|DIMINUIU|REDUZIU|CAIU)\s+(?:PARA|PRA|P\/)\s*(?:R\$\s*)?\d[\d.,]*[.,]\d{2}\b/i;
+    const data=(all||[]).filter(r=>r.kind==="preco"||
+      ((r.kind==="recebida"||!r.kind)&&r.direction!=="enviadas"&&priceNotice.test(String(r.text||"")))).slice().sort((a,b)=>
       (new Date(a.date).getTime()||0)-(new Date(b.date).getTime()||0)||
       (Number(a.messageId)||0)-(Number(b.messageId)||0));
     const last=new Map(),index=new Map();
