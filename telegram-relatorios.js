@@ -228,7 +228,9 @@
     const missing=new Set(items.filter(x=>!x.name||!x.cb).map(x=>x.ci));
     if(!missing.size)return;
     const names=new Map(),barcodes=new Map();
-    const ordered=(all||[]).filter(r=>r.telegramId===group.id)
+    const allowedTopics=new Set((group.topics||[]).map(t=>String(t.id)));
+    const ordered=(all||[]).filter(r=>r.telegramId===group.id&&
+      (!group.isForum||allowedTopics.has(String(r.topicId??""))))
       .sort((a,b)=>new Date(a.date)-new Date(b.date)||(Number(a.messageId)||0)-(Number(b.messageId)||0));
     for(const rec of ordered){
       for(const item of parseMaterialProducts(rec)){
