@@ -37,11 +37,16 @@
         /^.+\s*[-–:]\s*(?:AUMENTOU|AUMENTO|SUBIU|REAJUSTOU|ABAIXOU|BAIXOU|DIMINUIU|REDUZIU|CAIU)\s*$/i.test(line)){
         groupMove=flag;current=null;continue;
       }
-      const code=line.match(/^(?:CI\s*[:=#-]\s*)?(\d{1,16})\s*[-–]\s*(.+)$/i);
+      const code=line.match(/^(?:CI\s*[:=#-]?\s*)?(\d{1,16})(?:\s*[-–]\s*|\s+)(\S.*)$/i);
       if(code){
         let name=code[2].trim(),before=null,after=null;
-        const onlyPrice=priceLine(name);
-        if(onlyPrice!==null){after=onlyPrice;name="";}
+        const actionMatch=name.match(/^(?:(.*?)\s*[-–]\s*)?(AUMENTOU|AUMENTO|SUBIU|REAJUSTOU|ABAIXOU|BAIXOU|DIMINUIU|REDUZIU|CAIU)\s+(?:PARA|PRA|P\/)\s*(?:R\$\s*)?(\d[\d.,]*[.,]\d{2})\s*$/i)
+          ||name.match(/^(.*?)\s+(AUMENTOU|AUMENTO|SUBIU|REAJUSTOU|ABAIXOU|BAIXOU|DIMINUIU|REDUZIU|CAIU)\s+(?:PARA|PRA|P\/)\s*(?:R\$\s*)?(\d[\d.,]*[.,]\d{2})\s*$/i);
+        const lineMove=actionMatch?movement(actionMatch[2]):"";
+        if(actionMatch){name=(actionMatch[1]||"").trim();after=cash(actionMatch[3]);}
+        const onlyPrice=actionMatch?null:priceLine(name);
+        if(actionMatch){/* O valor de PARA já foi interpretado. */}
+        else if(onlyPrice!==null){after=onlyPrice;name="";}
         else{
           const pair=labeled(name);
           before=pair.before;after=pair.after;
@@ -54,7 +59,7 @@
         }
         const local=movement(name);
         if(local)name=name.replace(/\s*[-–]\s*(?:AUMENTOU|AUMENTO|SUBIU|REAJUSTOU|ABAIXOU|BAIXOU|DIMINUIU|REDUZIU|CAIU)\s*$/i,"").trim();
-        current={ci:code[1],name,cb:"",before,after,movement:local||groupMove||globalMove};
+        current={ci:code[1],name,cb:"",before,after,movement:lineMove||local||groupMove||globalMove};
         items.push(current);continue;
       }
       if(!current)continue;
@@ -75,7 +80,9 @@
   }
   const lookupKey=(record,ci)=>[record.telegramId||"",record.topicId??"principal",ci].join("\u001f");
   function buildIndex(all){
-    const data=(all||[]).filter(r=>r.kind==="preco").slice().sort((a,b)=>
+    const priceNotice=/\b(?:AUMENTOU|AUMENTO|SUBIU|REAJUSTOU|ABAIXOU|BAIXOU|DIMINUIU|REDUZIU|CAIU)\s+(?:PARA|PRA|P\/)\s*(?:R\$\s*)?\d[\d.,]*[.,]\d{2}\b/i;
+    const data=(all||[]).filter(r=>r.kind==="preco"||
+      ((r.kind==="recebida"||!r.kind)&&r.direction!=="enviadas"&&priceNotice.test(String(r.text||"")))).slice().sort((a,b)=>
       (new Date(a.date).getTime()||0)-(new Date(b.date).getTime()||0)||
       (Number(a.messageId)||0)-(Number(b.messageId)||0));
     const last=new Map(),index=new Map();

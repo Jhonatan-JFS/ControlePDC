@@ -29,7 +29,8 @@
     if(/\b(?:atualiza(?:r|[cç][aã]o)|troca(?:r)?|alterar|corrigir)\b.{0,38}\b(?:CB|c[oó]digo(?:s)?\s+de\s+barras)\b/i.test(header)
       ||/^\s*ATUALIZA[CÇ][AÃ]O\s+(?:DE\s+)?CB/i.test(header))return "cb";
     if(record.kind==="produto"||/^\s*(?:PRODUTOS?\s+NOVOS?|NOVOS?\s+PRODUTOS?)\b/i.test(header))return "produto";
-    if(record.kind==="preco"||/^\s*(?:AUMENTOU|ABAIXOU|DIMINUIU|REDUZIU|AJUSTE\s+DE\s+PRE[CÇ]O)\b/i.test(header))return "preco";
+    if(record.kind==="preco"||/^\s*(?:AUMENTOU|ABAIXOU|BAIXOU|DIMINUIU|REDUZIU|AJUSTE\s+DE\s+PRE[CÇ]O)\b/i.test(header)
+      ||/\b\d{1,12}\s*(?:[-–]\s*)?(?:AUMENTOU|ABAIXOU|BAIXOU|DIMINUIU|REDUZIU|SUBIU|REAJUSTOU|CAIU)\s+(?:PARA|PRA|P\/)\s*(?:R\$\s*)?\d[\d.,]*[.,]\d{2}\b/i.test(text))return "preco";
     if(record.kind==="solicitacao")return "solicitacao";
     return "outras";
   }
@@ -117,45 +118,93 @@
     if(/^(?:\d+\s*[-–]|CB\s*[:=-]|CI\s*[:=-])/i.test(value))return "";
     return value;
   }
+
+  // Avisos da equipe podem escrever CI seguido por espaço ou hífen:
+  // 83971 ABAIXOU PARA 11,50
+  // 168465 - AUMENTOU PARA 4,99
+  // 10001 - DESCRIÇÃO DO ITEM - DIMINUIU PARA 7,20
+  const priceNumber="\\d[\\d.,]*[.,]\\d{2}";
+  const actionWord="AUMENTOU|AUMENTO|SUBIU|REAJUSTOU|ABAIXOU|BAIXOU|DIMINUIU|REDUZIU|CAIU";
+  function actionLabel(text){
+    const m=String(text||"").match(new RegExp("\\b("+actionWord+")\\b","i"));
+    return m?m[1].toLocaleUpperCase("pt-BR"):"";
+  }
+  function normalizeAmount(input){
+    const match=String(input||"").match(new RegExp("^(?:R\\$\\s*)?("+priceNumber+")$","i"));
+    return match?match[1]:"";
+  }
+  function parseActionAndValue(source){
+    const value=String(source||"").trim();
+    const direct=new RegExp("^(?:(.*?)\\s*[-–]\\s*)?("+actionWord+")\\s+(?:PARA|PRA|P\\/)\\s*(?:R\\$\\s*)?("+priceNumber+")\\s*$","i");
+    const withoutDash=new RegExp("^(.*?)\\s+("+actionWord+")\\s+(?:PARA|PRA|P\\/)\\s*(?:R\\$\\s*)?("+priceNumber+")\\s*$","i");
+    const match=value.match(direct)||value.match(withoutDash);
+    if(match)return {name:(match[1]||"").trim(),action:match[2].toLocaleUpperCase("pt-BR"),amount:match[3]};
+    const flag=new RegExp("^(?:(.*?)\\s*[-–]\\s*)?("+actionWord+")\\s*$","i");
+    const f=value.match(flag);
+    if(f)return {name:(f[1]||"").trim(),action:f[2].toLocaleUpperCase("pt-BR"),amount:""};
+    return null;
+  }
   function parseMaterialProducts(record){
-    const lines=plain(record.text).split("\n"),items=[];
-    const category=classify(record);
-    let material="",movement="",current=null;
+    const lines=plain(record.text).split("\n"),items=[],category=classify(record);
+    let material="",globalAction="",current=null;
     for(const raw of lines){
       const line=raw.trim();
       if(!line)continue;
-      const ci=line.match(/^CI\s*[:=#-]\s*(\d{1,12})(?:\s*[-–]\s*(.+))?$/i)
-        ||line.match(/^(\d{1,12})\s*[-–]\s*(\S.*)$/);
+      // CIs sem hífen passam a ser reconhecidos; preços com vírgula não
+      // correspondem à expressão regular de início de produto.
+      const ci=line.match(/^CI\s*[:=#-]?\s*(\d{1,12})(?:\s*[-–]\s*|\s+)(\S.*)$/i)
+        ||line.match(/^(\d{1,12})(?:\s*[-–]\s*|\s+)(\S.*)$/);
       if(ci){
-        let description=(ci[2]||"").trim();
-        let inlineMovement="";
-        const suffix=description.match(/\s*[-–]\s*(AUMENTOU|AUMENTO|SUBIU|REAJUSTOU|ABAIXOU|BAIXOU|DIMINUIU|REDUZIU|CAIU)\s*$/i);
-        if(suffix){
-          inlineMovement=movementOf(suffix[1]);
-          description=description.slice(0,suffix.index).trim();
+        let description=ci[2].trim(),action="",amount="";
+        const parsed=parseActionAndValue(description);
+        if(parsed){
+          description=parsed.name;action=parsed.action;amount=parsed.amount;
+        }else if(category==="preco"){
+          const suffix=description.match(new RegExp("\\s+[-–]\\s*(?:R\\$\\s*)?("+priceNumber+")\\s*$","i"));
+          if(suffix){amount=suffix[1];description=description.slice(0,suffix.index).trim();}
         }
-        // Valores no final da linha de preço não são parte do nome.
-        if(category==="preco"){
-          const price=description.match(/\s*[-–]\s*(?:R\$\s*)?\d+[.,]\d{2}\s*$/i);
-          if(price)description=description.slice(0,price.index).trim();
-        }
-        current={ci:ci[1],name:description,cb:"",material,movement:inlineMovement||(category==="preco"?movement:"")};
-        items.push(current);
-        continue;
+        current={ci:ci[1],name:description,cb:"",material,
+          action:action||globalAction,amount,movement:""};
+        items.push(current);continue;
       }
       const cb=line.match(/^(?:CB|C[OÓ]DIGO\s+DE\s+BARRAS)\s*[:=-]\s*(\S+)/i);
       if(cb&&current){current.cb=cb[1].trim();continue;}
-      // Valor de venda é ignorado no formato simplificado, não é um CI.
       const heading=materialHeading(line);
-      if(heading){if(category==="preco"&&movementOf(line))movement=movementOf(line);material=heading;current=null;continue;}
-      if(category==="preco" && /^(?:AUMENTOU|AUMENTO|SUBIU|REAJUSTOU|ABAIXOU|BAIXOU|DIMINUIU|REDUZIU|CAIU)\s*[:.!-]?$/i.test(line)){
-        movement=movementOf(line);current=null;
+      if(heading){
+        material=heading;
+        const flag=actionLabel(line);
+        if(flag)globalAction=flag;
+        current=null;continue;
       }
+      const actionOnly=parseActionAndValue(line);
+      if(category==="preco"&&actionOnly&&!actionOnly.name){
+        if(current){current.action=actionOnly.action;current.amount=actionOnly.amount||current.amount;}
+        else globalAction=actionOnly.action;
+        continue;
+      }
+      if(category==="preco" && new RegExp("^("+actionWord+")\\s*[:.!-]?\\s*$","i").test(line)){
+        globalAction=actionLabel(line);current=null;continue;
+      }
+      if(!current)continue;
+      const sale=line.match(new RegExp("^(?:VALOR\\s+DE\\s+VENDA|VENDA|PRE[CÇ]O(?:\\s+DE\\s+VENDA)?|VALOR\\s+ATUAL|NOVO\\s+VALOR|PARA|ATUAL)\\s*[:=-]\\s*(?:R\\$\\s*)?("+priceNumber+")\\s*$","i"));
+      if(sale&&category==="preco"){current.amount=sale[1];continue;}
+      const paired=line.match(new RegExp("\\bPARA\\s*[:=-]?\\s*(?:R\\$\\s*)?("+priceNumber+")\\b","i"));
+      if(paired&&category==="preco"){current.amount=paired[1];continue;}
+      if(category==="preco"){
+        const standalone=normalizeAmount(line);
+        if(standalone)current.amount=standalone;
+      }
+    }
+    for(const item of items){
+      item.movement=item.action?(item.amount?item.action+" PARA "+item.amount:item.action):
+        (category==="preco"&&item.amount?"R$ "+item.amount:"");
+      delete item.action;delete item.amount;
     }
     return items;
   }
   function consolidate(records){
     const map=new Map();
+    // Preservar a ordem de ocorrência, em vez de ordenar marcas alfabeticamente.
     for(const rec of records){
       for(const item of parseMaterialProducts(rec)){
         if(!item.ci)continue;
@@ -171,13 +220,35 @@
         if(item.movement)existing.movement=item.movement;
       }
     }
-    return [...map.values()].sort((x,y)=>new Date(y.last.date)-new Date(x.last.date)||
-      (Number(y.last.messageId)||0)-(Number(x.last.messageId)||0)||x.ci.localeCompare(y.ci));
+    return [...map.values()];
+  }
+  function enrichNames(items,all,group){
+    // Complementar descrição/CB apenas quando houver o mesmo CI em outra
+    // mensagem sincronizada do MESMO grupo. Nunca inventar nomes.
+    const missing=new Set(items.filter(x=>!x.name||!x.cb).map(x=>x.ci));
+    if(!missing.size)return;
+    const names=new Map(),barcodes=new Map();
+    const allowedTopics=new Set((group.topics||[]).map(t=>String(t.id)));
+    const ordered=(all||[]).filter(r=>r.telegramId===group.id&&
+      (!group.isForum||allowedTopics.has(String(r.topicId??""))))
+      .sort((a,b)=>new Date(a.date)-new Date(b.date)||(Number(a.messageId)||0)-(Number(b.messageId)||0));
+    for(const rec of ordered){
+      for(const item of parseMaterialProducts(rec)){
+        if(!missing.has(item.ci))continue;
+        if(item.name)names.set(item.ci,item.name);
+        if(item.cb)barcodes.set(item.ci,item.cb);
+      }
+    }
+    for(const item of items){
+      if(!item.name&&names.has(item.ci))item.name=names.get(item.ci);
+      if(!item.cb&&barcodes.has(item.ci))item.cb=barcodes.get(item.ci);
+    }
   }
   function generate(all,opts){
     const records=getRecords(all,opts),group=opts.group;
-    const topic=group.isForum?group.topics.find(t=>t.id===String(opts.topicId)):null;
+    const topic=group.isForum?availableReportTopics(group).find(t=>t.id===String(opts.topicId)):null;
     const latest=consolidate(records);
+    enrichNames(latest,all,group);
     const customMaterial=String(opts.material||"").trim().slice(0,65);
     const materialGroups=new Map();
     for(const item of latest){
@@ -185,11 +256,8 @@
       if(!materialGroups.has(material))materialGroups.set(material,[]);
       materialGroups.get(material).push(item);
     }
-    const sections=[...materialGroups.entries()].sort((a,b)=>{
-      if(a[0]==="MATERIAL NÃO INFORMADO")return 1;
-      if(b[0]==="MATERIAL NÃO INFORMADO")return -1;
-      return a[0].localeCompare(b[0],"pt-BR");
-    });
+    // Ordem das marcas e dos produtos igual à primeira ocorrência no Telegram.
+    const sections=[...materialGroups.entries()];
     const lines=[];
     for(const [material,items] of sections){
       if(lines.length)lines.push("");
