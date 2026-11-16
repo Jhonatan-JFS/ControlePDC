@@ -28,7 +28,11 @@
   let section="solicitacoes", groupId=state.groups[0]?.id||"", modelId="cadastro";
   const topicCache=new Map();
   function store(){
-    try{localStorage.setItem(STORAGE,JSON.stringify(state));return true;}
+    try{
+      localStorage.setItem(STORAGE,JSON.stringify(state));
+      window.dispatchEvent(new CustomEvent("pdc-telegram-config-changed",{detail:{section:"routing"}}));
+      return true;
+    }
     catch(_){alert("Não foi possível salvar neste navegador.");return false;}
   }
   function uid(){return typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():Date.now()+"-"+Math.random().toString(36).slice(2);}
@@ -200,7 +204,38 @@
       mount.innerHTML='<label>2. Escolha o tópico (subchat)<select id="tgRealTopicSelect"><option value="">Selecione um tópico…</option>'+found.map(t=>'<option value="'+esc(t.id)+'"'+(old?.telegramId===id&&String(old.topicId)===String(t.id)?' selected':'')+(t.closed?' disabled':'')+'>'+esc(t.name)+(t.closed?' (fechado)':'')+'</option>').join("")+'</select></label>';
     }catch(err){mount.innerHTML='<p class="tg-auth-message error">Não foi possível listar os tópicos: '+esc(err.message||err)+'</p>';}
   }
-  window.TelegramRouting={groups:()=>state.groups.map(g=>({...g})),refresh:render};
+  function exportCloudConfig(){
+    return {
+      groups:state.groups.map(g=>({...g})),
+      mappings:{...state.mappings},
+      drafts:JSON.parse(JSON.stringify(state.drafts||{}))
+    };
+  }
+  function applyCloudConfig(payload){
+    if(!payload||!Array.isArray(payload.groups)||typeof payload.mappings!=="object")
+      throw new Error("Configuração de destinos Telegram inválida.");
+    const previous=localStorage.getItem(STORAGE);
+    try{
+      localStorage.setItem(STORAGE,JSON.stringify({
+        groups:payload.groups,mappings:payload.mappings,
+        drafts:payload.drafts&&typeof payload.drafts==="object"&&!Array.isArray(payload.drafts)?payload.drafts:state.drafts
+      }));
+      const checked=load();
+      state.groups=checked.groups;
+      state.mappings=checked.mappings;
+      state.drafts=checked.drafts;
+      if(!state.groups.some(g=>g.id===groupId))groupId=state.groups[0]?.id||"";
+      render();
+    }catch(err){
+      if(previous===null)localStorage.removeItem(STORAGE);
+      else localStorage.setItem(STORAGE,previous);
+      throw err;
+    }
+  }
+  window.TelegramRouting={
+    groups:()=>state.groups.map(g=>({...g})),refresh:render,
+    exportCloudConfig,applyCloudConfig
+  };
   window.addEventListener("tg-connection-changed",()=>render());
   window.addEventListener("tg-groups-updated",()=>{if(section==="grupos")renderRealGroupChooser();});
   $("tgAddGroup").addEventListener("click",()=>{
