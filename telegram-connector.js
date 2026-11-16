@@ -82,8 +82,13 @@
   }
   function renderLogin(){
     const mount=$("tgAuthMount");if(!mount)return;
-    mount.innerHTML='<section class="tg-auth-box"><h4>Acesso à sua conta Telegram</h4><p>Conexão diretamente do navegador, sem bot e sem servidor permanente. Obtenha seu API ID e API hash em <a href="https://my.telegram.org" target="_blank" rel="noopener noreferrer">my.telegram.org</a>. A sessão fica cifrada neste dispositivo.</p>'+statusMarkup()+'<p class="tg-auth-message" id="tgConnectStatus" role="status" aria-live="polite"></p></section><div id="tgSyncSettingsMount"></div>';
+    mount.innerHTML='<section class="tg-auth-box"><h4>Acesso à sua conta Telegram</h4><p>Conexão diretamente do navegador, sem bot e sem servidor permanente. Obtenha seu API ID e API hash em <a href="https://my.telegram.org" target="_blank" rel="noopener noreferrer">my.telegram.org</a>. A sessão fica cifrada neste dispositivo.</p>'+statusMarkup()+'<p class="tg-auth-message" id="tgConnectStatus" role="status" aria-live="polite"></p></section>'+
+      '<section class="tg-cloud-sync-box" aria-label="Configurações entre computadores"><strong>Configurações entre computadores</strong>'+
+      '<p id="tgCloudSyncStatus" role="status" aria-live="polite">Entre com a mesma conta Google do site para recuperar grupos e tópicos em outros dispositivos.</p>'+
+      '<small>Grupos, tópicos, destinos e datas são compartilhados no Firebase. Sessão e senha do Telegram ficam somente neste dispositivo.</small></section>'+
+      '<div id="tgSyncSettingsMount"></div>';
     renderSyncSettings();
+    window.TelegramCloudSync?.refreshStatus?.();
   }
   async function connect(){
     if(busy)return;
@@ -150,8 +155,31 @@
   function saveMonitorSelection(config){
     try{
       localStorage.setItem(MONITOR_SELECTION_KEY,JSON.stringify({groups:config.groups}));
+      window.dispatchEvent(new CustomEvent("pdc-telegram-config-changed",{detail:{section:"monitor"}}));
       return true;
     }catch(_){throw new Error("Não foi possível salvar os grupos monitorados neste navegador.");}
+  }
+  function exportMonitorConfig(){
+    return readMonitorSelection();
+  }
+  function applyCloudMonitorConfig(payload){
+    if(!payload||!Array.isArray(payload.groups))throw new Error("Configuração de monitoramento inválida.");
+    // O próprio leitor valida nomes, tópicos, IDs e limites.
+    const old=localStorage.getItem(MONITOR_SELECTION_KEY);
+    try{
+      localStorage.setItem(MONITOR_SELECTION_KEY,JSON.stringify({groups:payload.groups}));
+      const checked=readMonitorSelection();
+      localStorage.setItem(MONITOR_SELECTION_KEY,JSON.stringify(checked));
+      if(!checked.groups.some(g=>g.id===activeMonitorGroup)){
+        activeMonitorGroup=checked.groups[0]?.id||"";activeMonitorTopic="all";
+      }
+      renderMonitor();
+      renderSyncSettings();
+    }catch(e){
+      if(old===null)localStorage.removeItem(MONITOR_SELECTION_KEY);
+      else localStorage.setItem(MONITOR_SELECTION_KEY,old);
+      throw e;
+    }
   }
   function selectedTargets(){
     const saved=readMonitorSelection(),targets=[];
@@ -998,6 +1026,8 @@
   window.addEventListener("tg-groups-updated",renderMonitor);
   window.TelegramConnector={
     connected:logged,
+    getUserId:()=>logged()?String(window.TelegramBridge.getMeId()||""):"",
+    exportMonitorConfig,applyCloudMonitorConfig,
     groups,
     topics,
     reloadGroups,
