@@ -87,3 +87,28 @@
 @media(min-width:761px) and (max-width:1050px){
  #telegramPage .tg-sync-overview{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
+/* Configurações do Telegram sincronizadas pela conta Google do Controle PDC */
+#telegramPage .tg-cloud-sync-box{
+  display:grid;gap:6px;margin-top:12px;padding:14px 16px;
+  background:linear-gradient(120deg,#152b3b,#132232);
+  border:1px solid #49718d;border-left:4px solid #75bff1;
+  border-radius:13px;color:#d6eafa;
+}
+#telegramPage .tg-cloud-sync-box>strong{
+  color:#effaff;font-size:12px;font-weight:850;line-height:1.5;
+}
+#telegramPage .tg-cloud-sync-box>p{
+  margin:0;color:#bbe4fc;font-size:11px;line-height:1.6;overflow-wrap:anywhere;
+}
+#telegramPage .tg-cloud-sync-box>small{
+  color:#a0b8ca;font-size:10px;line-height:1.6;
+}
+#telegramPage .tg-cloud-conflict-actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:6px}
+#telegramPage .tg-cloud-conflict-actions[hidden]{display:none!important}
+#telegramPage .tg-cloud-conflict-actions .btn{min-height:36px;white-space:normal}
+@media(max-width:600px){
+ #telegramPage .tg-cloud-sync-box{padding:12px}
+ #telegramPage .tg-cloud-conflict-actions{display:grid;grid-template-columns:1fr}
+ #telegramPage .tg-cloud-conflict-actions .btn{width:100%}
+}

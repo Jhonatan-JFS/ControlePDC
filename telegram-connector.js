@@ -82,8 +82,16 @@
   }
   function renderLogin(){
     const mount=$("tgAuthMount");if(!mount)return;
-    mount.innerHTML='<section class="tg-auth-box"><h4>Acesso à sua conta Telegram</h4><p>Conexão diretamente do navegador, sem bot e sem servidor permanente. Obtenha seu API ID e API hash em <a href="https://my.telegram.org" target="_blank" rel="noopener noreferrer">my.telegram.org</a>. A sessão fica cifrada neste dispositivo.</p>'+statusMarkup()+'<p class="tg-auth-message" id="tgConnectStatus" role="status" aria-live="polite"></p></section><div id="tgSyncSettingsMount"></div>';
+    mount.innerHTML='<section class="tg-auth-box"><h4>Acesso à sua conta Telegram</h4><p>Conexão diretamente do navegador, sem bot e sem servidor permanente. Obtenha seu API ID e API hash em <a href="https://my.telegram.org" target="_blank" rel="noopener noreferrer">my.telegram.org</a>. A sessão fica cifrada neste dispositivo.</p>'+statusMarkup()+'<p class="tg-auth-message" id="tgConnectStatus" role="status" aria-live="polite"></p></section>'+
+      '<section class="tg-cloud-sync-box" aria-label="Configurações entre computadores"><strong>Configurações entre computadores</strong>'+
+      '<p id="tgCloudSyncStatus" role="status" aria-live="polite">Entre com a mesma conta Google do site para recuperar grupos e tópicos em outros dispositivos.</p>'+
+      '<small>Grupos, tópicos, destinos, datas e rascunhos são compartilhados pelo Firebase. Mensagens antigas podem ser recuperadas do Telegram neste PC. Sessão e senha ficam somente aqui.</small>'+
+      '<div class="tg-cloud-conflict-actions" id="tgCloudConflictActions" hidden>'+
+      '<button type="button" class="btn btn-soft btn-small" id="tgCloudUseRemote">Restaurar da nuvem</button>'+
+      '<button type="button" class="btn btn-ghost btn-small" id="tgCloudUseLocal">Manter e enviar deste PC</button></div></section>'+
+      '<div id="tgSyncSettingsMount"></div>';
     renderSyncSettings();
+    window.TelegramCloudSync?.refreshStatus?.();
   }
   async function connect(){
     if(busy)return;
@@ -150,8 +158,31 @@
   function saveMonitorSelection(config){
     try{
       localStorage.setItem(MONITOR_SELECTION_KEY,JSON.stringify({groups:config.groups}));
+      window.dispatchEvent(new CustomEvent("pdc-telegram-config-changed",{detail:{section:"monitor"}}));
       return true;
     }catch(_){throw new Error("Não foi possível salvar os grupos monitorados neste navegador.");}
+  }
+  function exportMonitorConfig(){
+    return readMonitorSelection();
+  }
+  function applyCloudMonitorConfig(payload){
+    if(!payload||!Array.isArray(payload.groups))throw new Error("Configuração de monitoramento inválida.");
+    // O próprio leitor valida nomes, tópicos, IDs e limites.
+    const old=localStorage.getItem(MONITOR_SELECTION_KEY);
+    try{
+      localStorage.setItem(MONITOR_SELECTION_KEY,JSON.stringify({groups:payload.groups}));
+      const checked=readMonitorSelection();
+      localStorage.setItem(MONITOR_SELECTION_KEY,JSON.stringify(checked));
+      if(!checked.groups.some(g=>g.id===activeMonitorGroup)){
+        activeMonitorGroup=checked.groups[0]?.id||"";activeMonitorTopic="all";
+      }
+      renderMonitor();
+      renderSyncSettings();
+    }catch(e){
+      if(old===null)localStorage.removeItem(MONITOR_SELECTION_KEY);
+      else localStorage.setItem(MONITOR_SELECTION_KEY,old);
+      throw e;
+    }
   }
   function selectedTargets(){
     const saved=readMonitorSelection(),targets=[];
@@ -326,9 +357,9 @@
       (!logged()?'<p class="tg-sync-hint">Conecte sua conta Telegram acima para habilitar a sincronização.</p>':'')+
       '<p class="tg-sync-feedback'+(syncNoticeError?' error':'')+'" id="tgSyncFeedback" role="status" aria-live="polite">'+
         enc(syncNotice||"Escolha a data inicial e toque em Sincronizar agora.")+'</p>'+
-      '<div class="tg-sync-overview"><div><small>Última sincronização concluída</small><strong>'+enc(syncStamp(previous))+'</strong></div>'+
-        '<div><small>Última tentativa</small><strong>'+enc(syncStamp(previousAttempt))+'</strong></div>'+
-        '<div><small>Última mensagem registrada</small><strong>'+enc(syncStamp(newestStamp))+'</strong></div></div>'+
+      '<div class="tg-sync-overview"><div><small>Última sincronização concluída neste PC</small><strong>'+enc(syncStamp(previous))+'</strong></div>'+
+        '<div><small>Última tentativa neste PC</small><strong>'+enc(syncStamp(previousAttempt))+'</strong></div>'+
+        '<div><small>Última mensagem registrada neste PC</small><strong>'+enc(syncStamp(newestStamp))+'</strong></div></div>'+
       '<details class="tg-sync-history"><summary>Histórico de sincronizações ('+(db.syncSessions?.length||0)+')</summary>'+
         '<div class="tg-sync-log-list">'+(logs||'<p>Nenhuma execução registrada neste navegador.</p>')+'</div>'+
         '<h5>Grupos e tópicos</h5><div class="tg-sync-sources">'+(sourceRows||'<p>Nenhum grupo configurado.</p>')+'</div>'+
@@ -998,6 +1029,8 @@
   window.addEventListener("tg-groups-updated",renderMonitor);
   window.TelegramConnector={
     connected:logged,
+    getUserId:()=>logged()?String(window.TelegramBridge.getMeId()||""):"",
+    exportMonitorConfig,applyCloudMonitorConfig,
     groups,
     topics,
     reloadGroups,
