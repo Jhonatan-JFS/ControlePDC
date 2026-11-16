@@ -81,3 +81,33 @@
   #monitorPage .tg-report-copy-buttons{width:100%}
   #monitorPage .tg-report-copy-buttons button{flex:1}
 }
+
+
+/* Ajuda para diferenciar recuperação no Telegram de geração do TXT. */
+#monitorPage .tg-report-sync-tip{
+  display:flex;gap:12px;align-items:center;justify-content:space-between;
+  padding:11px 13px;margin-top:11px;background:#142e3f;
+  color:#bddcee;border:1px solid #43657c;border-radius:10px;
+  font-size:11px;line-height:1.6;
+}
+#monitorPage .tg-report-sync-tip>span{min-width:0;overflow-wrap:anywhere}
+#monitorPage .tg-report-sync-tip>.btn{flex-shrink:0;white-space:normal}
+#monitorPage .tg-report-panel,
+#monitorPage .tg-report-fields,
+#monitorPage .tg-report-panel :is(pre,.tg-report-quick-copy,.tg-report-copy-row){
+  max-width:100%;min-width:0;
+}
+#monitorPage .tg-report-preview{overflow-x:auto;overflow-y:auto;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word}
+@media(max-width:1100px){
+  #monitorPage .tg-report-fields{grid-template-columns:minmax(0,1fr)!important}
+  #monitorPage .tg-report-actions{display:grid;grid-template-columns:minmax(0,1fr)}
+  #monitorPage .tg-report-actions .btn{min-width:0;width:100%;white-space:normal}
+}
+@media(max-width:850px){
+  #monitorPage .tg-report-sync-tip{flex-direction:column;align-items:stretch}
+  #monitorPage .tg-report-sync-tip>.btn{width:100%}
+  #monitorPage .tg-report-panel{padding:12px}
+  #monitorPage .tg-report-copy-row{max-width:100%;overflow:hidden}
+  #monitorPage .tg-report-copy-buttons{width:100%;display:flex;flex-wrap:wrap}
+  #monitorPage .tg-report-copy-buttons .btn{flex:1 1 110px;white-space:normal;min-width:0}
+}
