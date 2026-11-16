@@ -45,7 +45,8 @@
         const lineMove=actionMatch?movement(actionMatch[2]):"";
         if(actionMatch){name=(actionMatch[1]||"").trim();after=cash(actionMatch[3]);}
         const onlyPrice=actionMatch?null:priceLine(name);
-        if(onlyPrice!==null){after=onlyPrice;name="";}
+        if(actionMatch){/* O valor de PARA já foi interpretado. */}
+        else if(onlyPrice!==null){after=onlyPrice;name="";}
         else{
           const pair=labeled(name);
           before=pair.before;after=pair.after;
