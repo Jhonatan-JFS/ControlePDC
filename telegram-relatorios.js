@@ -17,7 +17,7 @@
   };
   const labels={
     all:"Todas as categorias",cb:"Atualizações de CB",produto:"Produtos novos",
-    preco:"Alterações de preço",solicitacao:"Solicitações",outras:"Outras mensagens"
+    preco:"Atualizações de preços (AUMENTOU/BAIXOU)",solicitacao:"Solicitações",outras:"Outras mensagens"
   };
   const sectionKeys=["cb","produto","preco","solicitacao","outras"];
   const headings={
@@ -249,7 +249,7 @@
     if(hint){
       hint.textContent=!topic?"Nenhum tópico disponível para este grupo.":
         monitored?"Tópico monitorado. O TXT utilizará as mensagens já sincronizadas dele.":
-        "Este tópico ainda não está no monitoramento. Inclua-o e sincronize para obter seus avisos de preços.";
+        "Este tópico ainda não está no monitoramento. Inclua-o, defina a data inicial e sincronize para obter seus avisos de preços.";
     }
     if(button){button.hidden=!topic||monitored;button.disabled=!topic||monitored;}
   }
@@ -372,7 +372,7 @@
       if(!group||!topic)return status("Escolha um tópico primeiro.",true);
       try{
         await window.TelegramConnector.addMonitoredTopic(group.id,topic.id,topic.name);
-        status("Tópico "+topic.name+" incluído no monitoramento. Agora clique em Ir para sincronização para capturar as mensagens.");
+        status("Tópico "+topic.name+" incluído no monitoramento. Use Ir para sincronização, defina a data inicial e capture as mensagens.");
         refreshReportTopicDetails();
       }catch(e){status("Não foi possível incluir o tópico: "+String(e.message||e),true);}
       return;
