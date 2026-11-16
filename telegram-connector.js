@@ -85,7 +85,10 @@
     mount.innerHTML='<section class="tg-auth-box"><h4>Acesso à sua conta Telegram</h4><p>Conexão diretamente do navegador, sem bot e sem servidor permanente. Obtenha seu API ID e API hash em <a href="https://my.telegram.org" target="_blank" rel="noopener noreferrer">my.telegram.org</a>. A sessão fica cifrada neste dispositivo.</p>'+statusMarkup()+'<p class="tg-auth-message" id="tgConnectStatus" role="status" aria-live="polite"></p></section>'+
       '<section class="tg-cloud-sync-box" aria-label="Configurações entre computadores"><strong>Configurações entre computadores</strong>'+
       '<p id="tgCloudSyncStatus" role="status" aria-live="polite">Entre com a mesma conta Google do site para recuperar grupos e tópicos em outros dispositivos.</p>'+
-      '<small>Grupos, tópicos, destinos e datas são compartilhados no Firebase. Sessão e senha do Telegram ficam somente neste dispositivo.</small></section>'+
+      '<small>Grupos, tópicos, destinos, datas e rascunhos são compartilhados pelo Firebase. Mensagens antigas podem ser recuperadas do Telegram neste PC. Sessão e senha ficam somente aqui.</small>'+
+      '<div class="tg-cloud-conflict-actions" id="tgCloudConflictActions" hidden>'+
+      '<button type="button" class="btn btn-soft btn-small" id="tgCloudUseRemote">Restaurar da nuvem</button>'+
+      '<button type="button" class="btn btn-ghost btn-small" id="tgCloudUseLocal">Manter e enviar deste PC</button></div></section>'+
       '<div id="tgSyncSettingsMount"></div>';
     renderSyncSettings();
     window.TelegramCloudSync?.refreshStatus?.();
