@@ -161,3 +161,21 @@ A caixa **Tópico do Telegram para o relatório**, na aba Monitoramento → Rela
 Se o tópico aparecer com **(não monitorado)**, clique em **Incluir no monitoramento** para habilitá-lo, sem alterar os demais. Depois acesse **Telegram → Conexão e sincronização**, informe a data inicial, e sincronize o tópico para capturar suas mensagens. Só então o TXT poderá incluir mensagens ainda não coletadas. O relatório continua separando o conteúdo por grupo e tópico; não inventa registros e não reúne tópicos distintos no mesmo arquivo.
 
 A lista completa depende de estar conectado ao Telegram com permissão de leitura. Sem conexão, o seletor mostra provisoriamente somente os tópicos já cadastrados no monitoramento. Se o tópico desejado pertencer a outro grupo, selecione antes esse grupo na barra de grupos do Monitoramento.
+
+
+## Correção de integridade do relatório de preços (12/11/2026)
+
+O TXT de preços agora respeita a **ordem cronológica da primeira aparição das marcas** e a **ordem dos produtos dentro de cada marca**, em vez de ordenar marcas alfabeticamente. Continua exibindo **um registro por CI**, atualizado com a última alteração encontrada no recorte.
+
+O interpretador aceita os formatos reais usados pelos participantes:
+- `83971 ABAIXOU PARA 11,50` (sem hífen após CI).
+- `168465 - AUMENTOU PARA 4,99` (com hífen).
+- `90386 - DIMINUIU PARA 25,99` (redução explícita).
+- `82840 - KIT PINCEL - AUMENTOU PARA 9,46` (descrição e valor).
+- Títulos em linhas próprias, por exemplo `ULTRAFEST`, `ART LATEX`, `MAVALÉRIO`, com vários produtos abaixo.
+
+A saída preserva a **marca**, o **CI**, a **descrição quando existir**, a direção e o preço informado (`AUMENTOU/ABAIXOU/DIMINUIU PARA...`) e o **CB quando disponível**, sem criar informações ausentes. Se o aviso contiver apenas CI e preço, uma descrição/CB opcional pode ser preenchida por correspondência exata de CI com mensagens já sincronizadas do **mesmo grupo e de um tópico monitorado** (ex.: Cadastros), sem buscar em outros grupos ou tópicos não selecionados.
+
+Registros de preços antigos erroneamente classificados como **Mensagens recebidas** também passam a ser reconhecidos pela leitura do relatório e pelo filtro de preços do Monitoramento. Os cartões de preços passam a interpretar o valor depois de `PARA` e a usar o último preço conhecido do mesmo grupo/tópico, sem inventar valor anterior.
+
+Validação com mensagens fictícias equivalentes às imagens de 12/11: ULTRAFEST (7 itens), ART LATEX (1 item) e MAVALÉRIO (4 itens) = **12 CIs identificados**. A disponibilidade da informação real ainda depende de as mensagens terem sido sincronizadas da conta Telegram. A recuperação de históricos antigos deve ser feita em Telegram → Conexão e sincronização.
