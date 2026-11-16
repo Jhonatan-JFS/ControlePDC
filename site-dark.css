@@ -505,3 +505,33 @@ dialog::backdrop{background:#03080dc9;backdrop-filter:blur(3px)}
   .workflow-steps>span:not(.step-separator){font-size:9px;padding:7px 8px}
   .workflow-steps .step-separator{font-size:13px}
 }
+
+
+/* Proteção contra cortes horizontais em telas pequenas e modo desktop móvel */
+body,.app-shell,#mainWorkspace,#mainWorkspace>section{max-width:100%;min-width:0}
+:is(#telegramPage,#monitorPage),:is(#telegramPage,#monitorPage) .tg-workspace{
+  max-width:100%;min-width:0;width:100%;
+}
+:is(#telegramPage,#monitorPage) .tg-page-head>div{min-width:0}
+:is(#telegramPage,#monitorPage) .tg-page-head p,
+:is(#telegramPage,#monitorPage) .tg-workspace p{overflow-wrap:anywhere}
+@media(max-width:1100px){
+  .topbar{display:grid;grid-template-columns:minmax(0,1fr)!important;gap:12px}
+  .topbar>.brand,.topbar>.pdc-nav,.topbar>.header-actions{
+    grid-column:1/-1;min-width:0;max-width:100%;
+  }
+  .pdc-nav{grid-template-columns:repeat(4,minmax(0,1fr));width:100%}
+  .pdc-nav button{white-space:normal;overflow-wrap:anywhere;text-align:center}
+  .header-actions{justify-content:flex-start}
+  :is(#telegramPage,#monitorPage) .tg-page-head{display:flex;flex-wrap:wrap;gap:12px}
+  :is(#telegramPage,#monitorPage) .tg-page-head>div{flex:1 1 300px}
+  #monitorPage .tg-monitor-header-actions{display:flex;flex:1 1 100%;justify-content:flex-start;max-width:100%;min-width:0}
+  #monitorPage .tg-monitor-controls,#monitorPage .tg-monitor-head{flex-wrap:wrap;min-width:0}
+  #monitorPage .tg-monitor-controls>div,#monitorPage .tg-monitor-head>div{flex:1 1 260px;min-width:0}
+}
+@media(max-width:760px){
+  .pdc-nav{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .header-actions .btn{white-space:normal}
+  #monitorPage .tg-monitor-header-actions>.btn{flex:1 1 100%;white-space:normal}
+  #monitorPage .tg-monitor-head>.btn{flex:1 1 100%;white-space:normal}
+}

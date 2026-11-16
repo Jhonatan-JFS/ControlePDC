@@ -96,7 +96,7 @@
   }
   function materialHeading(line){
     let value=String(line||"").trim();
-    if(!value || value.length>85)return "";
+    if(!value || value.length>85 || /^POR\s+FAVOR\b/i.test(value))return "";
     const labeled=value.match(/^(?:MARCA|MATERIAL|FABRICANTE|FAM[IÍ]LIA|LINHA|FORNECEDOR)\s*[:=-]\s*(.+)$/i);
     if(labeled)value=labeled[1].trim();
     else{
@@ -234,7 +234,9 @@
         '<option value="enviadas"'+(opts.direction==="enviadas"?' selected':'')+'>Apenas minhas</option>'+
         '<option value="recebidas"'+(opts.direction==="recebidas"?' selected':'')+'>Apenas recebidas</option></select></label>'+
       '<label>Material para itens sem título (opcional)<input type="text" id="tgReportMaterial" maxlength="65" placeholder="Ex.: Prafesty" value="'+esc(opts.material)+'"></label>'+ 
-      '</div><div class="tg-report-actions"><button type="button" class="btn btn-soft" id="tgReportPreviewBtn">Visualizar TXT</button>'+
+      '</div><div class="tg-report-sync-tip"><span>Este relatório usa mensagens já capturadas. Se faltar algum registro, sincronize antes de gerar o TXT.</span>'+
+      '<button type="button" class="btn btn-soft btn-small" id="tgReportGoSync">↻ Ir para sincronização</button></div>'+
+      '<div class="tg-report-actions"><button type="button" class="btn btn-soft" id="tgReportPreviewBtn">Visualizar TXT</button>'+
       '<button type="button" class="btn btn-primary" id="tgReportDownloadBtn">Baixar relatório TXT</button></div>'+
       '<p id="tgReportStatus" class="tg-report-status" role="status" aria-live="polite">Defina o início do período. O arquivo usará o histórico já sincronizado; não buscará mensagens antigas automaticamente.</p>'+
       '<pre id="tgReportPreview" class="tg-report-preview" hidden></pre>'+ 
@@ -252,10 +254,25 @@
     opts={from:values.from,kind:values.kind,direction:values.direction,material:values.material};
     return generate(window.TelegramConnector.readHistory().records,values);
   }
+  function clearOutput(){
+    const preview=$("tgReportPreview");
+    if(preview){preview.hidden=true;preview.textContent="";}
+    const quick=$("tgReportQuickCopy");
+    if(quick){quick.hidden=true;quick.innerHTML="";}
+  }
   function status(message,error=false){
     const el=$("tgReportStatus");
     if(el){el.textContent=message;el.classList.toggle("error",error);}
+    if(error)clearOutput();
   }
+  const reportFilterIds=new Set(["tgReportFrom","tgReportTopic","tgReportKind","tgReportDirection","tgReportMaterial"]);
+  function onFilterChanged(e){
+    if(!reportFilterIds.has(e.target?.id))return;
+    clearOutput();
+    status("Filtro alterado. Toque em Visualizar TXT para gerar a lista com os novos critérios.");
+  }
+  document.addEventListener("change",onFilterChanged);
+  document.addEventListener("input",onFilterChanged);
   function renderQuickCopy(materials){
     const mount=$("tgReportQuickCopy");
     if(!mount)return;
@@ -269,6 +286,12 @@
     mount.hidden=!groups.length;
   }
   document.addEventListener("click",async event=>{
+    if(event.target.closest("#tgReportGoSync")){
+      document.querySelector('[data-page="telegram"]')?.click();
+      document.getElementById("tgHeaderSync")?.click();
+      document.getElementById("tgSyncSettingsMount")?.scrollIntoView?.({behavior:"smooth",block:"start"});
+      return;
+    }
     const copy=event.target.closest("[data-tg-report-copy]");
     if(copy){
       const value=copy.getAttribute("data-tg-report-copy")||"";
@@ -285,8 +308,8 @@
     if(!preview&&!download)return;
     try{
       const result=createCurrent(),count=result.summary.total;
-      if(!count)throw new Error("Não há mensagens sincronizadas para este chat a partir da data escolhida. Confira o período ou sincronize o grupo.");
-      if(!result.summary.uniqueCIs)throw new Error("Nenhum CI encontrado nas mensagens deste período. Confira o filtro ou sincronize novamente.");
+      if(!count)throw new Error("Nenhuma mensagem corresponde a esta combinação de grupo/tópico, data, categoria e autoria. Tente 'Todas as categorias' e 'Minhas e recebidas', ou abra Conexão e sincronização para buscar mensagens.");
+      if(!result.summary.uniqueCIs)throw new Error("Há mensagens neste filtro, mas nenhuma com CI reconhecido. Experimente 'Todas as categorias' e confira as mensagens originais.");
       if(preview){
         const target=$("tgReportPreview");
         if(target){target.hidden=false;target.textContent=result.text;}
