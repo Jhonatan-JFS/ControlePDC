@@ -260,6 +260,11 @@ function tgCloudStateLine(){
     textElement.textContent="Salvando alterações de grupos, tópicos e destinos no Firebase…";
     return;
   }
+  if(states.every(x=>x.revision===0)&&
+      Object.values(TG_CONFIG_TYPES).every(spec=>!spec.populated(spec.read()))){
+    textElement.textContent="Nenhuma configuração do Telegram na nuvem ainda. Abra o site atualizado no computador onde já configurou os grupos e entre com a mesma conta Google. Este PC receberá os dados automaticamente.";
+    return;
+  }
   const stamp=states.map(x=>x.lastSaved).filter(Boolean).sort().at(-1);
   textElement.textContent="✓ Grupos, tópicos, destinos e rascunhos disponíveis nesta conta Google"+
     (stamp?" · última atualização: "+new Date(stamp).toLocaleString("pt-BR"):"")+
