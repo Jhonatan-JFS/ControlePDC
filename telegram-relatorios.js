@@ -74,7 +74,7 @@
     const from=new Date(opts.from).getTime();
     if(!opts.from||!Number.isFinite(from))throw new Error("Selecione uma data e hora inicial válidas.");
     if(!opts.group||!opts.group.id)throw new Error("Selecione um grupo no monitoramento.");
-    if(opts.group.isForum && (!opts.topicId||!opts.group.topics.some(t=>t.id===String(opts.topicId))))
+    if(opts.group.isForum && (!opts.topicId||!availableReportTopics(opts.group).some(t=>t.id===String(opts.topicId))))
       throw new Error("Escolha um tópico válido para gerar um TXT separado por chat.");
     if(!labels[opts.kind||"all"])throw new Error("Tipo de relatório inválido.");
     if(!["all","enviadas","recebidas"].includes(opts.direction||"all"))throw new Error("Origem de mensagem inválida.");
@@ -215,13 +215,86 @@
     return "RELATORIO_TELEGRAM_"+safe+"_"+date+".txt";
   }
   let opts={from:"",kind:"all",direction:"all",material:""};
+  // O relatório deve listar TODOS os tópicos disponíveis no Telegram.
+  // Os tópicos escolhidos para monitoramento são apenas um subconjunto.
+  const reportTopicCache=new Map(),reportTopicSelection=new Map(),loadingTopics=new Set();
+  function availableReportTopics(group){
+    if(!group)return [];
+    const topics=new Map();
+    for(const topic of group.topics||[])topics.set(String(topic.id),{id:String(topic.id),name:String(topic.name)});
+    for(const topic of reportTopicCache.get(group.id)||[])
+      topics.set(String(topic.id),{id:String(topic.id),name:String(topic.name)});
+    return [...topics.values()];
+  }
+  function chosenReportTopic(group,activeTopic){
+    const found=availableReportTopics(group);
+    const preferred=reportTopicSelection.get(group.id)||
+      (activeTopic!=="all"?String(activeTopic):"");
+    return found.some(topic=>topic.id===preferred)?preferred:found[0]?.id||"";
+  }
+  function reportTopicOptions(group,selected){
+    return availableReportTopics(group).map(topic=>{
+      const monitored=(group.topics||[]).some(t=>String(t.id)===topic.id);
+      return '<option value="'+esc(topic.id)+'"'+(selected===topic.id?' selected':'')+'>'+
+        esc(topic.name)+(monitored?'':' (não monitorado)')+'</option>';
+    }).join("");
+  }
+  function refreshReportTopicDetails(){
+    const scope=window.TelegramConnector?.getReportScope?.(),group=scope?.group;
+    if(!group?.isForum)return;
+    const input=$("tgReportTopic"),hint=$("tgReportTopicHint"),button=$("tgReportAddTopic");
+    if(!input)return;
+    const topic=availableReportTopics(group).find(t=>t.id===input.value);
+    const monitored=!!topic && group.topics.some(t=>String(t.id)===topic.id);
+    if(hint){
+      hint.textContent=!topic?"Nenhum tópico disponível para este grupo.":
+        monitored?"Tópico monitorado. O TXT utilizará as mensagens já sincronizadas dele.":
+        "Este tópico ainda não está no monitoramento. Inclua-o e sincronize para obter seus avisos de preços.";
+    }
+    if(button){button.hidden=!topic||monitored;button.disabled=!topic||monitored;}
+  }
+  function refreshReportTopicOptions(groupId){
+    const scope=window.TelegramConnector?.getReportScope?.();
+    if(scope?.group?.id!==groupId)return;
+    const input=$("tgReportTopic"),group=scope.group;
+    if(!input)return;
+    const last=reportTopicSelection.get(groupId)||input.value;
+    const options=availableReportTopics(group);
+    const next=options.some(t=>t.id===last)?last:options[0]?.id||"";
+    input.innerHTML=reportTopicOptions(group,next);
+    if(next){input.value=next;reportTopicSelection.set(groupId,next);}
+    refreshReportTopicDetails();
+  }
+  async function loadTopics(scope){
+    const group=scope?.group;
+    if(!group?.isForum)return;
+    if(reportTopicCache.has(group.id)){refreshReportTopicOptions(group.id);return;}
+    if(loadingTopics.has(group.id))return;
+    const status=$("tgReportTopicHint");
+    if(!window.TelegramConnector?.connected?.()){
+      if(status)status.textContent="Conecte o Telegram para listar todos os tópicos. Por enquanto, aparecem apenas os monitorados.";
+      return;
+    }
+    loadingTopics.add(group.id);
+    if(status)status.textContent="Consultando todos os tópicos deste grupo no Telegram…";
+    try{
+      const topics=await window.TelegramConnector.topics(group.id);
+      reportTopicCache.set(group.id,(topics||[]).filter(t=>t&&/^\d+$/.test(String(t.id))&&t.name));
+      refreshReportTopicOptions(group.id);
+    }catch(e){
+      const current=window.TelegramConnector?.getReportScope?.();
+      if(current?.group?.id===group.id && $("tgReportTopicHint"))
+        $("tgReportTopicHint").textContent="Não foi possível atualizar a lista de tópicos: "+String(e.message||e)+". Confira a conexão.";
+    }finally{loadingTopics.delete(group.id);}
+  }
   function panelHtml(scope){
     const g=scope?.group;
     if(!g)return '<section class="tg-report-panel"><h3>Relatório TXT por chat</h3><p>Escolha um grupo para habilitar a exportação.</p></section>';
+    const chosen=g.isForum?chosenReportTopic(g,scope.activeTopic):"";
     const topicOptions=g.isForum?
-      '<label>Tópico que terá o TXT próprio<select id="tgReportTopic">'+g.topics.map(t=>
-        '<option value="'+esc(t.id)+'"'+(String(scope.activeTopic==="all"?(g.topics[0]?.id||""):scope.activeTopic)===t.id?' selected':'')+'>'+esc(t.name)+'</option>'
-      ).join("")+'</select></label>':"";
+      '<label>Tópico do Telegram para o relatório<select id="tgReportTopic">'+reportTopicOptions(g,chosen)+'</select></label>'+
+      '<div class="tg-report-topic-help"><small id="tgReportTopicHint">Consultando tópicos do grupo…</small>'+
+      '<button type="button" class="btn btn-soft btn-small" id="tgReportAddTopic" hidden>Incluir no monitoramento</button></div>':"";
     const typeOptions=Object.entries(labels).map(([id,label])=>'<option value="'+id+'"'+(opts.kind===id?' selected':'')+'>'+label+'</option>').join("");
     return '<section class="tg-report-panel" aria-labelledby="tgReportHeading">'+
       '<div class="tg-report-head"><div><h3 id="tgReportHeading">Lista simples de produtos (TXT)</h3><p>Apenas material, CI, descrição, AUMENTOU/BAIXOU e CB quando houver. Uma linha por produto, pronta para copiar.</p></div>'+
@@ -271,7 +344,14 @@
     clearOutput();
     status("Filtro alterado. Toque em Visualizar TXT para gerar a lista com os novos critérios.");
   }
-  document.addEventListener("change",onFilterChanged);
+  document.addEventListener("change",e=>{
+    if(e.target?.id==="tgReportTopic"){
+      const scope=window.TelegramConnector?.getReportScope?.();
+      if(scope?.group)reportTopicSelection.set(scope.group.id,e.target.value);
+      refreshReportTopicDetails();
+    }
+    onFilterChanged(e);
+  });
   document.addEventListener("input",onFilterChanged);
   function renderQuickCopy(materials){
     const mount=$("tgReportQuickCopy");
@@ -286,6 +366,17 @@
     mount.hidden=!groups.length;
   }
   document.addEventListener("click",async event=>{
+    if(event.target.closest("#tgReportAddTopic")){
+      const scope=window.TelegramConnector?.getReportScope?.(),group=scope?.group;
+      const topicId=$("tgReportTopic")?.value,topic=group&&availableReportTopics(group).find(t=>t.id===topicId);
+      if(!group||!topic)return status("Escolha um tópico primeiro.",true);
+      try{
+        await window.TelegramConnector.addMonitoredTopic(group.id,topic.id,topic.name);
+        status("Tópico "+topic.name+" incluído no monitoramento. Agora clique em Ir para sincronização para capturar as mensagens.");
+        refreshReportTopicDetails();
+      }catch(e){status("Não foi possível incluir o tópico: "+String(e.message||e),true);}
+      return;
+    }
     if(event.target.closest("#tgReportGoSync")){
       document.querySelector('[data-page="telegram"]')?.click();
       document.getElementById("tgHeaderSync")?.click();
@@ -308,7 +399,12 @@
     if(!preview&&!download)return;
     try{
       const result=createCurrent(),count=result.summary.total;
-      if(!count)throw new Error("Nenhuma mensagem corresponde a esta combinação de grupo/tópico, data, categoria e autoria. Tente 'Todas as categorias' e 'Minhas e recebidas', ou abra Conexão e sincronização para buscar mensagens.");
+      if(!count){
+        const values=controlValues();
+        if(values.group.isForum && !values.group.topics.some(t=>t.id===String(values.topicId)))
+          throw new Error("Esse tópico ainda não está sendo monitorado. Use 'Incluir no monitoramento' e depois 'Ir para sincronização' antes de gerar o TXT.");
+        throw new Error("Nenhuma mensagem de preços encontrada neste tópico com o período e filtros escolhidos. Confira a data inicial ou sincronize esse tópico.");
+      }
       if(!result.summary.uniqueCIs)throw new Error("Há mensagens neste filtro, mas nenhuma com CI reconhecido. Experimente 'Todas as categorias' e confira as mensagens originais.");
       if(preview){
         const target=$("tgReportPreview");
@@ -327,5 +423,5 @@
       }
     }catch(err){status(String(err.message||err),true);}
   });
-  window.TelegramReports={panelHtml,generate,parseProducts,classify,getRecords};
+  window.TelegramReports={panelHtml,generate,parseProducts,classify,getRecords,loadTopics,availableReportTopics};
 })();
