@@ -405,7 +405,7 @@
       ||/\b(?:solicita[cç][aã]o|solicito)\s+(?:de\s+)?(?:cadastro|atualiza[cç][aã]o|altera[cç][aã]o|corre[cç][aã]o|ajuste|desmembramento)\b/i.test(txt)
       ||/^\s*(?:CADASTRO|ATUALIZA[CÇ][AÃ]O\s+DE\s+CB|ALTERA[CÇ][AÃ]O\s+DE\s+NOMENCLATURA)\s*[:\-]/im.test(txt))return "solicitacao";
     // A seguir, avisos feitos por outros participantes do grupo.
-    if(/\b(?:aumentou|abaixou|baixou|subiu|reduziu|reajustou)\b[^\n]{0,95}(?:R\$\s*)?\d+[.,]\d{2}/i.test(txt)
+    if(/\b(?:aumentou|abaixou|baixou|diminuiu|caiu|subiu|reduziu|reajustou)\b[^\n]{0,95}(?:R\$\s*)?\d[\d.,]*[.,]\d{2}/i.test(txt)
       ||/\b(?:aumento|redu[cç][aã]o|altera[cç][aã]o)\s+de\s+pre[cç]o\b/i.test(txt)
       ||/^\s*(?:AUMENTOU|ABAIXOU|DIMINUIU|REDUZIU)\b/im.test(txt))return "preco";
     if(/\b(?:produto|item|mercadoria)(?:s)?\s+novo(?:s)?\b|\bnovo(?:s)?\s+(?:produto|item|mercadoria)(?:s)?\b/i.test(txt))return "produto";
