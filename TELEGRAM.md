@@ -152,3 +152,12 @@ Ao definir a data inicial e sincronizar, a recuperação localiza por ID cronol�
 **Persistência:** a última tentativa antiga continua salva para compatibilidade. Novas datas completas são guardadas por fonte, e o histórico retém até 20 execuções. As mensagens originais permanecem no armazenamento local do navegador, sem apagar registros quando a data de início muda. Não significa armazenamento na nuvem nem sincronização entre aparelhos: limpar dados do navegador pode apagar registros e preferências locais.
 
 Mensagens que o Telegram não fornece à conta (apagadas, inacessíveis ou ocultas por permissões) não poderão ser recuperadas. A sincronização é iniciada manualmente e não ocorre continuamente em segundo plano.
+
+
+## Origem do relatório TXT: todos os tópicos do grupo
+
+A caixa **Tópico do Telegram para o relatório**, na aba Monitoramento → Relatório TXT, consulta **todos os tópicos reais do grupo selecionado**, e não apenas os que já estão marcados para monitoramento. Assim, é possível selecionar **Atualizações de preços** mesmo quando só Cadastros havia sido selecionado no monitoramento. O tipo **Atualizações de preços (AUMENTOU/BAIXOU)** é o filtro de conteúdo; não é o nome nem a seleção de um tópico.
+
+Se o tópico aparecer com **(não monitorado)**, clique em **Incluir no monitoramento** para habilitá-lo, sem alterar os demais. Depois acesse **Telegram → Conexão e sincronização**, informe a data inicial, e sincronize o tópico para capturar suas mensagens. Só então o TXT poderá incluir mensagens ainda não coletadas. O relatório continua separando o conteúdo por grupo e tópico; não inventa registros e não reúne tópicos distintos no mesmo arquivo.
+
+A lista completa depende de estar conectado ao Telegram com permissão de leitura. Sem conexão, o seletor mostra provisoriamente somente os tópicos já cadastrados no monitoramento. Se o tópico desejado pertencer a outro grupo, selecione antes esse grupo na barra de grupos do Monitoramento.
