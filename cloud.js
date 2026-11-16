@@ -372,6 +372,19 @@ async function tgPersistConfig(part){
   }
 }
 function tgStartCloud(user){
+  // Não publicar configurações de uma conta Google anterior em outra conta.
+  const ownerKey="controle-pdc-telegram-google-owner-v1";
+  try{
+    const previousUid=localStorage.getItem(ownerKey);
+    if(previousUid&&previousUid!==user.uid){
+      for(const [part,spec] of Object.entries(TG_CONFIG_TYPES)){
+        tgBackupConfig(previousUid,part,spec.read());
+      }
+      TG_CONFIG_TYPES.routing.apply({groups:[],mappings:{},drafts:{}});
+      TG_CONFIG_TYPES.monitor.apply({groups:[]});
+    }
+    localStorage.setItem(ownerKey,user.uid);
+  }catch(_){/* Falha local será tratada pelo fluxo de persistência do Firebase. */}
   const session=tgCloudSessionId;
   for(const [part,spec] of Object.entries(TG_CONFIG_TYPES)){
     const ref=doc(firestore,"users",user.uid,"settings",spec.docId);
