@@ -187,3 +187,23 @@ Em **Monitoramento → Mensagens recebidas → Alterações de preço**, os avis
 Uma barra **Pesquisar preços** fica acima dos cartões desse filtro. A busca opera somente nos avisos já sincronizados do grupo/tópico exibido e aceita CI, descrição, CB ou marca. Quando um CI corresponde a um item de uma mensagem com vários produtos, somente a linha correspondente permanece visível; ao buscar pelo título da marca, todos os itens desse aviso podem aparecer. A contagem de avisos e produtos filtrados é exibida ao lado. **Limpar** restaura a lista.
 
 No **Relatório TXT**, o antigo botão **Baixar relatório TXT** foi substituído por **Copiar relatório**. O clique gera o mesmo TXT simples por marca e CI a partir dos filtros atuais, copia o **conteúdo inteiro** para a área de transferência do navegador (com tentativa de compatibilidade em versões antigas) e mostra a prévia. Os botões para **Copiar CI** e **Copiar CB** individualmente continuam. A sincronização Telegram permanece sob demanda, sem mudanças de conteúdo ou históricos armazenados.
+
+
+## Sincronização de grupos e tópicos entre computadores (conta Google)
+
+A partir desta versão, a seção **Telegram → Conexão e sincronização** apresenta também um quadro **Configurações entre computadores** com o estado do Firebase. O projeto reaproveita o Firebase Authentication e Firestore que já protegem o Controle PDC (documentos por UID, nas permissões existentes `users/{uid}/...`).
+
+**São sincronizados automaticamente na mesma conta Google do site:**
+- Grupos de destino e tópicos associados a cada modelo de solicitação.
+- Mapeamentos dos modelos para os destinos (inclusive Cadastro com NF-e).
+- Rascunhos dos formulários de Telegram.
+- Grupos/tópicos escolhidos para monitoramento e a data/hora de início de cada tópico.
+- Renomeações e inclusão/remoção de vínculos, refletidos nos demais computadores com o site aberto.
+
+Configurações estão em dois documentos distintos do Firestore, `users/{uid}/settings/telegramRouting` e `users/{uid}/settings/telegramMonitor`. Cada documento tem revisão numérica para evitar sobrescrita silenciosa entre computadores. Edições são enviadas com pequeno atraso para evitar uma escrita por tecla. O site importa uma configuração já salva ao entrar com a mesma conta Google e continua recebendo atualizações. Se o documento remoto ainda não existe, o primeiro PC que já tem grupos configurados o cria automaticamente após abrir a versão atualizada e fazer login Google. Por isso, para uma migração inicial, **abra primeiro a versão atualizada no PC original com a mesma conta Google** e confirme o status de sincronização; depois abra no novo PC.
+
+**Não enviar à nuvem:** a senha local do Telegram, o número de autenticação, API ID/API hash, sessão MTProto e o histórico bruto de mensagens. Esses elementos continuam restritos ao dispositivo. O novo PC precisa autenticar ou desbloquear **a própria sessão Telegram**; depois pode clicar em **Sincronizar agora** para recuperar as mensagens disponíveis no Telegram desde as datas já restauradas. Como o histórico não foi copiado, os cursores de mensagens não são transferidos: isso evita pular mensagens que ainda não existem no segundo dispositivo. O Controle PDC principal já usa sincronização própria no Firebase e permanece intacto.
+
+**Proteção contra alterações simultâneas:** cada documento de configuração registra uma revisão. Se outro PC tiver alterado os mesmos grupos/tópicos antes do salvamento, a edição local não será apagada automaticamente. O painel oferece **Restaurar da nuvem** ou **Manter e enviar deste PC** mediante confirmação. Antes de substituir uma configuração local pela remota, uma cópia de segurança local é preservada em `controle-pdc-telegram-config-backup-{uid}-{tipo}`. Configurações vinculadas a outra conta Telegram são bloqueadas quando a identidade Telegram conectada não coincide.
+
+**Escopo de conta:** a sincronização depende de usar a **mesma conta Google** no site nos dois computadores, além da mesma conta Telegram para acessar os grupos. Não sincroniza dados entre contas Google diferentes, nem faz monitoramento 24 horas sem o site aberto.
