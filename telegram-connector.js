@@ -357,9 +357,9 @@
       (!logged()?'<p class="tg-sync-hint">Conecte sua conta Telegram acima para habilitar a sincronização.</p>':'')+
       '<p class="tg-sync-feedback'+(syncNoticeError?' error':'')+'" id="tgSyncFeedback" role="status" aria-live="polite">'+
         enc(syncNotice||"Escolha a data inicial e toque em Sincronizar agora.")+'</p>'+
-      '<div class="tg-sync-overview"><div><small>Última sincronização concluída</small><strong>'+enc(syncStamp(previous))+'</strong></div>'+
-        '<div><small>Última tentativa</small><strong>'+enc(syncStamp(previousAttempt))+'</strong></div>'+
-        '<div><small>Última mensagem registrada</small><strong>'+enc(syncStamp(newestStamp))+'</strong></div></div>'+
+      '<div class="tg-sync-overview"><div><small>Última sincronização concluída neste PC</small><strong>'+enc(syncStamp(previous))+'</strong></div>'+
+        '<div><small>Última tentativa neste PC</small><strong>'+enc(syncStamp(previousAttempt))+'</strong></div>'+
+        '<div><small>Última mensagem registrada neste PC</small><strong>'+enc(syncStamp(newestStamp))+'</strong></div></div>'+
       '<details class="tg-sync-history"><summary>Histórico de sincronizações ('+(db.syncSessions?.length||0)+')</summary>'+
         '<div class="tg-sync-log-list">'+(logs||'<p>Nenhuma execução registrada neste navegador.</p>')+'</div>'+
         '<h5>Grupos e tópicos</h5><div class="tg-sync-sources">'+(sourceRows||'<p>Nenhum grupo configurado.</p>')+'</div>'+
