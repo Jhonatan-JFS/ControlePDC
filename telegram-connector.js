@@ -684,13 +684,15 @@
     const all=group?db.records.filter(r=>matchesMonitorScope(r,group,activeMonitorTopic))
       .sort((a,b)=>new Date(b.date)-new Date(a.date)):[];
     const priceIndex=window.TelegramPriceView?.buildIndex?.(db.records)||new Map();
+    const isPrice=r=>r.kind==="preco"||priceIndex.has(String(r.telegramId||"")+":"+String(r.messageId));
+    const kindOf=r=>r.kind==="recebida"&&isPrice(r)?"preco":r.kind;
     const sent=all.filter(r=>recordDirection(r)==="enviadas");
     const incoming=all.filter(r=>recordDirection(r)==="recebidas");
-    const grouped={solicitacao:incoming.filter(r=>r.kind==="solicitacao"),preco:incoming.filter(r=>r.kind==="preco"),
-      produto:incoming.filter(r=>r.kind==="produto"),outras:incoming.filter(r=>!["solicitacao","preco","produto"].includes(r.kind))};
+    const grouped={solicitacao:incoming.filter(r=>r.kind==="solicitacao"),preco:incoming.filter(r=>kindOf(r)==="preco"),
+      produto:incoming.filter(r=>r.kind==="produto"),outras:incoming.filter(r=>!["solicitacao","preco","produto"].includes(kindOf(r)))};
     const visible=activeMonitorDirection==="recebidas"?
-      incoming.filter(r=>activeReceivedCategory==="todas"||r.kind===activeReceivedCategory||
-        (activeReceivedCategory==="outras"&&!["solicitacao","preco","produto"].includes(r.kind))):sent;
+      incoming.filter(r=>activeReceivedCategory==="todas"||kindOf(r)===activeReceivedCategory||
+        (activeReceivedCategory==="outras"&&!["solicitacao","preco","produto"].includes(kindOf(r)))):sent;
     const allRequests=all.filter(r=>r.kind==="solicitacao");
     const verified=allRequests.filter(r=>r.status==="conferido"&&!r.unavailable).length;
     const pending=allRequests.filter(r=>r.status==="pendente"&&!r.unavailable).length;
@@ -745,21 +747,21 @@
     const content=visible.length?'<div class="tg-records">'+visible.map(rec=>{
       const received=recordDirection(rec)==="recebidas",request=rec.kind==="solicitacao";
       const parsed=request?extract(rec.text):[];
-      const prices=received&&rec.kind==="preco"?(priceIndex.get(String(rec.telegramId||"")+":"+String(rec.messageId))||[]):[];
+      const prices=received&&isPrice(rec)?(priceIndex.get(String(rec.telegramId||"")+":"+String(rec.messageId))||[]):[];
       const fallbackState=window.TelegramPriceView?.movement?.(rec.text||"")||"";
       const priceState=prices.length&&prices.every(p=>p.state==="up")?"up":
         prices.length&&prices.every(p=>p.state==="down")?"down":
         prices.length?"neutral":(fallbackState||"neutral");
       const priceLabel=priceState==="up"?"↑ AUMENTOU":priceState==="down"?"↓ BAIXOU":"Alteração de preço";
       const label=request?(rec.unavailable?"Mensagem indisponível":rec.status==="conferido"?"Conferido":"Não conferido"):
-        rec.kind==="preco"?priceLabel:rec.kind==="produto"?"Produto novo":"Mensagem recebida";
-      const block=received&&rec.kind==="preco"?priceDetails(rec,prices):
+        isPrice(rec)?priceLabel:rec.kind==="produto"?"Produto novo":"Mensagem recebida";
+      const block=received&&isPrice(rec)?priceDetails(rec,prices):
         parsed.length?parsed.map(p=>'<div class="tg-monitor-item"><strong>'+enc(p.ci)+' - '+enc(p.name)+'</strong>'+(p.cb?'<small>CB: '+enc(p.cb)+'</small>':'')+'</div>').join(""):'<pre>'+enc(rec.text)+'</pre>';
       const sender=received?'Recebida de participante'+(rec.senderId?' (ID '+enc(rec.senderId)+')':''):'Enviada por mim';
       const requestAction=received?'<div class="tg-record-actions"><button type="button" class="btn btn-ghost btn-small" data-mon-request="'+enc(rec.key)+'">'+
         (request?'Não é solicitação':'Marcar como solicitação')+'</button></div>':"";
-      return '<article class="tg-record'+(received&&rec.kind==="preco"?' tg-record-price tg-price-'+priceState:'')+'"><div class="tg-record-top"><strong>'+enc(rec.group)+(rec.topicName?' · '+enc(rec.topicName):'')+
-        '</strong><span class="tg-rec-state '+(request&&rec.status==="conferido"&&!rec.unavailable?"ok":"")+(received&&rec.kind==="preco"?" tg-price-state-"+priceState:"")+'">'+enc(label)+'</span></div>'+
+      return '<article class="tg-record'+(received&&isPrice(rec)?' tg-record-price tg-price-'+priceState:'')+'"><div class="tg-record-top"><strong>'+enc(rec.group)+(rec.topicName?' · '+enc(rec.topicName):'')+
+        '</strong><span class="tg-rec-state '+(request&&rec.status==="conferido"&&!rec.unavailable?"ok":"")+(received&&isPrice(rec)?" tg-price-state-"+priceState:"")+'">'+enc(label)+'</span></div>'+
         '<small>'+sender+' · '+enc(new Date(rec.date).toLocaleString("pt-BR"))+' · Mensagem #'+enc(rec.messageId)+'</small>'+
         '<div class="tg-record-content">'+block+'</div>'+
         '<small>'+(request?(rec.reactionCount||0)+' reação(ões) · '+(rec.history?.length||0)+' evento(s) registrados':
