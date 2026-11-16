@@ -128,3 +128,10 @@
   #monitorPage .tg-report-topic-help{flex-direction:column;align-items:stretch}
   #monitorPage .tg-report-topic-help .btn{width:100%}
 }
+
+
+#monitorPage .tg-report-group-label{
+  margin:-4px 0 7px;color:#a5c9df;font-size:11px;line-height:1.65;
+  overflow-wrap:anywhere;
+}
+#monitorPage .tg-report-group-label strong{color:#edf8ff;font-weight:800}
