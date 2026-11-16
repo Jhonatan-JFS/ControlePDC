@@ -168,6 +168,27 @@
     }
     return targets;
   }
+  async function addMonitoredTopic(groupId,topicId,name){
+    if(!logged())throw new Error("Conecte o Telegram para selecionar esse tópico.");
+    const currentGroup=myGroups.find(g=>g.id===groupId);
+    if(!currentGroup?.isForum)throw new Error("Grupo não encontrado ou sem tópicos.");
+    const topicsAvailable=await topics(groupId);
+    const topic=topicsAvailable.find(t=>String(t.id)===String(topicId));
+    if(!topic)throw new Error("Esse tópico não foi encontrado no grupo Telegram.");
+    const config=readMonitorSelection();
+    let group=config.groups.find(g=>g.id===groupId);
+    if(!group){
+      group={id:groupId,name:String(currentGroup.name||groupId),isForum:true,startAt:"",topics:[]};
+      config.groups.push(group);
+    }
+    if(!group.topics.some(t=>String(t.id)===String(topicId))){
+      group.topics.push({id:String(topic.id),name:String(topic.name||name||topic.id),startAt:group.startAt||""});
+      saveMonitorSelection(config);
+    }
+    renderMonitor();
+    renderSyncSettings();
+    return true;
+  }
   function monitorScope(){
     const selection=readMonitorSelection();
     if(!selection.groups.some(g=>g.id===activeMonitorGroup)){
@@ -788,6 +809,10 @@
       if(picker)picker.value=draftMonitorGroup;
       renderMonitorTopicChoices();
     }
+    if(monitorReportOpen){
+      const {group}=monitorScope();
+      window.TelegramReports?.loadTopics?.({group,activeTopic:activeMonitorTopic});
+    }
   }
   document.addEventListener("change",e=>{
     const el=e.target;
@@ -920,7 +945,7 @@
     topics,
     reloadGroups,
     send:async(groupId,text,topicId=null)=>{if(!logged())throw new Error("Conecte sua conta.");return window.TelegramBridge.send(groupId,text,topicId);},
-    renderLogin,renderMonitor,renderSyncSettings,synchronize,readHistory,
+    renderLogin,renderMonitor,renderSyncSettings,synchronize,readHistory,addMonitoredTopic,
     getReportScope:()=>{const {group}=monitorScope();return {group,activeTopic:activeMonitorTopic};}
   };
 })();
