@@ -99,7 +99,7 @@ O monitoramento anterior armazenava principalmente as mensagens da conta conecta
 
 O relatório TXT é uma **lista operacional**, voltada à cópia rápida de CIs e CBs para o sistema. A estrutura detalhada anterior (identificadores de mensagens, histórico, observações, valores e metadados) foi removida do **arquivo TXT**, mas o histórico original continua preservado no monitoramento.
 
-Na quarta aba **Monitoramento**, use o botão **Relatório TXT**, selecione um grupo/tópico, informe a data e hora inicial e escolha **Visualizar TXT** ou **Baixar relatório TXT**. Filtros de autoria e tipo de mensagem continuam disponíveis. A prévia exibe os botões **Copiar CI** e **Copiar CB** por produto, usando a área de transferência do navegador.
+Na quarta aba **Monitoramento**, use o botão **Relatório TXT**, selecione um grupo/tópico, informe a data e hora inicial e escolha **Visualizar TXT** ou **Copiar relatório** (copia a lista inteira para colar no sistema, sem salvar arquivo). Filtros de autoria e tipo de mensagem continuam disponíveis. A prévia exibe os botões **Copiar CI** e **Copiar CB** por produto, usando a área de transferência do navegador.
 
 A lista agrupa por **material/marca explicitamente identificado no cabeçalho da mensagem**, por exemplo:
 
@@ -179,3 +179,11 @@ A saída preserva a **marca**, o **CI**, a **descrição quando existir**, a dir
 Registros de preços antigos erroneamente classificados como **Mensagens recebidas** também passam a ser reconhecidos pela leitura do relatório e pelo filtro de preços do Monitoramento. Os cartões de preços passam a interpretar o valor depois de `PARA` e a usar o último preço conhecido do mesmo grupo/tópico, sem inventar valor anterior.
 
 Validação com mensagens fictícias equivalentes às imagens de 12/11: ULTRAFEST (7 itens), ART LATEX (1 item) e MAVALÉRIO (4 itens) = **12 CIs identificados**. A disponibilidade da informação real ainda depende de as mensagens terem sido sincronizadas da conta Telegram. A recuperação de históricos antigos deve ser feita em Telegram → Conexão e sincronização.
+
+## Monitoramento compacto de preços e busca exclusiva
+
+Em **Monitoramento → Mensagens recebidas → Alterações de preço**, os avisos agora aparecem em cartões compactos. Em cada produto, a mesma linha mostra CI, descrição e CB quando disponíveis, a direção da alteração e **Antes → Atual**, mantendo vermelho para aumento e verde para redução. A mensagem original continua recolhida em **Ver mensagem original**; o botão **Marcar como solicitação** e os dados de conferência não foram removidos.
+
+Uma barra **Pesquisar preços** fica acima dos cartões desse filtro. A busca opera somente nos avisos já sincronizados do grupo/tópico exibido e aceita CI, descrição, CB ou marca. Quando um CI corresponde a um item de uma mensagem com vários produtos, somente a linha correspondente permanece visível; ao buscar pelo título da marca, todos os itens desse aviso podem aparecer. A contagem de avisos e produtos filtrados é exibida ao lado. **Limpar** restaura a lista.
+
+No **Relatório TXT**, o antigo botão **Baixar relatório TXT** foi substituído por **Copiar relatório**. O clique gera o mesmo TXT simples por marca e CI a partir dos filtros atuais, copia o **conteúdo inteiro** para a área de transferência do navegador (com tentativa de compatibilidade em versões antigas) e mostra a prévia. Os botões para **Copiar CI** e **Copiar CB** individualmente continuam. A sincronização Telegram permanece sob demanda, sem mudanças de conteúdo ou históricos armazenados.
