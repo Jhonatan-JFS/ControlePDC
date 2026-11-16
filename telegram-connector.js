@@ -11,7 +11,7 @@
   const enc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   let current=null, myGroups=[], busy=false, syncRunning=false;
   let activeMonitorGroup="",activeMonitorTopic="all",activeMonitorDirection="enviadas",activeReceivedCategory="todas",monitorSettingsOpen=false,monitorReportOpen=false;
-  let syncConfigTarget="all",syncNotice="",syncNoticeError=false;
+  let syncConfigTarget="all",syncNotice="",syncNoticeError=false,priceSearchValue="";
   let draftMonitorGroup="",draftMonitorTopics=[],topicRequestVersion=0;
   const monitorTopicCache=new Map();
   function bytesToBase64(bytes){let str="";for(const b of bytes)str+=String.fromCharCode(b);return btoa(str);}
@@ -657,25 +657,57 @@
       '<p class="tg-mon-helper">Desmarcar um grupo interrompe novas leituras, mas não apaga o histórico local. Os modelos e seus destinos de envio continuam iguais.</p></section>';
   }
   function priceDetails(rec,entries){
-    if(!entries?.length)return '<pre>'+enc(rec.text||"")+'</pre>';
-    return '<div class="tg-price-entries">'+entries.map(entry=>{
+    if(!entries?.length)return '<details class="tg-price-source"><summary>Ver mensagem original</summary><pre>'+enc(rec.text||"")+'</pre></details>';
+    return '<div class="tg-price-entries tg-price-compact-list">'+entries.map(entry=>{
       const tone=entry.state==="up"?"up":entry.state==="down"?"down":"neutral";
       const label=tone==="up"?"↑ AUMENTOU":tone==="down"?"↓ BAIXOU":"PREÇO INFORMADO";
-      const before=entry.before!==null?'<div class="tg-price-value tg-price-before"><small>'+
-          (entry.origin==="previous"?"Antes · último aviso":"Antes")+'</small><strong>'+enc(window.TelegramPriceView.show(entry.before))+'</strong></div>':
-          '<div class="tg-price-value tg-price-unavailable"><small>Antes</small><span>Não informado</span></div>';
-      const current=entry.after!==null?'<div class="tg-price-value tg-price-current"><small>Atual · informado</small><strong>'+enc(window.TelegramPriceView.show(entry.after))+'</strong></div>':
-          '<div class="tg-price-value tg-price-unavailable"><small>Atual</small><span>Não informado</span></div>';
+      const before=entry.before!==null?enc(window.TelegramPriceView.show(entry.before)):"Não informado";
+      const current=entry.after!==null?enc(window.TelegramPriceView.show(entry.after)):"Não informado";
       return '<div class="tg-price-entry tg-price-'+tone+'">'+
-        '<div class="tg-price-item-heading"><div><strong>CI '+enc(entry.ci)+'</strong>'+
-        (entry.name?'<span>'+enc(entry.name)+'</span>':'')+'</div>'+
-        '<span class="tg-price-change">'+label+'</span></div>'+
-        '<div class="tg-price-values">'+before+'<span class="tg-price-arrow" aria-hidden="true">→</span>'+current+'</div>'+
-        (entry.cb?'<div class="tg-price-barcode">CB: '+enc(entry.cb)+'</div>':'')+
-        (entry.mismatch?'<p class="tg-price-alert">Atenção: o sentido do aviso diverge dos valores informados. Confira os dados.</p>':'')+
-        '</div>';
+        '<div class="tg-price-compact-line">'+
+          '<div class="tg-price-compact-product"><strong>CI '+enc(entry.ci)+'</strong>'+
+            (entry.name?'<span>'+enc(entry.name)+'</span>':'')+
+            (entry.cb?'<small>CB: '+enc(entry.cb)+'</small>':'')+
+          '</div>'+
+          '<span class="tg-price-change">'+label+'</span>'+
+          '<div class="tg-price-compact-values">'+
+            '<span class="tg-price-before-value" title="'+
+               (entry.origin==="previous"?"Último preço registrado neste tópico":"Preço anterior informado")+
+              '">Antes: '+before+'</span>'+
+            '<span class="tg-price-arrow" aria-hidden="true">→</span>'+
+            '<strong class="tg-price-current-value">Atual: '+current+'</strong>'+
+          '</div>'+
+        '</div>'+
+        (entry.mismatch?'<p class="tg-price-alert">O sentido do aviso diverge dos valores. Confira os dados.</p>':'')+
+      '</div>';
     }).join("")+'</div>'+
     '<details class="tg-price-source"><summary>Ver mensagem original</summary><pre>'+enc(rec.text||"")+'</pre></details>';
+  }
+  function normalizePriceSearch(value){
+    return String(value??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR").trim();
+  }
+  function applyPriceSearch(){
+    const field=$("tgPriceSearch"),root=$("tgPriceRecords");
+    if(!field||!root)return;
+    const query=normalizePriceSearch(field.value);
+    let shown=0,products=0;
+    for(const card of root.querySelectorAll(".tg-record-price")){
+      const entries=[...card.querySelectorAll(".tg-price-entry")];
+      const matches=entries.map(entry=>!query||normalizePriceSearch(entry.textContent).includes(query));
+      const hasMatchingProduct=matches.some(Boolean);
+      const matchesOriginal=!!query&&normalizePriceSearch(card.querySelector(".tg-price-source pre")?.textContent).includes(query);
+      // CI busca somente as linhas correspondentes; busca pelo título da
+      // marca (que está na mensagem original) mantém todos os itens do aviso.
+      const showAll=!query||(!hasMatchingProduct&&matchesOriginal);
+      for(let i=0;i<entries.length;i++){
+        entries[i].hidden=!(showAll||matches[i]);
+        if(!entries[i].hidden)products++;
+      }
+      card.hidden=!!query&&!(showAll||hasMatchingProduct);
+      if(!card.hidden)shown++;
+    }
+    const counter=$("tgPriceSearchCount");
+    if(counter)counter.textContent=shown+" aviso(s) · "+products+" item(ns) encontrado(s)";
   }
   function monitorHtml(){
     const {selection,group}=monitorScope(),db=readHistory();
@@ -722,6 +754,13 @@
       ["preco","Alterações de preço",grouped.preco.length],["produto","Produtos novos",grouped.produto.length],
       ["outras","Outras",grouped.outras.length]
     ].map(([key,label,count])=>'<button type="button" class="tg-monitor-category'+(activeReceivedCategory===key?' active':'')+'" data-mon-category="'+key+'" aria-pressed="'+(activeReceivedCategory===key)+'">'+label+' <span>'+count+'</span></button>').join("")+'</nav>';
+    const priceTools=activeMonitorDirection==="recebidas"&&activeReceivedCategory==="preco"?
+      '<div class="tg-price-search-toolbar" role="search" aria-label="Pesquisar alterações de preços">'+
+      '<label for="tgPriceSearch">Pesquisar preços</label>'+
+      '<div class="tg-price-search-controls"><input type="search" id="tgPriceSearch" placeholder="Buscar CI, nome, CB ou marca…" autocomplete="off" value="'+enc(priceSearchValue)+'">'+
+      '<button type="button" class="btn btn-ghost btn-small" id="tgPriceClear">Limpar</button></div>'+
+      '<small id="tgPriceSearchCount" role="status" aria-live="polite"></small>'+
+      '</div>':"";
     const stats='<section class="tg-stats" aria-label="Indicadores das mensagens">'+
       (activeMonitorDirection==="enviadas"?
         metric("Minhas mensagens",sent.length,"info","Deste grupo ou tópico")+
@@ -744,7 +783,7 @@
       '<button type="button" class="btn btn-soft btn-small" id="tgOpenSyncSettings">⚙ Configurar sincronização</button></div>';
     const status='<p class="tg-auth-message" id="tgMonitorStatus" role="status" aria-live="polite">'+
       (!logged()?"Conecte sua conta em Telegram → Configurações.":!selection.groups.length?"Configure quais grupos e tópicos acompanhar.":"Para buscar mensagens e revalidar reações, abra Telegram → Configurações → Sincronizar mensagens.")+'</p>';
-    const content=visible.length?'<div class="tg-records">'+visible.map(rec=>{
+    const content=visible.length?'<div class="tg-records" id="tgPriceRecords">'+visible.map(rec=>{
       const received=recordDirection(rec)==="recebidas",request=rec.kind==="solicitacao";
       const parsed=request?extract(rec.text):[];
       const prices=received&&isPrice(rec)?(priceIndex.get(String(rec.telegramId||"")+":"+String(rec.messageId))||[]):[];
@@ -760,12 +799,16 @@
       const sender=received?'Recebida de participante'+(rec.senderId?' (ID '+enc(rec.senderId)+')':''):'Enviada por mim';
       const requestAction=received?'<div class="tg-record-actions"><button type="button" class="btn btn-ghost btn-small" data-mon-request="'+enc(rec.key)+'">'+
         (request?'Não é solicitação':'Marcar como solicitação')+'</button></div>':"";
-      return '<article class="tg-record'+(received&&isPrice(rec)?' tg-record-price tg-price-'+priceState:'')+'"><div class="tg-record-top"><strong>'+enc(rec.group)+(rec.topicName?' · '+enc(rec.topicName):'')+
-        '</strong><span class="tg-rec-state '+(request&&rec.status==="conferido"&&!rec.unavailable?"ok":"")+(received&&isPrice(rec)?" tg-price-state-"+priceState:"")+'">'+enc(label)+'</span></div>'+
-        '<small>'+sender+' · '+enc(new Date(rec.date).toLocaleString("pt-BR"))+' · Mensagem #'+enc(rec.messageId)+'</small>'+
+      const compactPrice=received&&isPrice(rec);
+      return '<article class="tg-record'+(compactPrice?' tg-record-price tg-price-'+priceState+' tg-price-compact':'')+'">'+
+        '<div class="tg-record-top"><strong>'+enc(compactPrice?"Alterações de Preços":rec.group)+(compactPrice?"":rec.topicName?' · '+enc(rec.topicName):'')+
+        '</strong>'+(compactPrice?"":'<span class="tg-rec-state '+(request&&rec.status==="conferido"&&!rec.unavailable?"ok":"")+'">'+enc(label)+'</span>')+'</div>'+
+        '<small class="tg-record-meta">'+(compactPrice?enc(new Date(rec.date).toLocaleString("pt-BR"))+
+           ' · '+enc(rec.group)+(rec.topicName?' / '+enc(rec.topicName):''):sender+' · '+enc(new Date(rec.date).toLocaleString("pt-BR")))+
+           ' · #'+enc(rec.messageId)+'</small>'+
         '<div class="tg-record-content">'+block+'</div>'+
-        '<small>'+(request?(rec.reactionCount||0)+' reação(ões) · '+(rec.history?.length||0)+' evento(s) registrados':
-           'Mensagem informativa, sem status de conferência')+'</small>'+requestAction+'</article>';
+        (compactPrice?"":'<small>'+(request?(rec.reactionCount||0)+' reação(ões) · '+(rec.history?.length||0)+' evento(s) registrados':
+          'Mensagem informativa, sem status de conferência')+'</small>')+requestAction+'</article>';
     }).join("")+'</div>':'<div class="tg-information"><strong>Nenhuma mensagem nesta visualização.</strong><p>'+
       (!group?"Configure um grupo para começar.":"Não há mensagens nesta categoria no histórico local. Use Sincronizar selecionados para consultar novas mensagens.")+'</p></div>';
     const txtReport=monitorReportOpen?
@@ -774,7 +817,7 @@
           '<p class="tg-muted">Não foi possível carregar o gerador de relatórios. Atualize a página.</p>')+
       '</div>':'';
     return top+txtReport+(monitorSettingsOpen?monitorConfigHtml(selection):"")+tabs+topics+readiness+directionTabs+
-      (activeMonitorDirection==="recebidas"?receivedFilters:"")+stats+sync+status+content;
+      (activeMonitorDirection==="recebidas"?receivedFilters:"")+stats+sync+status+priceTools+content;
   }
   async function renderMonitorTopicChoices(){
     const mount=$("tgMonTopicOptions"),select=$("tgMonGroupPick");
@@ -801,6 +844,7 @@
     const mount=$("tgMonitorMount");
     if(!mount)return;
     mount.innerHTML=monitorHtml();
+    applyPriceSearch();
     const launcher=$("tgReportOpen");
     if(launcher){
       launcher.setAttribute("aria-expanded",String(monitorReportOpen));
@@ -816,6 +860,12 @@
       window.TelegramReports?.loadTopics?.({group,activeTopic:activeMonitorTopic});
     }
   }
+  document.addEventListener("input",e=>{
+    if(e.target?.id==="tgPriceSearch"){
+      priceSearchValue=e.target.value;
+      applyPriceSearch();
+    }
+  });
   document.addEventListener("change",e=>{
     const el=e.target;
     if(el.id==="tgSyncTarget"){
@@ -835,6 +885,11 @@
     }
   });
   document.addEventListener("click",async e=>{
+    if(e.target.closest("#tgPriceClear")){
+      priceSearchValue="";const input=$("tgPriceSearch");
+      if(input){input.value="";applyPriceSearch();input.focus();}
+      return;
+    }
     if(e.target.closest("#tgSyncSaveStart")){
       try{
         const iso=saveSyncStart($("tgSyncFrom")?.value||"",syncConfigTarget);

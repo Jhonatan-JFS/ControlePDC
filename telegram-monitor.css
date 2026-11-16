@@ -152,3 +152,121 @@
  #monitorPage .tg-price-arrow{font-size:14px}
  #monitorPage .tg-price-item-heading{gap:7px}
 }
+
+
+/* Monitoramento > Alterações de Preços — leitura compacta e busca própria. */
+#monitorPage .tg-price-search-toolbar{
+  display:flex;align-items:center;flex-wrap:wrap;gap:9px 13px;
+  background:#14283b;border:1px solid #3b5c79;border-radius:12px;
+  padding:11px 13px;margin:12px 0 10px;min-width:0;
+}
+#monitorPage .tg-price-search-toolbar>label{
+  flex:0 0 auto;color:#d6eeff;font-size:11px;font-weight:850;
+}
+#monitorPage .tg-price-search-controls{display:flex;flex:1 1 310px;min-width:0;gap:8px;align-items:center}
+#monitorPage #tgPriceSearch{
+  flex:1;min-width:0;min-height:40px;width:100%;border:1px solid #537a99!important;
+  border-radius:9px;background:#0d1b2b!important;color:#edf8ff!important;
+  padding:9px 12px;font-size:12px;
+}
+#monitorPage #tgPriceSearch:focus{outline:2px solid #6bc7f5;outline-offset:1px}
+#monitorPage #tgPriceClear{flex:none;min-height:39px}
+#monitorPage #tgPriceSearchCount{
+  color:#a2c8e0;font-size:10.5px;font-weight:700;line-height:1.5;
+}
+#monitorPage .tg-record-price.tg-price-compact{
+  padding:10px 12px;margin-bottom:8px;border-radius:12px;
+  box-shadow:inset 3px 0 0 #486b88,0 3px 14px #0000001c;
+}
+#monitorPage .tg-record-price.tg-price-compact.tg-price-up{box-shadow:inset 3px 0 0 #ff7888,0 3px 14px #0000001c}
+#monitorPage .tg-record-price.tg-price-compact.tg-price-down{box-shadow:inset 3px 0 0 #57d7ae,0 3px 14px #0000001c}
+#monitorPage .tg-record-price.tg-price-compact .tg-record-top{margin:0 0 2px;min-height:0}
+#monitorPage .tg-record-price.tg-price-compact .tg-record-top strong{font-size:11px;font-weight:850;line-height:1.4}
+#monitorPage .tg-record-price.tg-price-compact>.tg-record-meta{
+  display:block;margin:0 0 7px;font-size:9.5px;color:#9fb9cc;
+  line-height:1.4;overflow-wrap:anywhere;
+}
+#monitorPage .tg-record-price.tg-price-compact .tg-record-content{
+  display:block;margin:6px 0!important;min-width:0;
+}
+#monitorPage .tg-record-price.tg-price-compact .tg-price-entries{display:grid;gap:5px}
+#monitorPage .tg-record-price.tg-price-compact .tg-price-entry{
+  padding:8px 10px;border-radius:9px;min-height:0;
+}
+#monitorPage .tg-price-compact-line{
+  display:grid;grid-template-columns:minmax(90px,1fr) auto minmax(175px,auto);
+  align-items:center;gap:7px 12px;min-width:0;
+}
+#monitorPage .tg-price-compact-product{
+  display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 9px;
+  min-width:0;overflow-wrap:anywhere;
+}
+#monitorPage .tg-price-compact-product strong{
+  font:850 12px/1.4 Manrope,'DM Sans',sans-serif;color:#edf8ff;
+  white-space:nowrap;
+}
+#monitorPage .tg-price-compact-product span{
+  font-size:10.5px;color:#c4d7e5;line-height:1.5;min-width:0;
+}
+#monitorPage .tg-price-compact-product small{
+  font:650 10px/1.5 ui-monospace,Consolas,monospace;color:#a3d7f4;
+  overflow-wrap:anywhere;
+}
+#monitorPage .tg-price-compact-line .tg-price-change{
+  padding:4px 7px;font-size:9px;line-height:1.25;border-radius:8px;
+  white-space:nowrap;
+}
+#monitorPage .tg-price-compact-values{
+  display:flex;align-items:center;justify-content:flex-end;gap:7px;
+  min-width:0;white-space:normal;flex-wrap:wrap;text-align:right;
+}
+#monitorPage .tg-price-before-value{
+  font-size:10px;color:#a9bbc9;line-height:1.45;
+  font-variant-numeric:tabular-nums;
+}
+#monitorPage .tg-price-compact-values .tg-price-arrow{font-size:12px;color:#8aacc5}
+#monitorPage .tg-price-current-value{
+  font:850 12px/1.45 Manrope,'DM Sans',sans-serif;color:#edf8ff;
+  font-variant-numeric:tabular-nums;
+}
+#monitorPage .tg-price-up .tg-price-current-value{color:#ffb7be}
+#monitorPage .tg-price-down .tg-price-current-value{color:#a4f4d2}
+#monitorPage .tg-record-price.tg-price-compact .tg-price-source{
+  margin:6px 0 0;padding:6px 0 0;border-top:1px solid #2c4157;
+}
+#monitorPage .tg-record-price.tg-price-compact .tg-price-source summary{
+  font-size:10px;padding:2px 0;line-height:1.5;
+}
+#monitorPage .tg-record-price.tg-price-compact .tg-price-source pre{
+  padding:9px;margin:6px 0;max-height:280px;overflow:auto;
+}
+#monitorPage .tg-record-price.tg-price-compact .tg-record-actions{
+  margin:5px 0 0;padding:5px 0 0;border-top:1px solid #2e4155;
+}
+#monitorPage .tg-record-price.tg-price-compact .tg-record-actions button{
+  min-height:28px;padding:5px 9px;font-size:9px;
+}
+#monitorPage .tg-record-price[hidden],
+#monitorPage .tg-price-entry[hidden]{display:none!important}
+@media(max-width:800px){
+ #monitorPage .tg-price-compact-line{
+   grid-template-columns:minmax(0,1fr) auto;
+   gap:6px 9px;
+ }
+ #monitorPage .tg-price-compact-values{
+   grid-column:1/-1;justify-content:flex-start;text-align:left;
+   padding-top:2px;border-top:1px solid #ffffff14;
+ }
+ #monitorPage .tg-price-compact-product{align-self:center}
+}
+@media(max-width:480px){
+ #monitorPage .tg-price-search-toolbar{padding:10px}
+ #monitorPage .tg-price-search-toolbar>label{width:100%}
+ #monitorPage .tg-price-search-controls{flex:1 1 100%}
+ #monitorPage .tg-price-search-toolbar #tgPriceSearchCount{width:100%}
+ #monitorPage .tg-price-compact-line{gap:5px}
+ #monitorPage .tg-record-price.tg-price-compact{padding:9px}
+ #monitorPage .tg-record-price.tg-price-compact .tg-price-entry{padding:8px}
+ #monitorPage .tg-price-compact-values{gap:5px}
+ #monitorPage .tg-price-current-value{font-size:11.5px}
+}
