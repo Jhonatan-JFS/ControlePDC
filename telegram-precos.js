@@ -37,10 +37,14 @@
         /^.+\s*[-–:]\s*(?:AUMENTOU|AUMENTO|SUBIU|REAJUSTOU|ABAIXOU|BAIXOU|DIMINUIU|REDUZIU|CAIU)\s*$/i.test(line)){
         groupMove=flag;current=null;continue;
       }
-      const code=line.match(/^(?:CI\s*[:=#-]\s*)?(\d{1,16})\s*[-–]\s*(.+)$/i);
+      const code=line.match(/^(?:CI\s*[:=#-]?\s*)?(\d{1,16})(?:\s*[-–]\s*|\s+)(\S.*)$/i);
       if(code){
         let name=code[2].trim(),before=null,after=null;
-        const onlyPrice=priceLine(name);
+        const actionMatch=name.match(/^(?:(.*?)\s*[-–]\s*)?(AUMENTOU|AUMENTO|SUBIU|REAJUSTOU|ABAIXOU|BAIXOU|DIMINUIU|REDUZIU|CAIU)\s+(?:PARA|PRA|P\/)\s*(?:R\$\s*)?(\d[\d.,]*[.,]\d{2})\s*$/i)
+          ||name.match(/^(.*?)\s+(AUMENTOU|AUMENTO|SUBIU|REAJUSTOU|ABAIXOU|BAIXOU|DIMINUIU|REDUZIU|CAIU)\s+(?:PARA|PRA|P\/)\s*(?:R\$\s*)?(\d[\d.,]*[.,]\d{2})\s*$/i);
+        const lineMove=actionMatch?movement(actionMatch[2]):"";
+        if(actionMatch){name=(actionMatch[1]||"").trim();after=cash(actionMatch[3]);}
+        const onlyPrice=actionMatch?null:priceLine(name);
         if(onlyPrice!==null){after=onlyPrice;name="";}
         else{
           const pair=labeled(name);
@@ -54,7 +58,7 @@
         }
         const local=movement(name);
         if(local)name=name.replace(/\s*[-–]\s*(?:AUMENTOU|AUMENTO|SUBIU|REAJUSTOU|ABAIXOU|BAIXOU|DIMINUIU|REDUZIU|CAIU)\s*$/i,"").trim();
-        current={ci:code[1],name,cb:"",before,after,movement:local||groupMove||globalMove};
+        current={ci:code[1],name,cb:"",before,after,movement:lineMove||local||groupMove||globalMove};
         items.push(current);continue;
       }
       if(!current)continue;
