@@ -804,8 +804,8 @@
         metric("Produtos novos",grouped.produto.length,"success","Comunicados identificados"))+
       '</section>';
     const readiness='<div class="tg-monitor-readiness '+(needsStart||incomplete?'incomplete':'ready')+'">'+
-      (needsStart?'⚠ '+needsStart+' grupo(s)/tópico(s) sem data de início. Defina a data em Telegram → Configurações.':
-       incomplete?'◷ Histórico em recuperação: '+incomplete+' fonte(s) ainda incompletas. Configure a sincronização em Telegram → Configurações.':
+      (needsStart?'⚠ '+needsStart+' grupo(s)/tópico(s) sem data de início. Defina a data em Telegram → Conexão Telegram.':
+       incomplete?'◷ Histórico em recuperação: '+incomplete+' fonte(s) ainda incompletas. Configure a sincronização em Telegram → Conexão Telegram.':
        configuredTargets.length?'✓ Histórico percorrido até o limite disponível nas fontes escolhidas.':'Selecione grupos para iniciar o monitoramento.')+
       '</div>';
     const sync='<div class="tg-monitor-head"><div><strong>'+visible.length+' mensagem(ns) exibida(s)</strong>'+
