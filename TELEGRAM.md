@@ -1,3 +1,22 @@
+> **Atualização 17/11/2026.** Os trechos abaixo desta seção documentam também versões anteriores, algumas limitadas a um destino por modelo. Use estas regras atuais para o Mapa de Vínculos.
+
+## Mapa de Vínculos e grupos
+
+- Em **Telegram → Mapa de Vínculos**, modelos de mensagens aparecem à esquerda, destinos de grupo/tópico à direita e linhas coloridas indicam os vínculos.
+- Selecione uma mensagem e toque no destino para criar/remover o vínculo. Os relacionamentos agora são muitos-para-muitos.
+- Alterne **Mapa** e **Lista** para ver as conexões ou removê-las sem linhas, inclusive em celulares.
+- Cadastre e configure o destino real em **Telegram → Grupos e tópicos**. Em grupos com fórum, selecione um tópico válido e aberto. Um mesmo par grupo/tópico só pode ser cadastrado uma vez.
+- Em **Nova solicitação**, o destino é descoberto automaticamente. Uma confirmação lista cada grupo/tópico antes do envio. Resultado e falhas são informados por destino; não reenvie tudo sem conferir os destinos já atendidos.
+- **Monitoramento é independente dos vínculos de envio**. O mapa indica quais destinos estão também monitorados; não modifica a lista monitorada.
+- A configuração de grupos, modelos e rascunhos é sincronizável com a conta Google via Firebase; sessão Telegram e histórico bruto continuam locais ao navegador.
+- A sincronização de histórico e reações é sob demanda, nunca um serviço 24/7. Mensagens removidas e reações transitórias podem não ser recuperadas.
+- Nenhuma alteração é feita no Controle PDC, na página Solicitações original, nos dados de produtos, ou nas regras de conferência por emoji e reversão após remover a última reação.
+
+### Compatibilidade
+
+Formato atual de vínculos: `{"cadastro":["destino-a","destino-b"]}`. O formato anterior `{"cadastro":"destino-a"}` é migrado automaticamente durante a leitura. A migração não apaga os grupos existentes.
+
+---
 # Telegram no Controle PDC — primeira integração de navegador
 
 ## Objetivo e alcance

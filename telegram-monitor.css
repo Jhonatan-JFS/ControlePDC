@@ -270,3 +270,14 @@
  #monitorPage .tg-price-compact-values{gap:5px}
  #monitorPage .tg-price-current-value{font-size:11.5px}
 }
+
+
+/* Ação direta de sincronizar: configuração fica secundária. */
+#monitorPage .tg-monitor-sync-buttons{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+#monitorPage .tg-monitor-sync-buttons .btn{min-height:34px}
+#monitorPage .tg-monitor-sync-buttons #tgMonitorSyncNow:disabled{opacity:.55;cursor:wait}
+#monitorPage #tgMonitorStatus.error{color:#ff9296}
+@media(max-width:760px){
+  #monitorPage .tg-monitor-sync-buttons{width:100%}
+  #monitorPage .tg-monitor-sync-buttons .btn{flex:1 1 150px}
+}
