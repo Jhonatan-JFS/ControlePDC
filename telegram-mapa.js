@@ -10,6 +10,8 @@
   function render(mount, data) {
     if (observer) { observer.disconnect(); observer = null; }
     const models = data.models || [], groups = data.groups || [], links = data.links || {};
+    const monitorGroups=Array.isArray(data.monitored)?data.monitored:[];
+    const isMonitored=g=>{const item=monitorGroups.find(x=>x.id===g.telegramId);return !!item && (!g.isForum||item.topics?.some(t=>String(t.id)===String(g.topicId)));};
     if (!models.some(m => m.id === selectedModel)) selectedModel = models[0] ? models[0].id : "";
     const query = search.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     const matches = text => String(text).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().includes(query);
@@ -30,7 +32,7 @@
     const destinations = visibleGroups.map(g => {
       const linked = currentGroups.includes(g.id);
       return '<div class="link-destination-row"><button type="button" class="link-node link-destination'+(linked ? ' is-linked' : '')+'" data-link-destination="'+esc(g.id)+'" aria-pressed="'+String(linked)+'" aria-label="'+(linked ? 'Desvincular ' : 'Vincular ')+fmtGroup(g)+' do modelo '+esc(current?.name||'')+'">'+
-        '<span class="link-dot" aria-hidden="true"></span><span class="link-node-mark">'+(linked ? '✓' : '♧')+'</span><span class="link-node-body"><strong>'+esc(g.name)+'</strong><small>'+fmtGroup(g)+'</small></span><span class="link-dest-state '+(ready(g)?'ready':'pending')+'">'+(ready(g)?(linked?'Vinculado':'Disponível'):'Pendente')+'</span></button>'+
+        '<span class="link-dot" aria-hidden="true"></span><span class="link-node-mark">'+(linked ? '✓' : '♧')+'</span><span class="link-node-body"><strong>'+esc(g.name)+'</strong><small>'+fmtGroup(g)+'</small><small class="link-monitor-label '+(isMonitored(g)?'monitored':'')+'">'+(isMonitored(g)?'◉ Monitorado':'Monitoramento independente')+'</small></span><span class="link-dest-state '+(ready(g)?'ready':'pending')+'">'+(ready(g)?(linked?'Vinculado':'Disponível'):'Pendente')+'</span></button>'+
         '<button type="button" class="link-edit-destination" data-link-edit="'+esc(g.id)+'" title="Configurar grupo e tópico" aria-label="Configurar '+esc(g.name)+'">⚙</button></div>';
     }).join("");
     const summary = visibleModels.map(m => {
