@@ -46,7 +46,7 @@
   function draft(){
     let d=state.drafts[modelId];
     if(!d||typeof d!=="object"){
-      const prior=state.drafts[state.mappings[modelId]];
+      const prior=state.drafts[(state.mappings[modelId]||[])[0]];
       d=prior&&Array.isArray(prior.rows)&&modelId==="cb"?{...templates.defaults(modelId),rows:prior.rows.map(r=>({...r}))}:templates.defaults(modelId);
       state.drafts[modelId]=d;
     }
@@ -181,7 +181,7 @@
       onAdd:()=>{$("tgAddGroup").click();},
       onEdit:id=>{groupId=id;section="grupos";render();},
       onManage:()=>{section="grupos";render();},
-      onCompose:()=>{section="solicitacoes";render();},
+      onCompose:id=>{if(modelMap.has(id))modelId=id;section="solicitacoes";render();},
       onMonitor:()=>{document.querySelector('[data-page="monitor"]')?.click();}
     });
   }
