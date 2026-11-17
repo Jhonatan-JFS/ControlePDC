@@ -67,3 +67,15 @@
   #telegramPage .link-dest-state{font-size:9px}
   #telegramPage .link-map-footer div,#telegramPage .link-map-footer button{width:100%}
 }
+
+/* Navegação compacta: a lista extensa de destinos só abre quando solicitada. */
+#telegramPage .tg-sidebar-destinations{border:1px solid #324a66;border-radius:10px;background:#111f31;padding:2px 8px;margin:5px 0}
+#telegramPage .tg-sidebar-destinations>summary{cursor:pointer;padding:10px 4px;font-size:11px;font-weight:700;color:#b9d1e7;display:flex;justify-content:space-between;gap:8px;align-items:center}
+#telegramPage .tg-sidebar-destinations>summary::marker{color:#a8adff}
+#telegramPage .tg-sidebar-destinations summary span{background:#243851;border:1px solid #3d5675;border-radius:30px;min-width:24px;text-align:center;color:#d9eafb;padding:1px 6px}
+#telegramPage .tg-sidebar-destinations .tg-groups-heading{margin-top:0;padding:9px 3px;border-top:1px solid #31455d}
+#telegramPage .tg-sidebar-destinations .tg-group-list{max-height:310px;overflow-y:auto;padding:2px 0 8px}
+#telegramPage .tg-route-targets{display:flex;gap:5px;flex-wrap:wrap;margin:8px 0}
+#telegramPage .tg-route-destination{font-size:11px;padding:6px 8px;background:#1c3650;border:1px solid #3e6683;border-radius:8px;color:#d1edff}
+#telegramPage .tg-route #tgOpenMapFromCompose{align-self:center;white-space:nowrap}
+#telegramPage .tg-notice{white-space:pre-wrap;overflow-wrap:anywhere}
