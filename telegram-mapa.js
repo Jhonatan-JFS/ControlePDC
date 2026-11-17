@@ -10,8 +10,6 @@
   function render(mount, data) {
     if (observer) { observer.disconnect(); observer = null; }
     const models = data.models || [], groups = data.groups || [], links = data.links || {};
-    const monitorGroups=Array.isArray(data.monitored)?data.monitored:[];
-    const isMonitored=g=>{const item=monitorGroups.find(x=>x.id===g.telegramId);return !!item && (!g.isForum||item.topics?.some(t=>String(t.id)===String(g.topicId)));};
     if (!models.some(m => m.id === selectedModel)) selectedModel = models[0] ? models[0].id : "";
     const query = search.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     const matches = text => String(text).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().includes(query);
@@ -34,7 +32,7 @@
     const destinations = visibleGroups.map(g => {
       const linked = currentGroups.includes(g.id);
       return '<div class="link-destination-row"><button type="button" class="link-node link-destination'+(linked ? ' is-linked' : '')+'" data-link-destination="'+esc(g.id)+'" aria-pressed="'+String(linked)+'" aria-label="'+(linked ? 'Desvincular ' : 'Vincular ')+fmtGroup(g)+' do modelo '+esc(current?.name||'')+'">'+
-        '<span class="link-dot" aria-hidden="true"></span><span class="link-node-mark">'+(linked ? '✓' : '♧')+'</span><span class="link-node-body"><strong>'+esc(g.name)+'</strong><small>'+fmtGroup(g)+'</small><small class="link-monitor-label '+(isMonitored(g)?'monitored':'')+'">'+(isMonitored(g)?'◉ Monitorado':'Monitoramento independente')+'</small></span><span class="link-dest-state '+(ready(g)?'ready':'pending')+'">'+(ready(g)?(linked?'Vinculado':'Disponível'):'Pendente')+'</span></button>'+
+        '<span class="link-dot" aria-hidden="true"></span><span class="link-node-mark">'+(linked ? '✓' : '♧')+'</span><span class="link-node-body"><strong>'+esc(g.name)+'</strong><small>'+fmtGroup(g)+'</small></span><span class="link-dest-state '+(ready(g)?'ready':'pending')+'">'+(ready(g)?(linked?'Vinculado':'Disponível'):'Pendente')+'</span></button>'+
         '<button type="button" class="link-edit-destination" data-link-edit="'+esc(g.id)+'" title="Configurar grupo e tópico" aria-label="Configurar '+esc(g.name)+'">⚙</button></div>';
     }).join("");
     const summary = visibleModels.map(m => {
@@ -58,8 +56,8 @@
         '<section class="link-map-column link-map-destinations" aria-label="Grupos e tópicos de destino"><div class="link-map-column-head"><strong>Grupos e tópicos (Telegram)</strong><button type="button" class="link-map-plus" data-link-add title="Adicionar destino">+ Novo</button></div>'+
         '<div class="link-map-nodes">'+(destinations||'<p class="link-map-empty">Nenhum destino cadastrado ou encontrado. Adicione um grupo e escolha o tópico.</p>')+'</div></section></div>':
         '<div class="link-list" aria-label="Lista de vínculos">'+(summary||'<p class="link-map-empty">Nenhuma mensagem encontrada.</p>')+'</div>')+
-      '<div class="link-map-footer"><p>Os vínculos são usados <strong>somente no envio</strong>. Grupos monitorados e reações são configurados separadamente, sem serem alterados aqui.</p>'+
-      '<div><button type="button" class="btn btn-soft btn-small" data-link-manage>Gerenciar grupos e tópicos</button> <button type="button" class="btn btn-soft btn-small" data-link-monitor>Ir ao monitoramento</button> <button type="button" class="btn btn-primary btn-small" data-link-compose>Nova solicitação</button></div></div>'+
+      '<div class="link-map-footer"><p>Este mapa define <strong>exclusivamente para quais grupos e tópicos cada modelo será enviado</strong>.</p>'+
+      '<div><button type="button" class="btn btn-soft btn-small" data-link-manage>Gerenciar grupos e tópicos</button> <button type="button" class="btn btn-primary btn-small" data-link-compose>Nova solicitação</button></div></div>'+
       '</div>';
     const root = mount.querySelector("#tgLinkMapRoot");
     const draw = () => {
@@ -106,7 +104,6 @@
       if(target.hasAttribute("data-link-add")){data.onAdd();return;}
       if(target.hasAttribute("data-link-manage")){data.onManage();return;}
       if(target.hasAttribute("data-link-compose")){data.onCompose(selectedModel);return;}
-      if(target.hasAttribute("data-link-monitor")){data.onMonitor();return;}
       if(target.id==="tgLinkClear"){
         if(currentGroups.length && confirm("Remover todos os "+currentGroups.length+" vínculos de "+current.name+"?")){
           data.onClear(selectedModel);

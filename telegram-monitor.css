@@ -281,3 +281,22 @@
   #monitorPage .tg-monitor-sync-buttons{width:100%}
   #monitorPage .tg-monitor-sync-buttons .btn{flex:1 1 150px}
 }
+
+
+/* Escopo atual do monitoramento: apenas avisos de preços e cadastros recebidos. */
+#monitorPage .tg-monitor-categories{margin:0 0 12px;overflow:visible;flex-wrap:wrap}
+#monitorPage .tg-monitor-category{border-radius:10px;min-height:44px;flex:1 1 170px;text-align:center}
+#monitorPage .tg-record-cadastro{background:#142338;border:1px solid #335a75}
+#monitorPage .tg-record-cadastro .tg-record-meta{color:#a6bfd3;font-size:10px}
+#monitorPage .tg-cadastro-items{display:grid;gap:8px}
+#monitorPage .tg-cadastro-item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;background:#0f1e30;border:1px solid #38516b;border-radius:10px}
+#monitorPage .tg-cadastro-item>div{display:grid;gap:3px;min-width:0}
+#monitorPage .tg-cadastro-item strong{font-size:12px;color:#e1f1ff;overflow-wrap:anywhere}
+#monitorPage .tg-cadastro-item small{font-size:10px;color:#9cc4e5;overflow-wrap:anywhere}
+#monitorPage .tg-cadastro-tag{font-size:10px;font-weight:750;white-space:nowrap;padding:5px 8px;border-radius:8px;background:#3a3e49;color:#c4d7e8}
+#monitorPage .tg-cadastro-tag.new{background:#1b5347;color:#b9f5dd}
+#monitorPage .tg-cadastro-tag.existing{background:#3b384c;color:#d9c9ee}
+#monitorPage .tg-cadastro-disclaimer{font-size:10px;line-height:1.55;color:#aabed0;margin:8px 0 0}
+#monitorPage #tgCadastroSearch{flex:1;min-width:0;min-height:40px;width:100%;border:1px solid #537a99!important;border-radius:9px;background:#0d1b2b!important;color:#edf8ff!important;padding:9px 12px;font-size:12px}
+#monitorPage #tgCadastroSearchCount{color:#a2c8e0;font-size:10px;font-weight:700}
+@media(max-width:560px){#monitorPage .tg-cadastro-item{align-items:flex-start;flex-direction:column;gap:6px}}

@@ -1,3 +1,15 @@
+> **Ajuste de escopo em 17/11/2026:** esta seção é a regra vigente. Partes históricas deste documento abaixo descrevem versões anteriores que monitoravam solicitações e reações.
+
+## Escopo atual: envios separados do Monitoramento (17/11/2026)
+
+- **Mapa de Vínculos**: define **apenas** para quais chats, grupos e tópicos cada modelo de mensagem será enviado. Não mostra estados de monitoramento nem altera sua seleção.
+- **Monitoramento**: apresenta exclusivamente **Alterações de Preços** e **Cadastros/Produtos Novos** recebidos, com escolha independente de grupos e tópicos.
+- **Cadastros**: CIs identificáveis são marcados como **Primeiro aviso** ou **Já visto** de acordo com a primeira ocorrência no histórico local do Telegram. Isso não verifica o cadastro no Solidcon ou em qualquer ERP.
+- O botão **Sincronizar agora** recupera avisos no escopo configurado. O painel não acompanha pedidos enviados e não consulta reações por enquanto; o histórico antigo de solicitações não é apagado.
+- **Relatório TXT** nesta tela apresenta somente preços e cadastros recebidos. Outras categorias antigas permanecem no código/histórico, sem aparecer no seletor atual.
+
+---
+
 > **Atualização 17/11/2026.** Os trechos abaixo desta seção documentam também versões anteriores, algumas limitadas a um destino por modelo. Use estas regras atuais para o Mapa de Vínculos.
 
 ## Mapa de Vínculos e grupos

@@ -2,6 +2,14 @@
 
 Organizador pessoal para mensagens de atualização de produtos. O **Controle PDC** mantém as operações de carga, impressão e conferência manuais e não se conecta ao Solidcon nem às impressoras. A área **Telegram**, separada, pode se conectar à conta autorizada no navegador para preparar e enviar mensagens e sincronizar o monitoramento sob demanda.
 
+## Escopo atual: envios separados do Monitoramento (17/11/2026)
+
+- **Mapa de Vínculos**: define **apenas** para quais chats, grupos e tópicos cada modelo de mensagem será enviado. Não mostra estados de monitoramento nem altera sua seleção.
+- **Monitoramento**: apresenta exclusivamente **Alterações de Preços** e **Cadastros/Produtos Novos** recebidos, com escolha independente de grupos e tópicos.
+- **Cadastros**: CIs identificáveis são marcados como **Primeiro aviso** ou **Já visto** de acordo com a primeira ocorrência no histórico local do Telegram. Isso não verifica o cadastro no Solidcon ou em qualquer ERP.
+- O botão **Sincronizar agora** recupera avisos no escopo configurado. O painel não acompanha pedidos enviados e não consulta reações por enquanto; o histórico antigo de solicitações não é apagado.
+- **Relatório TXT** nesta tela apresenta somente preços e cadastros recebidos. Outras categorias antigas permanecem no código/histórico, sem aparecer no seletor atual.
+
 ## Mapa de Vínculos Telegram (17/11/2026)
 
 - **Telegram → Mapa de Vínculos:** selecione o modelo à esquerda e clique nos destinos à direita para conectar ou desconectar. Um modelo pode enviar para vários grupos/tópicos; um grupo pode receber vários modelos.

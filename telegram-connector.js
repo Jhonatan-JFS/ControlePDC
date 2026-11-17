@@ -10,8 +10,8 @@
   const encoder=new TextEncoder(), decoder=new TextDecoder();
   const enc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   let current=null, myGroups=[], busy=false, syncRunning=false;
-  let activeMonitorGroup="",activeMonitorTopic="all",activeMonitorDirection="enviadas",activeReceivedCategory="todas",monitorSettingsOpen=false,monitorReportOpen=false,monitorSyncFeedback="",monitorSyncError=false;
-  let syncConfigTarget="all",syncNotice="",syncNoticeError=false,priceSearchValue="";
+  let activeMonitorGroup="",activeMonitorTopic="all",activeMonitorDirection="recebidas",activeReceivedCategory="preco",monitorSettingsOpen=false,monitorReportOpen=false,monitorSyncFeedback="",monitorSyncError=false;
+  let syncConfigTarget="all",syncNotice="",syncNoticeError=false,priceSearchValue="",cadastroSearchValue="";
   let draftMonitorGroup="",draftMonitorTopics=[],topicRequestVersion=0;
   const monitorTopicCache=new Map();
   function bytesToBase64(bytes){let str="";for(const b of bytes)str+=String.fromCharCode(b);return btoa(str);}
@@ -605,21 +605,8 @@
           }
           db.recentPending[cursorKey]=more;writeHistory(db);
           if(more)pending.push(group.name+": mensagens recentes incompletas; sincronize novamente.");
-          // Conferência de solicitações de todos os autores.
-          const records=db.records.filter(r=>r.telegramId===group.telegramId &&
-            (group.topicId==null||String(r.topicId??"")===String(group.topicId))&&
-            r.kind==="solicitacao"&&Date.parse(r.date)>=Date.parse(group.startAt));
-          for(let offset=0;offset<records.length;offset+=50){
-            const chunk=records.slice(offset,offset+50);
-            notify(prefix+"conferindo reações ("+Math.min(offset+chunk.length,records.length)+"/"+records.length+")…");
-            const reactions=await window.TelegramBridge.reactions(group.telegramId,chunk.map(r=>r.messageId));
-            const byId=new Map(reactions.map(r=>[r.id,r]));
-            for(const rec of chunk){
-              const data=byId.get(rec.messageId);
-              if(data){applyReaction(rec,data);checked++;}
-            }
-            writeHistory(db);
-          }
+          // Os registros antigos de solicitações permanecem no histórico, mas
+          // este monitor não consulta reações: seu escopo atual é preços e cadastros.
           const now=new Date().toISOString(),prev=db.lastSyncBySource[cursorKey]||{};
           const sourceComplete=state.done&&!more;
           db.lastSyncBySource[cursorKey]={
@@ -740,6 +727,54 @@
     const counter=$("tgPriceSearchCount");
     if(counter)counter.textContent=shown+" aviso(s) · "+products+" item(ns) encontrado(s)";
   }
+  // Esta visão acompanha apenas avisos recebidos. Modelos enviados e conferência
+  // por reações permanecem no histórico antigo, mas não fazem parte do painel.
+  function monitorNoticeKind(rec,priceIndex){
+    if(recordDirection(rec)!=="recebidas")return "";
+    const body=String(rec.text||"").trim();
+    const header=body.split(/\r?\n/).find(v=>v.trim())?.trim()||"";
+    if(/^\s*(?:por\s+favor|solicita[cç][aã]o\b|solicito\b|preciso\s+(?:de|que))\b/i.test(body))return "";
+    const key=String(rec.telegramId||"")+":"+String(rec.messageId||"");
+    if(rec.kind==="preco"||priceIndex.has(key))return "preco";
+    const registrationHeader=/^(?:cadastros?|cadastrados?|cadastros?\s+(?:realizados?|novos?)|produtos?\s+novos?|novos?\s+produtos?|itens?\s+novos?|novos?\s+itens?)\b/i;
+    if(rec.kind==="produto"||registrationHeader.test(header))return "cadastro";
+    return "";
+  }
+  function cadastroIndex(records,priceIndex){
+    const first=new Map();
+    for(const rec of records.filter(r=>monitorNoticeKind(r,priceIndex)==="cadastro")
+      .sort((a,b)=>new Date(a.date)-new Date(b.date)||(Number(a.messageId)||0)-(Number(b.messageId)||0))){
+      for(const item of extract(rec.text)){
+        const ci=String(item.ci||"").trim();
+        if(ci&&!first.has(ci))first.set(ci,rec.key);
+      }
+    }
+    return first;
+  }
+  function cadastroDetails(rec,first){
+    const products=extract(rec.text);
+    if(!products.length)return '<pre>'+enc(rec.text||"")+'</pre>'+
+      '<p class="tg-cadastro-disclaimer">Sem CI identificável. Confira manualmente este aviso.</p>';
+    return '<div class="tg-cadastro-items">'+products.map(p=>{
+      const id=String(p.ci||"").trim(),prior=first.get(id);
+      const newInHistory=!!id&&prior===rec.key;
+      const tag=!id?"Sem CI":newInHistory?"Primeiro aviso":"Já visto";
+      return '<div class="tg-cadastro-item"><div><strong>'+enc(id||"CI não informado")+' - '+enc(p.name)+'</strong>'+
+        (p.cb?'<small>CB: '+enc(p.cb)+'</small>':'')+'</div>'+
+        '<span class="tg-cadastro-tag '+(newInHistory?"new":"existing")+'">'+tag+'</span></div>';
+    }).join("")+'</div>';
+  }
+  function applyCadastroSearch(){
+    const root=$("tgCadastroRecords");if(!root)return;
+    const q=normalizePriceSearch(cadastroSearchValue);
+    let shown=0;
+    for(const card of root.querySelectorAll(".tg-record-cadastro")){
+      const match=!q||normalizePriceSearch(card.textContent).includes(q);
+      card.hidden=!match;if(match)shown++;
+    }
+    const count=$("tgCadastroSearchCount");
+    if(count)count.textContent=shown+" aviso(s) encontrado(s)";
+  }
   function monitorHtml(){
     const {selection,group}=monitorScope(),db=readHistory();
     if(!selection.groups.length)monitorSettingsOpen=true;
@@ -747,18 +782,14 @@
     const all=group?db.records.filter(r=>matchesMonitorScope(r,group,activeMonitorTopic))
       .sort((a,b)=>new Date(b.date)-new Date(a.date)):[];
     const priceIndex=window.TelegramPriceView?.buildIndex?.(db.records)||new Map();
-    const isPrice=r=>r.kind==="preco"||priceIndex.has(String(r.telegramId||"")+":"+String(r.messageId));
-    const kindOf=r=>r.kind==="recebida"&&isPrice(r)?"preco":r.kind;
-    const sent=all.filter(r=>recordDirection(r)==="enviadas");
+    const firstSeen=cadastroIndex(db.records,priceIndex);
     const incoming=all.filter(r=>recordDirection(r)==="recebidas");
-    const grouped={solicitacao:incoming.filter(r=>r.kind==="solicitacao"),preco:incoming.filter(r=>kindOf(r)==="preco"),
-      produto:incoming.filter(r=>r.kind==="produto"),outras:incoming.filter(r=>!["solicitacao","preco","produto"].includes(kindOf(r)))};
-    const visible=activeMonitorDirection==="recebidas"?
-      incoming.filter(r=>activeReceivedCategory==="todas"||kindOf(r)===activeReceivedCategory||
-        (activeReceivedCategory==="outras"&&!["solicitacao","preco","produto"].includes(kindOf(r)))):sent;
-    const allRequests=all.filter(r=>r.kind==="solicitacao");
-    const verified=allRequests.filter(r=>r.status==="conferido"&&!r.unavailable).length;
-    const pending=allRequests.filter(r=>r.status==="pendente"&&!r.unavailable).length;
+    const prices=incoming.filter(r=>monitorNoticeKind(r,priceIndex)==="preco");
+    const registrations=incoming.filter(r=>monitorNoticeKind(r,priceIndex)==="cadastro");
+    const visible=activeReceivedCategory==="cadastro"?registrations:prices;
+    const cadastroRows=registrations.flatMap(rec=>extract(rec.text).map(item=>({rec,ci:String(item.ci||"").trim()}))).filter(item=>item.ci);
+    const firstCount=cadastroRows.filter(item=>firstSeen.get(item.ci)===item.rec.key).length;
+    const seenCount=cadastroRows.length-firstCount;
     const totalSources=selection.groups.reduce((count,g)=>count+(g.isForum?g.topics.length:1),0);
     const configuredTargets=syncOptions();
     const needsStart=configuredTargets.filter(t=>!t.startAt).length;
@@ -775,33 +806,27 @@
     const topics=group?.isForum?'<nav class="tg-monitor-topics" aria-label="Tópicos do grupo selecionado">'+
       '<button type="button" class="tg-monitor-topic'+(activeMonitorTopic==="all"?' active':'')+'" data-mon-filter="all">Todos os tópicos escolhidos</button>'+
       group.topics.map(t=>'<button type="button" class="tg-monitor-topic'+(activeMonitorTopic===t.id?' active':'')+'" data-mon-filter="'+enc(t.id)+'">'+enc(t.name)+'</button>').join("")+'</nav>':"";
-    const top='<div class="tg-monitor-controls"><div><strong>Monitoramento por grupo</strong><p>Consulte mensagens de todos os participantes, separadas por quem enviou e pelo assunto.</p></div>'+
+    const top='<div class="tg-monitor-controls"><div><strong>Monitoramento de avisos</strong><p>Somente alterações de preços e cadastros recebidos. Os vínculos de envio não interferem nesta área.</p></div>'+
       '<button type="button" id="tgMonToggleConfig" class="btn btn-soft btn-small" aria-expanded="'+monitorSettingsOpen+'">⚙ Selecionar grupos e tópicos</button></div>';
-    const directionTabs='<nav class="tg-monitor-directions" aria-label="Origem das mensagens">'+
-      '<button type="button" class="tg-monitor-direction'+(activeMonitorDirection==="enviadas"?' active':'')+'" data-mon-direction="enviadas" aria-pressed="'+(activeMonitorDirection==="enviadas")+'"><span>Minhas mensagens</span><strong>'+sent.length+'</strong></button>'+
-      '<button type="button" class="tg-monitor-direction'+(activeMonitorDirection==="recebidas"?' active':'')+'" data-mon-direction="recebidas" aria-pressed="'+(activeMonitorDirection==="recebidas")+'"><span>Mensagens recebidas</span><strong>'+incoming.length+'</strong></button></nav>';
-    const receivedFilters='<nav class="tg-monitor-categories" aria-label="Tipos de mensagens recebidas">'+[
-      ["todas","Todas",incoming.length],["solicitacao","Solicitações dos colegas",grouped.solicitacao.length],
-      ["preco","Alterações de preço",grouped.preco.length],["produto","Produtos novos",grouped.produto.length],
-      ["outras","Outras",grouped.outras.length]
+    const receivedFilters='<nav class="tg-monitor-categories" aria-label="Tipo de aviso monitorado">'+[
+      ["preco","Alterações de Preços",prices.length],["cadastro","Cadastros",registrations.length]
     ].map(([key,label,count])=>'<button type="button" class="tg-monitor-category'+(activeReceivedCategory===key?' active':'')+'" data-mon-category="'+key+'" aria-pressed="'+(activeReceivedCategory===key)+'">'+label+' <span>'+count+'</span></button>').join("")+'</nav>';
-    const priceTools=activeMonitorDirection==="recebidas"&&activeReceivedCategory==="preco"?
+    const priceTools=activeReceivedCategory==="preco"?
       '<div class="tg-price-search-toolbar" role="search" aria-label="Pesquisar alterações de preços">'+
       '<label for="tgPriceSearch">Pesquisar preços</label>'+
       '<div class="tg-price-search-controls"><input type="search" id="tgPriceSearch" placeholder="Buscar CI, nome, CB ou marca…" autocomplete="off" value="'+enc(priceSearchValue)+'">'+
       '<button type="button" class="btn btn-ghost btn-small" id="tgPriceClear">Limpar</button></div>'+
-      '<small id="tgPriceSearchCount" role="status" aria-live="polite"></small>'+
-      '</div>':"";
-    const stats='<section class="tg-stats" aria-label="Indicadores das mensagens">'+
-      (activeMonitorDirection==="enviadas"?
-        metric("Minhas mensagens",sent.length,"info","Deste grupo ou tópico")+
-        metric("Conferidas",sent.filter(r=>r.kind==="solicitacao"&&r.status==="conferido").length,"success","Com reação")+
-        metric("Pendentes",sent.filter(r=>r.kind==="solicitacao"&&r.status==="pendente").length,"warning","Sem reação")+
-        metric("Fontes selecionadas",totalSources,"info","Grupos / tópicos monitorados"):
-        metric("Recebidas",incoming.length,"info","Mensagens dos demais participantes")+
-        metric("Solicitações",grouped.solicitacao.length,"warning","Também acompanhadas por reações")+
-        metric("Preços",grouped.preco.length,"info","Atualizações identificadas")+
-        metric("Produtos novos",grouped.produto.length,"success","Comunicados identificados"))+
+      '<small id="tgPriceSearchCount" role="status" aria-live="polite"></small></div>':
+      '<div class="tg-price-search-toolbar" role="search" aria-label="Pesquisar avisos de cadastro">'+
+      '<label for="tgCadastroSearch">Pesquisar cadastros</label>'+
+      '<div class="tg-price-search-controls"><input type="search" id="tgCadastroSearch" placeholder="CI, CB ou produto…" autocomplete="off" value="'+enc(cadastroSearchValue)+'">'+
+      '<button type="button" class="btn btn-ghost btn-small" id="tgCadastroClear">Limpar</button></div>'+
+      '<small id="tgCadastroSearchCount" role="status" aria-live="polite"></small></div>';
+    const stats='<section class="tg-stats" aria-label="Indicadores de avisos">'+
+      metric("Alterações de preços",prices.length,"info","Avisos recebidos")+
+      metric("Cadastros",registrations.length,"success","Avisos recebidos")+
+      metric("Primeiras ocorrências",firstCount,"info","CIs sem aviso anterior no histórico")+
+      metric("CIs já vistos",seenCount,"warning","CIs presentes em avisos anteriores")+
       '</section>';
     const readiness='<div class="tg-monitor-readiness '+(needsStart||incomplete?'incomplete':'ready')+'">'+
       (needsStart?'⚠ '+needsStart+' grupo(s)/tópico(s) sem data de início. Defina a data em Telegram → Conexão Telegram.':
@@ -810,45 +835,38 @@
       '</div>';
     const sync='<div class="tg-monitor-head"><div><strong>'+visible.length+' mensagem(ns) exibida(s)</strong>'+
       '<small>Última tentativa: '+enc(syncStamp(db.lastSync))+' · Última concluída: '+enc(syncStamp(db.lastCompleteSync))+
-      ' · Solicitações conferidas: '+verified+' · pendentes: '+pending+'</small></div>'+
+      ' · Fontes selecionadas: '+totalSources+'</small></div>'+
       '<div class="tg-monitor-sync-buttons"><button type="button" class="btn btn-primary btn-small" id="tgMonitorSyncNow"'+(syncRunning?' disabled aria-busy="true"':'')+'>↻ Sincronizar agora</button><button type="button" class="btn btn-soft btn-small" id="tgOpenSyncSettings">⚙ Configurar sincronização</button></div></div>';
     const status='<p class="tg-auth-message" id="tgMonitorStatus" role="status" aria-live="polite">'+
-      (monitorSyncFeedback?enc(monitorSyncFeedback):!logged()?"Conecte sua conta em Telegram → Conexão Telegram.":!selection.groups.length?"Configure quais grupos e tópicos acompanhar.":"Clique em Sincronizar agora para buscar mensagens novas e revalidar reações.")+'</p>';
-    const content=visible.length?'<div class="tg-records" id="tgPriceRecords">'+visible.map(rec=>{
-      const received=recordDirection(rec)==="recebidas",request=rec.kind==="solicitacao";
-      const parsed=request?extract(rec.text):[];
-      const prices=received&&isPrice(rec)?(priceIndex.get(String(rec.telegramId||"")+":"+String(rec.messageId))||[]):[];
+      (monitorSyncFeedback?enc(monitorSyncFeedback):!logged()?"Conecte sua conta em Telegram → Conexão Telegram.":!selection.groups.length?"Configure quais grupos e tópicos acompanhar.":"Clique em Sincronizar agora para buscar novos avisos de preços e cadastros.")+'</p>';
+    const content=visible.length?'<div class="tg-records" id="'+(activeReceivedCategory==="cadastro"?"tgCadastroRecords":"tgPriceRecords")+'">'+visible.map(rec=>{
+      if(activeReceivedCategory==="cadastro"){
+        return '<article class="tg-record tg-record-cadastro">'+
+          '<div class="tg-record-top"><strong>Cadastro / Produto novo</strong><span class="tg-rec-state ok">Aviso recebido</span></div>'+
+          '<small class="tg-record-meta">'+enc(rec.group)+(rec.topicName?' / '+enc(rec.topicName):'')+
+          ' · '+enc(new Date(rec.date).toLocaleString("pt-BR"))+' · #'+enc(rec.messageId)+'</small>'+
+          '<div class="tg-record-content">'+cadastroDetails(rec,firstSeen)+'</div>'+
+          '<p class="tg-cadastro-disclaimer">Indicadores baseados apenas nos avisos encontrados no Telegram; não confirmam o cadastro no sistema da loja.</p></article>';
+      }
+      const entries=priceIndex.get(String(rec.telegramId||"")+":"+String(rec.messageId))||[];
       const fallbackState=window.TelegramPriceView?.movement?.(rec.text||"")||"";
-      const priceState=prices.length&&prices.every(p=>p.state==="up")?"up":
-        prices.length&&prices.every(p=>p.state==="down")?"down":
-        prices.length?"neutral":(fallbackState||"neutral");
-      const priceLabel=priceState==="up"?"↑ AUMENTOU":priceState==="down"?"↓ BAIXOU":"Alteração de preço";
-      const label=request?(rec.unavailable?"Mensagem indisponível":rec.status==="conferido"?"Conferido":"Não conferido"):
-        isPrice(rec)?priceLabel:rec.kind==="produto"?"Produto novo":"Mensagem recebida";
-      const block=received&&isPrice(rec)?priceDetails(rec,prices):
-        parsed.length?parsed.map(p=>'<div class="tg-monitor-item"><strong>'+enc(p.ci)+' - '+enc(p.name)+'</strong>'+(p.cb?'<small>CB: '+enc(p.cb)+'</small>':'')+'</div>').join(""):'<pre>'+enc(rec.text)+'</pre>';
-      const sender=received?'Recebida de participante'+(rec.senderId?' (ID '+enc(rec.senderId)+')':''):'Enviada por mim';
-      const requestAction=received?'<div class="tg-record-actions"><button type="button" class="btn btn-ghost btn-small" data-mon-request="'+enc(rec.key)+'">'+
-        (request?'Não é solicitação':'Marcar como solicitação')+'</button></div>':"";
-      const compactPrice=received&&isPrice(rec);
-      return '<article class="tg-record'+(compactPrice?' tg-record-price tg-price-'+priceState+' tg-price-compact':'')+'">'+
-        '<div class="tg-record-top"><strong>'+enc(compactPrice?"Alterações de Preços":rec.group)+(compactPrice?"":rec.topicName?' · '+enc(rec.topicName):'')+
-        '</strong>'+(compactPrice?"":'<span class="tg-rec-state '+(request&&rec.status==="conferido"&&!rec.unavailable?"ok":"")+'">'+enc(label)+'</span>')+'</div>'+
-        '<small class="tg-record-meta">'+(compactPrice?enc(new Date(rec.date).toLocaleString("pt-BR"))+
-           ' · '+enc(rec.group)+(rec.topicName?' / '+enc(rec.topicName):''):sender+' · '+enc(new Date(rec.date).toLocaleString("pt-BR")))+
-           ' · #'+enc(rec.messageId)+'</small>'+
-        '<div class="tg-record-content">'+block+'</div>'+
-        (compactPrice?"":'<small>'+(request?(rec.reactionCount||0)+' reação(ões) · '+(rec.history?.length||0)+' evento(s) registrados':
-          'Mensagem informativa, sem status de conferência')+'</small>')+requestAction+'</article>';
-    }).join("")+'</div>':'<div class="tg-information"><strong>Nenhuma mensagem nesta visualização.</strong><p>'+
-      (!group?"Configure um grupo para começar.":"Não há mensagens nesta categoria no histórico local. Use Sincronizar selecionados para consultar novas mensagens.")+'</p></div>';
+      const priceState=entries.length&&entries.every(p=>p.state==="up")?"up":
+        entries.length&&entries.every(p=>p.state==="down")?"down":
+        entries.length?"neutral":(fallbackState||"neutral");
+      return '<article class="tg-record tg-record-price tg-price-'+priceState+' tg-price-compact">'+
+        '<div class="tg-record-top"><strong>Alterações de Preços</strong></div>'+
+        '<small class="tg-record-meta">'+enc(new Date(rec.date).toLocaleString("pt-BR"))+
+        ' · '+enc(rec.group)+(rec.topicName?' / '+enc(rec.topicName):'')+' · #'+enc(rec.messageId)+'</small>'+
+        '<div class="tg-record-content">'+priceDetails(rec,entries)+'</div></article>';
+    }).join("")+'</div>':'<div class="tg-information"><strong>Nenhum aviso nesta visualização.</strong><p>'+
+      (!group?"Selecione um grupo para começar.":"Não há avisos desta categoria no histórico local. Sincronize para consultar novas mensagens.")+'</p></div>';
     const txtReport=monitorReportOpen?
       '<div id="tgReportContainer" class="tg-report-container">'+
         (window.TelegramReports?.panelHtml?.({group,activeTopic:activeMonitorTopic})||
           '<p class="tg-muted">Não foi possível carregar o gerador de relatórios. Atualize a página.</p>')+
       '</div>':'';
-    return top+txtReport+(monitorSettingsOpen?monitorConfigHtml(selection):"")+tabs+topics+readiness+directionTabs+
-      (activeMonitorDirection==="recebidas"?receivedFilters:"")+stats+sync+status+priceTools+content;
+    return top+txtReport+(monitorSettingsOpen?monitorConfigHtml(selection):"")+tabs+topics+readiness+receivedFilters+
+      stats+sync+status+priceTools+content;
   }
   async function renderMonitorTopicChoices(){
     const mount=$("tgMonTopicOptions"),select=$("tgMonGroupPick");
@@ -876,7 +894,7 @@
     if(!mount)return;
     mount.innerHTML=monitorHtml();
     $("tgMonitorStatus")?.classList.toggle("error",monitorSyncError);
-    applyPriceSearch();
+    applyPriceSearch();applyCadastroSearch();
     const launcher=$("tgReportOpen");
     if(launcher){
       launcher.setAttribute("aria-expanded",String(monitorReportOpen));
@@ -896,6 +914,10 @@
     if(e.target?.id==="tgPriceSearch"){
       priceSearchValue=e.target.value;
       applyPriceSearch();
+    }
+    if(e.target?.id==="tgCadastroSearch"){
+      cadastroSearchValue=e.target.value;
+      applyCadastroSearch();
     }
   });
   document.addEventListener("change",e=>{
@@ -922,6 +944,11 @@
       if(input){input.value="";applyPriceSearch();input.focus();}
       return;
     }
+    if(e.target.closest("#tgCadastroClear")){
+      cadastroSearchValue="";const input=$("tgCadastroSearch");
+      if(input){input.value="";applyCadastroSearch();input.focus();}
+      return;
+    }
     if(e.target.closest("#tgSyncSaveStart")){
       try{
         const iso=saveSyncStart($("tgSyncFrom")?.value||"",syncConfigTarget);
@@ -946,7 +973,7 @@
         },"all");
         monitorSyncError=!!result.errors.length;
         monitorSyncFeedback=(result.complete?"Sincronização concluída. ":"Leitura parcial. ")+
-          result.added+" nova(s) mensagem(ns); "+result.checked+" conferência(s) de reações."+
+          result.added+" mensagem(ns) adicionada(s) ao histórico; avisos atualizados."+
           (result.errors.length?" Falhas: "+result.errors.join(" | "):"")+
           (result.pending.length?" Continue sincronizando para recuperar o histórico restante.":"");
       }catch(err){
@@ -968,14 +995,10 @@
     if(e.target.closest("#tgMonToggleConfig")){
       monitorSettingsOpen=!monitorSettingsOpen;draftMonitorGroup="";draftMonitorTopics=[];renderMonitor();return;
     }
-    const direction=e.target.closest("[data-mon-direction]");
-    if(direction){
-      activeMonitorDirection=direction.dataset.monDirection;
-      activeReceivedCategory="todas";
-      renderMonitor();return;
-    }
     const category=e.target.closest("[data-mon-category]");
-    if(category){activeReceivedCategory=category.dataset.monCategory;renderMonitor();return;}
+    if(category&&["preco","cadastro"].includes(category.dataset.monCategory)){
+      activeReceivedCategory=category.dataset.monCategory;renderMonitor();return;
+    }
     const requestToggle=e.target.closest("[data-mon-request]");
     if(requestToggle){
       const state=readHistory(),rec=state.records.find(r=>r.key===requestToggle.dataset.monRequest);
