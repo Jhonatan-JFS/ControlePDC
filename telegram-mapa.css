@@ -79,3 +79,6 @@
 #telegramPage .tg-route-destination{font-size:11px;padding:6px 8px;background:#1c3650;border:1px solid #3e6683;border-radius:8px;color:#d1edff}
 #telegramPage .tg-route #tgOpenMapFromCompose{align-self:center;white-space:nowrap}
 #telegramPage .tg-notice{white-space:pre-wrap;overflow-wrap:anywhere}
+
+#telegramPage .link-monitor-label{font-size:9px!important;color:#799bb7!important}
+#telegramPage .link-monitor-label.monitored{color:#69d6b1!important;font-weight:700}
