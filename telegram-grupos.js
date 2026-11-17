@@ -79,6 +79,7 @@
     if(el){el.textContent=txt;el.classList.toggle("error",error);}
   }
   function menu(){
+    const count=$("tgGroupCountSidebar");if(count)count.textContent=String(state.groups.length);
     side.querySelectorAll("[data-tg-section]").forEach(b=>{
       const active=b.dataset.tgSection===section;
       b.classList.toggle("active",active);b.setAttribute("aria-current",active?"page":"false");
