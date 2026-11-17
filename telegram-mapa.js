@@ -15,8 +15,10 @@
     if (!models.some(m => m.id === selectedModel)) selectedModel = models[0] ? models[0].id : "";
     const query = search.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     const matches = text => String(text).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().includes(query);
-    const visibleModels = models.filter(m => matches(m.name + " " + m.category));
-    const visibleGroups = groups.filter(g => matches(label(g) + " " + g.name));
+    const matchingGroups=groups.filter(g=>matches(label(g)+" "+g.name));
+    const visibleModels=models.filter(m=>matches(m.name+" "+m.category)||idsFor(links,m.id).some(id=>matchingGroups.some(g=>g.id===id)));
+    const visibleGroups=groups.filter(g=>matches(label(g)+" "+g.name)||visibleModels.some(m=>idsFor(links,m.id).includes(g.id)));
+    if(visibleModels.length&&!visibleModels.some(m=>m.id===selectedModel))selectedModel=visibleModels[0].id;
     const count = models.reduce((sum, m) => sum + idsFor(links,m.id).length, 0);
     const linkedModels = models.filter(m => idsFor(links,m.id).length).length;
     const current = models.find(m => m.id === selectedModel);
