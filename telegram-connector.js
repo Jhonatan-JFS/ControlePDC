@@ -605,21 +605,8 @@
           }
           db.recentPending[cursorKey]=more;writeHistory(db);
           if(more)pending.push(group.name+": mensagens recentes incompletas; sincronize novamente.");
-          // Conferência de solicitações de todos os autores.
-          const records=db.records.filter(r=>r.telegramId===group.telegramId &&
-            (group.topicId==null||String(r.topicId??"")===String(group.topicId))&&
-            r.kind==="solicitacao"&&Date.parse(r.date)>=Date.parse(group.startAt));
-          for(let offset=0;offset<records.length;offset+=50){
-            const chunk=records.slice(offset,offset+50);
-            notify(prefix+"conferindo reações ("+Math.min(offset+chunk.length,records.length)+"/"+records.length+")…");
-            const reactions=await window.TelegramBridge.reactions(group.telegramId,chunk.map(r=>r.messageId));
-            const byId=new Map(reactions.map(r=>[r.id,r]));
-            for(const rec of chunk){
-              const data=byId.get(rec.messageId);
-              if(data){applyReaction(rec,data);checked++;}
-            }
-            writeHistory(db);
-          }
+          // Os registros antigos de solicitações permanecem no histórico, mas
+          // este monitor não consulta reações: seu escopo atual é preços e cadastros.
           const now=new Date().toISOString(),prev=db.lastSyncBySource[cursorKey]||{};
           const sourceComplete=state.done&&!more;
           db.lastSyncBySource[cursorKey]={
