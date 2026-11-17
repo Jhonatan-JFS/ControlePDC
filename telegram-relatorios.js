@@ -16,8 +16,8 @@
     return match?match[3]+"/"+match[2]+"/"+match[1]+" às "+match[4]+":"+match[5]:formatDate(value);
   };
   const labels={
-    all:"Todas as categorias",cb:"Atualizações de CB",produto:"Produtos novos",
-    preco:"Atualizações de preços (AUMENTOU/BAIXOU)",solicitacao:"Solicitações",outras:"Outras mensagens"
+    all:"Todas as categorias",cb:"Atualizações de CB",produto:"Cadastros / Produtos novos",
+    preco:"Alterações de preços (AUMENTOU/BAIXOU)",solicitacao:"Solicitações",outras:"Outras mensagens"
   };
   const sectionKeys=["cb","produto","preco","solicitacao","outras"];
   const headings={
@@ -28,7 +28,8 @@
     const text=plain(record.text),header=text.slice(0,130);
     if(/\b(?:atualiza(?:r|[cç][aã]o)|troca(?:r)?|alterar|corrigir)\b.{0,38}\b(?:CB|c[oó]digo(?:s)?\s+de\s+barras)\b/i.test(header)
       ||/^\s*ATUALIZA[CÇ][AÃ]O\s+(?:DE\s+)?CB/i.test(header))return "cb";
-    if(record.kind==="produto"||/^\s*(?:PRODUTOS?\s+NOVOS?|NOVOS?\s+PRODUTOS?)\b/i.test(header))return "produto";
+    if(recordDirection(record)==="recebidas"&&!/^\s*(?:por\s+favor|solicita[cç][aã]o|solicito)\b/i.test(header) &&
+      (record.kind==="produto"||/^\s*(?:CADASTROS?|CADASTRAD[OA]S?|PRODUTOS?\s+NOVOS?|NOVOS?\s+PRODUTOS?)\b/i.test(header)))return "produto";
     if(record.kind==="preco"||/^\s*(?:AUMENTOU|ABAIXOU|BAIXOU|DIMINUIU|REDUZIU|AJUSTE\s+DE\s+PRE[CÇ]O)\b/i.test(header)
       ||/\b\d{1,12}\s*(?:[-–]\s*)?(?:AUMENTOU|ABAIXOU|BAIXOU|DIMINUIU|REDUZIU|SUBIU|REAJUSTOU|CAIU)\s+(?:PARA|PRA|P\/)\s*(?:R\$\s*)?\d[\d.,]*[.,]\d{2}\b/i.test(text))return "preco";
     if(record.kind==="solicitacao")return "solicitacao";
@@ -363,7 +364,7 @@
       '<label>Tópico do Telegram para o relatório<select id="tgReportTopic">'+reportTopicOptions(g,chosen)+'</select></label>'+
       '<div class="tg-report-topic-help"><small id="tgReportTopicHint">Consultando tópicos do grupo…</small>'+
       '<button type="button" class="btn btn-soft btn-small" id="tgReportAddTopic" hidden>Incluir no monitoramento</button></div>':"";
-    const typeOptions=Object.entries(labels).map(([id,label])=>'<option value="'+id+'"'+(opts.kind===id?' selected':'')+'>'+label+'</option>').join("");
+    const typeOptions=[["preco",labels.preco],["produto",labels.produto]].map(([id,label])=>'<option value="'+id+'"'+(opts.kind===id?' selected':'')+'>'+label+'</option>').join("");
     return '<section class="tg-report-panel" aria-labelledby="tgReportHeading">'+
       '<div class="tg-report-head"><div><h3 id="tgReportHeading">Lista simples de produtos (TXT)</h3><p>Apenas material, CI, descrição, AUMENTOU/BAIXOU e CB quando houver. Uma linha por produto, pronta para copiar.</p></div>'+
       '<span>Texto para copiar</span></div><p class="tg-report-group-label">Grupo selecionado: <strong>'+esc(g.name)+'</strong>. Para outro grupo, use as abas do Monitoramento.</p>'+
@@ -371,8 +372,8 @@
       '<label>Iniciar a partir de (data e hora)<input type="datetime-local" id="tgReportFrom" value="'+esc(opts.from)+'"></label>'+
       topicOptions+
       '<label>Tipo de relatório<select id="tgReportKind">'+typeOptions+'</select></label>'+
-      '<label>Mensagens<select id="tgReportDirection"><option value="all"'+(opts.direction==="all"?' selected':'')+'>Minhas e recebidas</option>'+
-        '<option value="enviadas"'+(opts.direction==="enviadas"?' selected':'')+'>Apenas minhas</option>'+
+      '<label>Mensagens<select id="tgReportDirection">'+
+
         '<option value="recebidas"'+(opts.direction==="recebidas"?' selected':'')+'>Apenas recebidas</option></select></label>'+
       '<label>Material para itens sem título (opcional)<input type="text" id="tgReportMaterial" maxlength="65" placeholder="Ex.: Prafesty" value="'+esc(opts.material)+'"></label>'+ 
       '</div><div class="tg-report-sync-tip"><span>Este relatório usa mensagens já capturadas. Se faltar algum registro, sincronize antes de gerar o TXT.</span>'+
@@ -387,8 +388,8 @@
     const scope=window.TelegramConnector?.getReportScope?.();
     if(!scope?.group)throw new Error("Selecione um grupo na aba Monitoramento.");
     return {group:scope.group,topicId:scope.group.isForum?$("tgReportTopic")?.value:null,
-      from:$("tgReportFrom")?.value||"",kind:$("tgReportKind")?.value||"all",
-      direction:$("tgReportDirection")?.value||"all",material:$("tgReportMaterial")?.value||""};
+      from:$("tgReportFrom")?.value||"",kind:["preco","produto"].includes($("tgReportKind")?.value)?$("tgReportKind")?.value:"preco",
+      direction:"recebidas",material:$("tgReportMaterial")?.value||""};
   }
   function createCurrent(){
     const values=controlValues();
