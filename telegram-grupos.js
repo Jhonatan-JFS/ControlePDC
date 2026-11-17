@@ -162,6 +162,28 @@
       }).join("")+'</div>':'<p class="tg-muted">Configure um destino para selecionar seus modelos.</p>')+'</section>'+
       '<section class="tg-final-step"><strong>Destinos configurados</strong><p>Confira as ligações no <b>Mapa de Vínculos</b>. O envio sempre pede confirmação dos destinos antes de prosseguir.</p><button type="button" class="btn btn-primary btn-small" id="tgGoMapBottom">Abrir Mapa de Vínculos</button></section>';
   }
+  function renderMap(){
+    if(!window.TelegramLinkMap){
+      pane.innerHTML=header("Mapa de Vínculos","Não foi possível carregar o módulo visual. Atualize a página.");
+      return;
+    }
+    window.TelegramLinkMap.render(pane,{
+      models,groups:state.groups,links:state.mappings,
+      onToggle:(mid,gid)=>{
+        if(!modelMap.has(mid)||!getGroup(gid))return;
+        const current=state.mappings[mid]||[];
+        const next=current.includes(gid)?current.filter(id=>id!==gid):[...current,gid];
+        if(next.length)state.mappings[mid]=next;else delete state.mappings[mid];
+        store();render();
+      },
+      onClear:mid=>{delete state.mappings[mid];store();render();},
+      onAdd:()=>{$("tgAddGroup").click();},
+      onEdit:id=>{groupId=id;section="grupos";render();},
+      onManage:()=>{section="grupos";render();},
+      onCompose:()=>{section="solicitacoes";render();},
+      onMonitor:()=>{document.querySelector('[data-page="monitor"]')?.click();}
+    });
+  }
   function renderSettings(){
     pane.innerHTML=header("Conexão e sincronização","Desbloqueie sua conta, escolha a data inicial, sincronize mensagens e consulte o último histórico salvo.")+
       '<div id="tgAuthMount"></div>'+
@@ -173,6 +195,7 @@
     if(badge){badge.textContent=connected?"Conta Telegram conectada":"Conta Telegram não conectada";badge.classList.toggle("connected",connected);}
     menu();
     if(section==="grupos"){renderGroups();renderRealGroupChooser();}
+    else if(section==="mapa")renderMap();
     else if(section==="configuracoes")renderSettings();
     else renderCompose();
   }
@@ -294,13 +317,9 @@
     if(el.dataset.tgMap){
       const key=el.dataset.tgMap,selected=getGroup(groupId);
       if(!selected||!modelMap.has(key))return;
-      const previous=destination(key);
-      if(el.checked){
-        if(previous&&previous.id!==selected.id&&!confirm("O modelo "+modelMap.get(key).name+" já pertence ao grupo "+previous.name+". Transferir para "+selected.name+"?")){
-          el.checked=false;return;
-        }
-        state.mappings[key]=selected.id;
-      } else if(state.mappings[key]===selected.id)delete state.mappings[key];
+      const current=state.mappings[key]||[];
+      const next=el.checked?[...new Set([...current,selected.id])]:current.filter(id=>id!==selected.id);
+      if(next.length)state.mappings[key]=next;else delete state.mappings[key];
       store();render();return;
     }
   });
@@ -342,6 +361,7 @@
     const overview=e.target.closest("[data-tg-destination]");
     if(overview){groupId=overview.dataset.tgDestination;render();return;}
     if(e.target.closest("#tgCreateGroup")){$("tgAddGroup").click();return;}
+    if(e.target.closest("#tgGoMap")||e.target.closest("#tgGoMapBottom")||e.target.closest("#tgOpenMapFromCompose")){section="mapa";render();return;}
     if(e.target.closest("#tgGoCompose")){section="solicitacoes";render();return;}
     if(e.target.closest("#tgClearDraft")){
       if(confirm("Limpar os campos deste modelo?")){state.drafts[modelId]=templates.defaults(modelId);store();renderCompose();}
@@ -382,32 +402,56 @@
     if(e.target.closest("#tgDeleteGroup")){
       const g=getGroup(groupId);if(!g||!confirm("Excluir "+g.name+" e remover seus vínculos? Solicitações do Controle PDC não serão afetadas."))return;
       state.groups=state.groups.filter(x=>x.id!==g.id);
-      for(const m of Object.keys(state.mappings))if(state.mappings[m]===g.id)delete state.mappings[m];
+      for(const m of Object.keys(state.mappings)){
+        const next=state.mappings[m].filter(id=>id!==g.id);
+        if(next.length)state.mappings[m]=next;else delete state.mappings[m];
+      }
       groupId=state.groups[0]?.id||"";store();render();return;
     }
     if(e.target.closest("#tgSendMessage")){
+      if(sendInProgress)return;
       const problem=templates.validate(modelId,draft());
       if(problem)return notice(problem,true);
-      const dest=destination(modelId);
-      const actual=window.TelegramConnector?.groups?.().find(x=>x.id===dest?.telegramId);
-      if(!dest||!dest.telegramId||((actual?.isForum??dest.isForum)&&dest.topicId==null))return notice("Configure grupo e tópico deste modelo em Grupos e modelos.",true);
+      const targets=destinations(modelId);
+      if(!targets.length)return notice("Vincule o modelo a pelo menos um destino no Mapa de Vínculos.",true);
+      const real=window.TelegramConnector?.groups?.()||[];
+      const incomplete=targets.filter(g=>!g.telegramId||((real.find(x=>x.id===g.telegramId)?.isForum??g.isForum)&&g.topicId==null));
+      if(incomplete.length)return notice("Destino(s) sem grupo/tópico real: "+incomplete.map(g=>g.name).join(", ")+". Configure em Grupos e tópicos.",true);
       if(!window.TelegramConnector?.connected?.())return notice("Conecte o Telegram em Configurações.",true);
       const txt=getMessage();
       if(!txt.trim())return notice("Preencha o texto da solicitação.",true);
-      const destinationLabel=(dest.telegramName||dest.name)+(dest.topicName?" / "+dest.topicName:"");
-      if(!confirm("Enviar esta solicitação para "+destinationLabel+"?\n\n"+txt))return;
+      const names=targets.map(g=>(g.telegramName||g.name)+(g.topicName?" / "+g.topicName:""));
+      if(!confirm("Enviar esta solicitação para "+targets.length+" destino(s)?\n\n"+names.map(n=>"• "+n).join("\n")+"\n\n"+txt))return;
+      const button=$("tgSendMessage");
+      sendInProgress=true;
+      if(button){button.disabled=true;button.textContent="Enviando…";}
+      const sent=[],failures=[];
       try{
-        const result=await window.TelegramConnector.send(dest.telegramId,txt,dest.topicId??null);
-        notice("Mensagem enviada para "+destinationLabel+" (ID "+result.id+"). Sincronize o monitor para acompanhar as reações.");
-      }catch(err){notice("Falha no envio: "+String(err.message||err),true);}return;
+        for(const dest of targets){
+          const name=(dest.telegramName||dest.name)+(dest.topicName?" / "+dest.topicName:"");
+          try{
+            const result=await window.TelegramConnector.send(dest.telegramId,txt,dest.topicId??null);
+            sent.push(name+" (ID "+result.id+")");
+          }catch(err){failures.push(name+": "+String(err.message||err));}
+        }
+        if(failures.length){
+          notice(sent.length+" destino(s) enviados; "+failures.length+" falharam. Confira os grupos antes de reenviar para não duplicar mensagens. "+failures.join(" | "),true);
+        }else{
+          notice("Mensagem enviada para "+sent.length+" destino(s): "+sent.join(" | ")+". Sincronize o monitor para acompanhar as reações.");
+        }
+      }finally{
+        sendInProgress=false;
+        if(button){button.disabled=false;button.textContent="Enviar pelo Telegram";}
+      }
+      return;
     }
     if(e.target.closest("#tgCopyMessage")){
       const problem=templates.validate(modelId,draft());
       if(problem)return notice(problem,true);
       try{
         await navigator.clipboard.writeText(getMessage());
-        const group=destination(modelId);
-        notice("Mensagem copiada."+(group?" Destino configurado: "+group.name+".":" Nenhum destino configurado.")+" Nenhum envio realizado.");
+        const all=destinations(modelId);
+        notice("Mensagem copiada."+(all.length?" Destinos configurados: "+all.map(g=>g.name).join(", ")+".":" Nenhum destino configurado.")+" Nenhum envio realizado.");
       }catch(_){notice("Não foi possível copiar. Verifique a permissão do navegador.",true);}
     }
   });
