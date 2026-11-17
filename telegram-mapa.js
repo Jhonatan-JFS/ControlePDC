@@ -101,7 +101,7 @@
       if(target.dataset.linkView){view=target.dataset.linkView;render(mount,data);return;}
       if(target.hasAttribute("data-link-add")){data.onAdd();return;}
       if(target.hasAttribute("data-link-manage")){data.onManage();return;}
-      if(target.hasAttribute("data-link-compose")){data.onCompose();return;}
+      if(target.hasAttribute("data-link-compose")){data.onCompose(selectedModel);return;}
       if(target.hasAttribute("data-link-monitor")){data.onMonitor();return;}
       if(target.id==="tgLinkClear"){
         if(currentGroups.length && confirm("Remover todos os "+currentGroups.length+" vínculos de "+current.name+"?")){
