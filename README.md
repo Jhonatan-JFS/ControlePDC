@@ -1,6 +1,15 @@
 # Controle PDC — versão online (v1.1)
 
-Organizador pessoal para mensagens de atualização de produtos. O sistema **não** se conecta ao Telegram, ao sistema PDC nem às impressoras: as mensagens e confirmações continuam manuais.
+Organizador pessoal para mensagens de atualização de produtos. O **Controle PDC** mantém as operações de carga, impressão e conferência manuais e não se conecta ao Solidcon nem às impressoras. A área **Telegram**, separada, pode se conectar à conta autorizada no navegador para preparar e enviar mensagens e sincronizar o monitoramento sob demanda.
+
+## Mapa de Vínculos Telegram (17/11/2026)
+
+- **Telegram → Mapa de Vínculos:** selecione o modelo à esquerda e clique nos destinos à direita para conectar ou desconectar. Um modelo pode enviar para vários grupos/tópicos; um grupo pode receber vários modelos.
+- **Telegram → Grupos e tópicos:** cadastre o destino real (grupo e, quando aplicável, tópico).
+- **Telegram → Conexão Telegram:** configure a autenticação da conta.
+- **Monitoramento:** área separada, com seleção própria dos grupos e tópicos. A sincronização de mensagens e reações é sob demanda, não 24/7.
+- Os vínculos antigos de destino único são convertidos automaticamente. Configurações e rascunhos continuam sincronizados pelo Firebase/Google; sessão MTProto e histórico bruto permanecem locais.
+- O envio confirma **todos** os destinos antes de prosseguir; em falha parcial, confira os grupos antes de reenviar para evitar duplicação.
 
 ## Acessar
 
