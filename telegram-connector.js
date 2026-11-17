@@ -10,7 +10,7 @@
   const encoder=new TextEncoder(), decoder=new TextDecoder();
   const enc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   let current=null, myGroups=[], busy=false, syncRunning=false;
-  let activeMonitorGroup="",activeMonitorTopic="all",activeMonitorDirection="enviadas",activeReceivedCategory="todas",monitorSettingsOpen=false,monitorReportOpen=false;
+  let activeMonitorGroup="",activeMonitorTopic="all",activeMonitorDirection="enviadas",activeReceivedCategory="todas",monitorSettingsOpen=false,monitorReportOpen=false,monitorSyncFeedback="",monitorSyncError=false;
   let syncConfigTarget="all",syncNotice="",syncNoticeError=false,priceSearchValue="";
   let draftMonitorGroup="",draftMonitorTopics=[],topicRequestVersion=0;
   const monitorTopicCache=new Map();
@@ -811,9 +811,9 @@
     const sync='<div class="tg-monitor-head"><div><strong>'+visible.length+' mensagem(ns) exibida(s)</strong>'+
       '<small>Última tentativa: '+enc(syncStamp(db.lastSync))+' · Última concluída: '+enc(syncStamp(db.lastCompleteSync))+
       ' · Solicitações conferidas: '+verified+' · pendentes: '+pending+'</small></div>'+
-      '<button type="button" class="btn btn-soft btn-small" id="tgOpenSyncSettings">⚙ Configurar sincronização</button></div>';
+      '<div class="tg-monitor-sync-buttons"><button type="button" class="btn btn-primary btn-small" id="tgMonitorSyncNow"'+(syncRunning?' disabled aria-busy="true"':'')+'>↻ Sincronizar agora</button><button type="button" class="btn btn-soft btn-small" id="tgOpenSyncSettings">⚙ Configurar sincronização</button></div></div>';
     const status='<p class="tg-auth-message" id="tgMonitorStatus" role="status" aria-live="polite">'+
-      (!logged()?"Conecte sua conta em Telegram → Configurações.":!selection.groups.length?"Configure quais grupos e tópicos acompanhar.":"Para buscar mensagens e revalidar reações, abra Telegram → Configurações → Sincronizar mensagens.")+'</p>';
+      (monitorSyncFeedback?enc(monitorSyncFeedback):!logged()?"Conecte sua conta em Telegram → Conexão Telegram.":!selection.groups.length?"Configure quais grupos e tópicos acompanhar.":"Clique em Sincronizar agora para buscar mensagens novas e revalidar reações.")+'</p>';
     const content=visible.length?'<div class="tg-records" id="tgPriceRecords">'+visible.map(rec=>{
       const received=recordDirection(rec)==="recebidas",request=rec.kind==="solicitacao";
       const parsed=request?extract(rec.text):[];
@@ -875,6 +875,7 @@
     const mount=$("tgMonitorMount");
     if(!mount)return;
     mount.innerHTML=monitorHtml();
+    $("tgMonitorStatus")?.classList.toggle("error",monitorSyncError);
     applyPriceSearch();
     const launcher=$("tgReportOpen");
     if(launcher){
@@ -932,6 +933,30 @@
     }
     if(e.target.closest("#tgSyncRun")){
       await runSyncFromSettings();
+      return;
+    }
+    if(e.target.closest("#tgMonitorSyncNow")){
+      if(syncRunning)return;
+      monitorSyncFeedback="Sincronizando mensagens e reações…";monitorSyncError=false;
+      renderMonitor();
+      try{
+        const result=await synchronize(message=>{
+          const status=$("tgMonitorStatus");
+          if(status)status.textContent=message;
+        },"all");
+        monitorSyncError=!!result.errors.length;
+        monitorSyncFeedback=(result.complete?"Sincronização concluída. ":"Leitura parcial. ")+
+          result.added+" nova(s) mensagem(ns); "+result.checked+" conferência(s) de reações."+
+          (result.errors.length?" Falhas: "+result.errors.join(" | "):"")+
+          (result.pending.length?" Continue sincronizando para recuperar o histórico restante.":"");
+      }catch(err){
+        monitorSyncFeedback=String(err.message||err)+
+          " Verifique a conexão e as datas iniciais em Configurar sincronização.";
+        monitorSyncError=true;
+      }finally{
+        renderMonitor();
+        $("tgMonitorStatus")?.classList.toggle("error",monitorSyncError);
+      }
       return;
     }
     if(e.target.closest("#tgReportOpen")){
