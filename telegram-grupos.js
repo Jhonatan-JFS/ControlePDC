@@ -169,7 +169,7 @@
       return;
     }
     window.TelegramLinkMap.render(pane,{
-      models,groups:state.groups,links:state.mappings,
+      models,groups:state.groups,links:state.mappings,monitored:window.TelegramConnector?.exportMonitorConfig?.()?.groups||[],
       onToggle:(mid,gid)=>{
         if(!modelMap.has(mid)||!getGroup(gid))return;
         const current=state.mappings[mid]||[];
@@ -264,7 +264,8 @@
     exportCloudConfig,applyCloudConfig
   };
   window.addEventListener("tg-connection-changed",()=>render());
-  window.addEventListener("tg-groups-updated",()=>{if(section==="grupos")renderRealGroupChooser();});
+  window.addEventListener("tg-groups-updated",()=>{if(section==="grupos")renderRealGroupChooser();else if(section==="mapa")render();});
+  window.addEventListener("pdc-telegram-config-changed",event=>{if(event.detail?.section==="monitor"&&section==="mapa")render();});
   $("tgAddGroup").addEventListener("click",()=>{
     const raw=prompt("Nome do grupo de destino:","");if(raw===null)return;
     const name=val(raw);if(!name||name.length>80)return alert("Informe um nome de até 80 caracteres.");
