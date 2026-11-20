@@ -48,29 +48,30 @@
   return String(day).padStart(2,"0")+"/"+String(month).padStart(2,"0")+"/"+year;
  }
  function rowMessage(id,d,r){
-  const ci=val(r.ci),cb=val(r.cb),name=val(r.name),line=code(r)+(name?" - "+name:"");
+  const ci=val(r.ci),cb=val(r.cb),name=val(r.name),line=ci?(ci+(name?" - "+name:"")):name;
+  const withCB=(first,barcode=cb)=>first+(barcode?"\nCB: "+barcode:"");
   const qty=val(d.qty);
   switch(id){
-   case "cadastro":return name+(cb?"\nCB: "+cb:"");
-   case "grade":return line;
+   case "cadastro":return withCB(name);
+   case "grade":return withCB(line);
    case "cadastroNFe":{
     const description=val(r.name),barcode=val(r.cb),sale=val(r.sale);
     return description+(barcode?"\nCB: "+barcode:"")+(sale?"\nVenda: "+(formatMoney(sale)||sale):"");
    }
-   case "cb":return line+"\nCB: "+val(r.newCB);
-   case "desmembrar":return line+(qty?" - "+qty:"");
-   case "promoEntrar":return line+(val(r.qty)?" - "+val(r.qty):"")+(val(r.date)?" - Até data: "+(dateValue(r.date)||r.date):"");
-   case "promoSair":return line;
-   case "validadeAdd":return line+(val(r.date)?" - Até data: "+(dateValue(r.date)||r.date):"");
-   case "validadeRemove":return line;
-   case "ean":return ci+(name?" - "+name:"")+(d.eanMode==="CB"?"\nCB: "+cb:"");
-   case "nome":return "CI - "+ci+"\n\nDE:\n"+val(r.oldName)+"\n\nPARA:\n"+val(r.newName);
+   case "cb":return withCB(line,val(r.newCB));
+   case "desmembrar":return withCB(line+(qty?" - "+qty:""));
+   case "promoEntrar":return withCB(line+(val(r.qty)?" - "+val(r.qty):"")+(val(r.date)?" - Até data: "+(dateValue(r.date)||r.date):""));
+   case "promoSair":return withCB(line);
+   case "validadeAdd":return withCB(line+(val(r.date)?" - Até data: "+(dateValue(r.date)||r.date):""));
+   case "validadeRemove":return withCB(line);
+   case "ean":return withCB(line);
+   case "nome":return withCB("CI - "+ci+"\n\nDE:\n"+val(r.oldName)+"\n\nPARA:\n"+val(r.newName));
    case "preco":case "verificarPreco":{
     const cost=formatMoney(r.cost),sale=formatMoney(r.sale);
     const heading=(id==="verificarPreco"||(!cost&&!sale))?"Por favor, verificar o preço:":"Por favor, ajustar o preço:";
-    return heading+"\nCI - "+ci+(cost&&id!=="verificarPreco"?"\nCusto: "+cost:"")+(sale&&id!=="verificarPreco"?"\nVenda: "+sale:"")+(r.memo?"\n"+r.memo:"");
+    return heading+"\n"+withCB(line)+(cost&&id!=="verificarPreco"?"\nCusto: "+cost:"")+(sale&&id!=="verificarPreco"?"\nVenda: "+sale:"")+(r.memo?"\n"+r.memo:"");
    }
-   case "custo":return "Por favor, adicionar o valor de custo:\nCI - "+ci+"\nCusto: "+(formatMoney(r.cost)||"");
+   case "custo":return "Por favor, adicionar o valor de custo:\n"+withCB(line)+"\nCusto: "+(formatMoney(r.cost)||"");
    default:return "";
   }
  }
@@ -155,13 +156,13 @@
         '</div><div class="req-row-copy"><button type="button" data-tg-copy-row="'+i+'" class="btn btn-ghost btn-small">Copiar produto</button></div></div>';
     }
     return '<div class="req-product-row"><div class="req-product-head"><b>Produto '+(i+1)+'</b>'+(d.rows.length>1?'<button type="button" data-tg-remove-row="'+i+'" class="btn btn-link">Remover</button>':"")+'</div><div class="req-fields">'+
-       rowField(d,i,"ci","CI")+rowField(d,i,"cb","CB (opcional)")+rowField(d,i,"name","Nome do produto")+
-       (id==="cb"?rowField(d,i,"newCB","Novo CB"):"")+
+       rowField(d,i,"ci","CI")+rowField(d,i,"name","Nome do produto")+(id==="cb"?"":rowField(d,i,"cb","CB (opcional)"))+
+       (id==="cb"?rowField(d,i,"newCB","CB (novo código)"):"")+
        (["promoEntrar","validadeAdd"].includes(id)?rowField(d,i,"date","Validade (dd/mm/aaaa)"):"")+
        (id==="promoEntrar"?rowField(d,i,"qty","Quantidade"):"")+
        '</div><div class="req-row-copy"><button type="button" data-tg-copy-row="'+i+'" class="btn btn-ghost btn-small">Copiar produto</button><button type="button" data-tg-copy-part="ci" data-tg-which="'+i+'" class="btn btn-link">CI</button><button type="button" data-tg-copy-part="cb" data-tg-which="'+i+'" class="btn btn-link">CB</button><button type="button" data-tg-copy-part="name" data-tg-which="'+i+'" class="btn btn-link">Nome</button></div></div>';
   }
-  const simple=!meta.multi?'<div class="req-fields">'+field(d,"ci","CI")+(id==="ean"&&d.eanMode==="CB"?field(d,"cb","CB"):"")+
+  const simple=!meta.multi?'<div class="req-fields">'+field(d,"ci","CI")+field(d,"cb","CB (opcional)")+
    field(d,"name",id==="ean"?"Nome do produto":"Nome do produto (referência)")+
    (id==="nome"?field(d,"oldName","Nome atual")+field(d,"newName","Novo nome"):"")+
    (id==="preco"?field(d,"cost","Custo (R$)",{inputmode:"decimal"})+field(d,"sale","Venda (R$)",{inputmode:"decimal"}):"")+
