@@ -1,3 +1,13 @@
+## Formato dos produtos nas solicitações (19/11/2026)
+
+- **Cadastro de Produto novo:** não pede CI, exige nome e aceita CB opcional. A primeira linha é apenas o nome; quando preenchido, o CB fica na linha seguinte, `CB: 789...`.
+- **Demais modelos:** preservar o CI existente na mesma linha do nome (`123456 - Nome do produto`); qualquer CB informado aparece na linha imediatamente abaixo como `CB: 789...`, nunca no lugar do CI.
+- **Atualização de CB:** o campo **CB (novo código)** é o código mostrado na linha `CB: ...`. O botão copiar CB copia esse valor.
+- **Múltiplos produtos:** deixar uma linha em branco entre produtos. Sem CB preenchido, não gerar uma linha `CB:` vazia.
+- **Controle PDC:** a solicitação de cadastro novo pode ser registrada sem CI, mas só pode ser encaminhada à fila do PDC depois que um CI válido for atribuído. A correção do registro preserva o histórico.
+
+---
+
 > **Ajuste de escopo em 17/11/2026:** esta seção é a regra vigente. Partes históricas deste documento abaixo descrevem versões anteriores que monitoravam solicitações e reações.
 
 ## Escopo atual: envios separados do Monitoramento (17/11/2026)
