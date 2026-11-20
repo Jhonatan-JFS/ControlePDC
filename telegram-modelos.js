@@ -51,7 +51,8 @@
   const ci=val(r.ci),cb=val(r.cb),name=val(r.name),line=code(r)+(name?" - "+name:"");
   const qty=val(d.qty);
   switch(id){
-   case "cadastro": case "grade":return line;
+   case "cadastro":return name+(cb?"\nCB: "+cb:"");
+   case "grade":return line;
    case "cadastroNFe":{
     const description=val(r.name),barcode=val(r.cb),sale=val(r.sale);
     return description+(barcode?"\nCB: "+barcode:"")+(sale?"\nVenda: "+(formatMoney(sale)||sale):"");
@@ -74,7 +75,7 @@
   }
  }
  function message(id,d){
-  const text=rows(id,d).filter(r=>id==="cadastroNFe"?val(r.name):code(r)).map(r=>rowMessage(id,d,r)).filter(Boolean);
+  const text=rows(id,d).filter(r=>["cadastro","cadastroNFe"].includes(id)?val(r.name):code(r)).map(r=>rowMessage(id,d,r)).filter(Boolean);
   // Separação aprovada: uma linha em branco entre produtos, sem separar CI e CB.
   switch(id){
    case "cadastro":return "Por favor, cadastrar:\n"+text.join("\n\n");
@@ -93,6 +94,10 @@
  }
  function validate(id,d){
   if(!catalog[id])return "Modelo desconhecido.";
+  if(id==="cadastro"){
+    if(!Array.isArray(d.rows)||!d.rows.length||d.rows.some(r=>!val(r.name)))return "Informe o nome de cada produto ou remova as linhas vazias.";
+    return "";
+  }
   if(id==="cadastroNFe"){
     if(!val(d.company))return "Informe o nome da empresa.";
     if(!val(d.nfeNumber))return "Informe o número da nota fiscal (NF-e).";
@@ -134,6 +139,13 @@
   if(id==="ean")extras=select(d,"eanMode","Código a adicionar no EAN",[["CI","CI"],["CB","CB"]]);
   const extra='<div class="req-fields">'+extras+'</div>';
   function rowForm(r,i){
+    if(id==="cadastro"){
+      return '<div class="req-product-row"><div class="req-product-head"><b>Produto '+(i+1)+'</b>'+
+        (d.rows.length>1?'<button type="button" data-tg-remove-row="'+i+'" class="btn btn-link">Remover</button>':'')+
+        '</div><div class="req-fields">'+rowField(d,i,"name","Nome do produto")+
+        rowField(d,i,"cb","CB (opcional)")+
+        '</div><div class="req-row-copy"><button type="button" data-tg-copy-row="'+i+'" class="btn btn-ghost btn-small">Copiar produto</button></div></div>';
+    }
     if(id==="cadastroNFe"){
       return '<div class="req-product-row"><div class="req-product-head"><b>Produto '+(i+1)+'</b>'+
         (d.rows.length>1?'<button type="button" data-tg-remove-row="'+i+'" class="btn btn-link">Remover</button>':'')+
@@ -157,7 +169,7 @@
    '</div><div class="req-row-copy"><button type="button" data-tg-copy-part="ci" data-tg-which="0" class="btn btn-link">CI</button><button type="button" data-tg-copy-part="cb" data-tg-which="0" class="btn btn-link">CB</button><button type="button" data-tg-copy-part="name" data-tg-which="0" class="btn btn-link">Nome</button></div>':
    d.rows.map(rowForm).join("")+'<button type="button" id="tgAddRow" class="btn btn-soft btn-small req-add">＋ Adicionar produto</button>';
   const memo=["preco","verificarPreco"].includes(id)?'<label class="req-wide-note">Observação (opcional; texto livre)<textarea data-tg-field="memo" rows="2">'+esc(d.memo||"")+'</textarea></label>':"";
-  return '<div class="req-form-heading"><div><small>MODELO SELECIONADO</small><h3>'+esc(meta.name)+'</h3></div><button type="button" class="btn btn-ghost btn-small" id="tgClearDraft">Limpar</button></div>'+extra+simple+memo;
+  return '<div class="req-form-heading"><div><small>MODELO SELECIONADO</small><h3>'+esc(meta.name)+'</h3></div><button type="button" class="btn btn-ghost btn-small" id="tgClearDraft">Limpar</button></div>'+(id==="cadastro"?'<p class="req-muted">Produto novo: informe o nome e, se houver, o CB. O CI será atribuído após o cadastro.</p>':"")+extra+simple+memo;
  }
  window.TelegramTemplates={models,categories,defaults,form,message,validate,rowMessage,formatMoney,dateValue};
 })();
