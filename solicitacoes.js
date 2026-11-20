@@ -260,7 +260,7 @@
       if(remove){draft.rows.splice(Number(remove.dataset.removeRow),1);renderForm();return;}
       if(cp){copy(messageForRow(rows()[Number(cp.dataset.copyRow)]));return;}
       if(ci){copy(value(rows()[Number(ci.dataset.copyCi)]?.ci));return;}
-      if(cb){copy(value(rows()[Number(cb.dataset.copyCb)]?.cb));return;}
+      if(cb){const item=rows()[Number(cb.dataset.copyCb)];copy(value(model==='cb'?item?.newCB:item?.cb));return;}
       if(name){copy(value(rows()[Number(name.dataset.copyName)]?.name));return;}
       if(e.target.closest('#reqAddRow')){draft.rows.push({});renderForm();return;}
       if(e.target.closest('#reqClear')){setModel(model);return;}
