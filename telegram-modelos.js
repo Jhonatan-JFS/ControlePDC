@@ -38,15 +38,7 @@
   const n=Number(raw.includes(",")?raw.replace(/\./g,"").replace(",","."):raw);
   return Number.isFinite(n)&&n>=0?n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}):null;
  }
- function dateValue(s){
-  const v=val(s);if(!v)return "";
-  const match=v.match(/^(\d{2})(\d{2})(\d{4})$/)||v.match(/^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{2,4})$/);
-  if(!match)return null;
-  const day=Number(match[1]),month=Number(match[2]),year=Number(match[3].length===2?"20"+match[3]:match[3]);
-  const d=new Date(year,month-1,day);
-  if(d.getDate()!==day||d.getMonth()!==month-1||d.getFullYear()!==year)return null;
-  return String(day).padStart(2,"0")+"/"+String(month).padStart(2,"0")+"/"+year;
- }
+ function dateValue(s){return window.SolicitacaoDatas.normalize(s);}
  function rowMessage(id,d,r){
   const ci=val(r.ci),cb=val(r.cb),name=val(r.name),line=ci?(ci+(name?" - "+name:"")):name;
   const withCB=(first,barcode=cb)=>first+(barcode?"\nCB: "+barcode:"");
@@ -60,9 +52,9 @@
    }
    case "cb":return withCB(line,val(r.newCB));
    case "desmembrar":return withCB(line+(qty?" - "+qty:""));
-   case "promoEntrar":return withCB(line+(val(r.qty)?" - "+val(r.qty):"")+(val(r.date)?" - Até data: "+(dateValue(r.date)||r.date):""));
+   case "promoEntrar":return withCB(line+(val(r.qty)?" - "+val(r.qty):""))+(dateValue(r.date)?"\nAté data: "+dateValue(r.date):"");
    case "promoSair":return withCB(line);
-   case "validadeAdd":return withCB(line+(val(r.date)?" - Até data: "+(dateValue(r.date)||r.date):""));
+   case "validadeAdd":return withCB(line)+(dateValue(r.date)?"\nAté data: "+dateValue(r.date):"");
    case "validadeRemove":return withCB(line);
    case "ean":return withCB(line);
    case "nome":return withCB("CI - "+ci+"\n\nDE:\n"+val(r.oldName)+"\n\nPARA:\n"+val(r.newName));
@@ -116,7 +108,7 @@
   if(id==="nome"&&(!val(d.ci)||!val(d.oldName)||!val(d.newName)))return "Informe CI, nome atual e novo nome.";
   for(const r of all){
     if((r.cost&&formatMoney(r.cost)===null)||(r.sale&&formatMoney(r.sale)===null))return "Verifique os valores: use números positivos.";
-    if(r.date&&dateValue(r.date)===null)return "A validade deve ser uma data válida, como 27/10/2026.";
+    if(val(r.date)&&dateValue(r.date)===null)return "Data inválida. Informe a validade no formato DD/MM/AAAA (ex.: 27/10/2026).";
   }
   if(id==="custo"&&!val(d.cost))return "Informe o valor de custo.";
   if(id==="desmembrar"&&d.unit==="Personalizado"&&!val(d.customUnit))return "Informe a unidade personalizada.";
@@ -126,7 +118,8 @@
   return '<label class="req-field '+(opts.wide?"wide":"")+'">'+esc(label)+'<input data-tg-field="'+esc(key)+'" value="'+esc(d[key]||"")+'"'+(opts.inputmode?' inputmode="'+esc(opts.inputmode)+'"':"")+' autocomplete="off"></label>';
  }
  function rowField(d,i,key,label){
-  return '<label class="req-field">'+esc(label)+'<input data-tg-row="'+i+'" data-tg-key="'+esc(key)+'" value="'+esc((d.rows||[])[i]?.[key]||"")+'" autocomplete="off"></label>';
+  const raw=(d.rows||[])[i]?.[key]||"",shown=key==="date"?(dateValue(raw)||raw):raw;
+  return '<label class="req-field">'+esc(label)+'<input data-tg-row="'+i+'" data-tg-key="'+esc(key)+'" value="'+esc(shown)+'"'+(key==="date"?' data-date-input="true" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA"':'')+' autocomplete="off"></label>';
  }
  function select(d,key,label,choices){
   return '<label class="req-field">'+esc(label)+'<select data-tg-field="'+esc(key)+'">'+choices.map(([k,name])=>'<option value="'+esc(k)+'"'+(d[key]===k?" selected":"")+'>'+esc(name)+'</option>').join("")+'</select></label>';
@@ -158,7 +151,7 @@
     return '<div class="req-product-row"><div class="req-product-head"><b>Produto '+(i+1)+'</b>'+(d.rows.length>1?'<button type="button" data-tg-remove-row="'+i+'" class="btn btn-link">Remover</button>':"")+'</div><div class="req-fields">'+
        rowField(d,i,"ci","CI")+rowField(d,i,"name","Nome do produto")+(id==="cb"?"":rowField(d,i,"cb","CB (opcional)"))+
        (id==="cb"?rowField(d,i,"newCB","CB (novo código)"):"")+
-       (["promoEntrar","validadeAdd"].includes(id)?rowField(d,i,"date","Validade (dd/mm/aaaa)"):"")+
+       (["promoEntrar","validadeAdd"].includes(id)?rowField(d,i,"date","Validade (DD/MM/AAAA)"):"")+
        (id==="promoEntrar"?rowField(d,i,"qty","Quantidade"):"")+
        '</div><div class="req-row-copy"><button type="button" data-tg-copy-row="'+i+'" class="btn btn-ghost btn-small">Copiar produto</button><button type="button" data-tg-copy-part="ci" data-tg-which="'+i+'" class="btn btn-link">CI</button><button type="button" data-tg-copy-part="'+(id==="cb"?"newCB":"cb")+'" data-tg-which="'+i+'" class="btn btn-link">CB</button><button type="button" data-tg-copy-part="name" data-tg-which="'+i+'" class="btn btn-link">Nome</button></div></div>';
   }
