@@ -73,26 +73,27 @@
   }
   function messageForRow(r) {
     const ci=value(r.ci), cb=value(r.cb), name=value(r.name);
-    const line=code(r)+(name?' - '+name:'');
+    const line=ci?(ci+(name?' - '+name:'')):name;
+    const withCB=(first,barcode=cb)=>first+(barcode?'\nCB: '+barcode:'');
     const unit=draft.unit==='Personalizado'?value(draft.customUnit):draft.unit;
     const qty=value(draft.qty);
     switch(model){
-      case 'cadastro':return name+(cb?'\nCB: '+cb:'');
-      case 'grade':return line;
-      case 'cb':return `${line}\nCB: ${value(r.newCB)}`;
-      case 'desmembrar':return line+(qty?' - '+qty:'');
-      case 'promoEntrar':return line+(value(r.qty)?' - '+value(r.qty):'')+(value(r.date)?' - Até data: '+(dateValue(r.date)||r.date):'');
-      case 'promoSair':return line;
-      case 'validadeAdd':return line+(value(r.date)?' - Até data: '+(dateValue(r.date)||r.date):'');
-      case 'validadeRemove':return line;
-      case 'ean':return `${ci}${name?' - '+name:''}`+(draft.eanMode==='CB'?`\nCB: ${cb}`:'');
-      case 'nome':return `CI - ${ci}\n\nDE:\n${value(r.oldName)}\n\nPARA:\n${value(r.newName)}`;
+      case 'cadastro':return withCB(name);
+      case 'grade':return withCB(line);
+      case 'cb':return withCB(line,value(r.newCB));
+      case 'desmembrar':return withCB(line+(qty?' - '+qty:''));
+      case 'promoEntrar':return withCB(line+(value(r.qty)?' - '+value(r.qty):'')+(value(r.date)?' - Até data: '+(dateValue(r.date)||r.date):''));
+      case 'promoSair':return withCB(line);
+      case 'validadeAdd':return withCB(line+(value(r.date)?' - Até data: '+(dateValue(r.date)||r.date):''));
+      case 'validadeRemove':return withCB(line);
+      case 'ean':return withCB(line);
+      case 'nome':return withCB(`CI - ${ci}\n\nDE:\n${value(r.oldName)}\n\nPARA:\n${value(r.newName)}`);
       case 'preco':case 'verificarPreco':{
         const cost=formatMoney(r.cost),sale=formatMoney(r.sale);
         const label=(model==='verificarPreco'||(!cost&&!sale))?'Por favor, verificar o preço:':'Por favor, ajustar o preço:';
-        return `${label}\nCI - ${ci}`+(cost&&model!=='verificarPreco'?`\nCusto: ${cost}`:'')+(sale&&model!=='verificarPreco'?`\nVenda: ${sale}`:'')+(r.memo?'\n'+r.memo:'');
+        return `${label}\n${withCB(line)}`+(cost&&model!=='verificarPreco'?`\nCusto: ${cost}`:'')+(sale&&model!=='verificarPreco'?`\nVenda: ${sale}`:'')+(r.memo?'\n'+r.memo:'');
       }
-      case 'custo':return `Por favor, adicionar o valor de custo:\nCI - ${ci}\nCusto: ${formatMoney(r.cost)||''}`;
+      case 'custo':return `Por favor, adicionar o valor de custo:\n${withCB(line)}\nCusto: ${formatMoney(r.cost)||''}`;
       default:return '';
     }
   }
@@ -101,14 +102,14 @@
     const text=rows().map(messageForRow).filter(Boolean);
     switch(model){
       case 'cadastro':return 'Por favor, cadastrar:\n'+text.join('\n\n');
-      case 'grade':return `Por favor, cadastrar na grade do CI ${value(draft.rootCI)} - ${value(draft.rootName)}.\n`+text.join('\n');
+      case 'grade':return `Por favor, cadastrar na grade do CI ${value(draft.rootCI)} - ${value(draft.rootName)}.\n`+text.join('\n\n');
       case 'cb':return 'Por favor, atualizar CB:\n'+text.join('\n\n');
       case 'desmembrar':return 'Por favor, desmembrar em '+(draft.unit==='Personalizado'?value(draft.customUnit):draft.unit)+(value(draft.qty)?' ('+value(draft.qty)+')':'')+':\n'+text.join('\n────────\n');
-      case 'promoEntrar':return 'Por favor, colocar em Promoção:\n'+text.join('\n');
-      case 'promoSair':return 'Por favor, retirar a Promoção:\n'+text.join('\n');
+      case 'promoEntrar':return 'Por favor, colocar em Promoção:\n'+text.join('\n\n');
+      case 'promoSair':return 'Por favor, retirar a Promoção:\n'+text.join('\n\n');
       // O organizador antigo intitulava essas ações como validade promocional.
-      case 'validadeAdd':return 'Por favor, colocar em Promoção:\n'+text.join('\n');
-      case 'validadeRemove':return 'Por favor, retirar a Promoção:\n'+text.join('\n');
+      case 'validadeAdd':return 'Por favor, colocar em Promoção:\n'+text.join('\n\n');
+      case 'validadeRemove':return 'Por favor, retirar a Promoção:\n'+text.join('\n\n');
       case 'ean':return `Por favor, adicionar o ${draft.eanMode} no EAN:\n`+text[0];
       case 'nome':return 'Por favor, alterar nomenclatura:\n'+text[0];
       default:return text[0]||'';
@@ -126,12 +127,12 @@
   }
   function renderForm(){
     const m=models[model], showRows=m.multi;
-    const rowsHtml=()=>rows().map((r,i)=>`<div class="req-product-row"><div class="req-product-head"><b>Produto ${i+1}</b>${showRows&&rows().length>1?`<button type="button" class="btn btn-link" data-remove-row="${i}">Remover</button>`:''}</div><div class="req-fields">${model==='cadastro'?'':rowField(i,'ci','CI')}${rowField(i,'name','Nome do produto')}${rowField(i,'cb','CB (opcional)')}${model==='cb'?rowField(i,'newCB','Novo CB'):''}${['promoEntrar','validadeAdd'].includes(model)?rowField(i,'date','Validade (dd/mm/aaaa)'):''}${model==='promoEntrar'?rowField(i,'qty','Quantidade'):''}</div><div class="req-row-copy"><button type="button" data-copy-row="${i}" class="btn btn-ghost btn-small">Copiar produto</button>${model==='cadastro'?'':`<button type="button" data-copy-ci="${i}" class="btn btn-link">CI</button>`}<button type="button" data-copy-cb="${i}" class="btn btn-link">CB</button><button type="button" data-copy-name="${i}" class="btn btn-link">Nome</button></div></div>`).join('');
+    const rowsHtml=()=>rows().map((r,i)=>`<div class="req-product-row"><div class="req-product-head"><b>Produto ${i+1}</b>${showRows&&rows().length>1?`<button type="button" class="btn btn-link" data-remove-row="${i}">Remover</button>`:''}</div><div class="req-fields">${model==='cadastro'?'':rowField(i,'ci','CI')}${rowField(i,'name','Nome do produto')}${model==='cb'?'':rowField(i,'cb','CB (opcional)')}${model==='cb'?rowField(i,'newCB','CB (novo código)'):''}${['promoEntrar','validadeAdd'].includes(model)?rowField(i,'date','Validade (dd/mm/aaaa)'):''}${model==='promoEntrar'?rowField(i,'qty','Quantidade'):''}</div><div class="req-row-copy"><button type="button" data-copy-row="${i}" class="btn btn-ghost btn-small">Copiar produto</button>${model==='cadastro'?'':`<button type="button" data-copy-ci="${i}" class="btn btn-link">CI</button>`}<button type="button" data-copy-cb="${i}" class="btn btn-link">CB</button><button type="button" data-copy-name="${i}" class="btn btn-link">Nome</button></div></div>`).join('');
     let extras='';
     if(model==='grade')extras=field('rootCI','CI principal',{required:true})+field('rootName','Nome da grade');
     if(model==='desmembrar')extras=select('unit','Unidade', [['Un','Un.'],['Metro','Metro'],['1/2 Metro','1/2 Metro'],['Personalizado','Personalizado']])+field('qty','Quantidade (opcional)')+(draft.unit==='Personalizado'?field('customUnit','Nome da unidade'):"");
     if(model==='ean')extras=select('eanMode','Código a adicionar no EAN',[['CI','CI'],['CB','CB']]);
-    const simple = !m.multi ? `<div class="req-fields">${field('ci','CI',{required:true})}${model==='ean'&&draft.eanMode==='CB'?field('cb','CB'):''}${field('name',model==='ean'?'Nome do produto':'Nome do produto (para o PDC)',{required:model==='ean'})}${model==='nome'?field('oldName','Nome atual')+field('newName','Novo nome'):''}${model==='preco'?field('cost','Custo (R$)',{inputmode:'decimal'})+field('sale','Venda (R$)',{inputmode:'decimal'}):''}${model==='custo'?field('cost','Custo (R$)',{inputmode:'decimal'}):''}</div><div class="req-row-copy"><button type="button" data-copy-ci="0" class="btn btn-link">Copiar CI</button><button type="button" data-copy-cb="0" class="btn btn-link">Copiar CB</button><button type="button" data-copy-name="0" class="btn btn-link">Copiar nome</button></div>` : rowsHtml();
+    const simple = !m.multi ? `<div class="req-fields">${field('ci','CI',{required:true})}${field('name',model==='ean'?'Nome do produto':'Nome do produto (para o PDC)',{required:model==='ean'})}${field('cb','CB (opcional)')}${model==='nome'?field('oldName','Nome atual')+field('newName','Novo nome'):''}${model==='preco'?field('cost','Custo (R$)',{inputmode:'decimal'})+field('sale','Venda (R$)',{inputmode:'decimal'}):''}${model==='custo'?field('cost','Custo (R$)',{inputmode:'decimal'}):''}</div><div class="req-row-copy"><button type="button" data-copy-ci="0" class="btn btn-link">Copiar CI</button><button type="button" data-copy-cb="0" class="btn btn-link">Copiar CB</button><button type="button" data-copy-name="0" class="btn btn-link">Copiar nome</button></div>` : rowsHtml();
     const warning=m.custom?'<p class="req-warning">O texto definitivo deste modelo não foi encontrado no arquivo original. Digite e confira a mensagem antes de registrar.</p>':'';
     const cadastroHelp=model==='cadastro'?'<p class="req-muted">Produto novo: não exige CI. Informe o nome e o CB, quando houver. Para encaminhar ao Controle PDC após o cadastro, corrija a solicitação com o CI atribuído.</p>':'';
     $('reqForm').innerHTML=`<div class="req-form-heading"><div><small>MODELO SELECIONADO</small><h3>${escapeHtml(m.name)}</h3></div><button type="button" class="btn btn-ghost btn-small" id="reqClear">Limpar</button></div><div class="req-fields">${extras}</div>${cadastroHelp}${simple}${showRows?'<button type="button" class="btn btn-soft btn-small req-add" id="reqAddRow">＋ Adicionar produto</button>':''}${['preco','verificarPreco'].includes(model)?`<label class="req-wide-note">Observação (opcional; texto livre)<textarea data-field="memo" rows="2" placeholder="">${escapeHtml(draft.memo||'')}</textarea></label>`:''}${m.custom?`${warning}<label class="req-wide-note">Mensagem personalizada<textarea data-field="customText" rows="6" placeholder="Escreva o texto revisado deste modelo">${escapeHtml(draft.customText||'')}</textarea></label>`:''}<label class="req-field req-category-picker">Categoria sugerida no PDC<select data-field="category">${Object.entries(pdcNames).map(([key,v])=>`<option value="${key}" ${draft.category===key?'selected':''}>${v}</option>`).join('')}</select></label>${model==='preco'?'<p class="req-muted">Para Aumento ou Redução, escolha explicitamente a categoria; custos e preços isolados não determinam a direção.</p>':''}<div class="req-message"><div class="req-preview-head"><strong>Pré-visualização</strong><button type="button" id="reqCopy" class="btn btn-ghost btn-small">Copiar mensagem</button></div><pre id="reqPreview"></pre></div><div class="req-form-actions"><button type="button" class="btn btn-primary" id="reqSave">Concluir solicitação → Supervisão</button></div>`;
