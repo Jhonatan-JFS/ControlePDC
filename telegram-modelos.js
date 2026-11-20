@@ -160,7 +160,7 @@
        (id==="cb"?rowField(d,i,"newCB","CB (novo código)"):"")+
        (["promoEntrar","validadeAdd"].includes(id)?rowField(d,i,"date","Validade (dd/mm/aaaa)"):"")+
        (id==="promoEntrar"?rowField(d,i,"qty","Quantidade"):"")+
-       '</div><div class="req-row-copy"><button type="button" data-tg-copy-row="'+i+'" class="btn btn-ghost btn-small">Copiar produto</button><button type="button" data-tg-copy-part="ci" data-tg-which="'+i+'" class="btn btn-link">CI</button><button type="button" data-tg-copy-part="cb" data-tg-which="'+i+'" class="btn btn-link">CB</button><button type="button" data-tg-copy-part="name" data-tg-which="'+i+'" class="btn btn-link">Nome</button></div></div>';
+       '</div><div class="req-row-copy"><button type="button" data-tg-copy-row="'+i+'" class="btn btn-ghost btn-small">Copiar produto</button><button type="button" data-tg-copy-part="ci" data-tg-which="'+i+'" class="btn btn-link">CI</button><button type="button" data-tg-copy-part="'+(id==="cb"?"newCB":"cb")+'" data-tg-which="'+i+'" class="btn btn-link">CB</button><button type="button" data-tg-copy-part="name" data-tg-which="'+i+'" class="btn btn-link">Nome</button></div></div>';
   }
   const simple=!meta.multi?'<div class="req-fields">'+field(d,"ci","CI")+field(d,"cb","CB (opcional)")+
    field(d,"name",id==="ean"?"Nome do produto":"Nome do produto (referência)")+
