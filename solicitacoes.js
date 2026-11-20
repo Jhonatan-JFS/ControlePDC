@@ -36,7 +36,7 @@
   const historyOpenTypes = new Set(), historyOpenItems = new Set();
   const field = (name,label,opts={}) => `<label class="req-field ${opts.wide?'wide':''}">${escapeHtml(label)}<input data-field="${name}" ${opts.required?'required':''} ${opts.inputmode?`inputmode="${opts.inputmode}"`:''} value="${escapeHtml(draft[name]||'')}" placeholder="${escapeHtml(opts.hint||'')}" autocomplete="off"></label>`;
   const select = (name,label,choices) => `<label class="req-field">${escapeHtml(label)}<select data-field="${name}">${choices.map(([k,v])=>`<option value="${k}" ${String(draft[name]||'')===k?'selected':''}>${escapeHtml(v)}</option>`).join('')}</select></label>`;
-  const rowField = (n,key,label) => `<label class="req-field">${escapeHtml(label)}<input data-row="${n}" data-key="${key}" value="${escapeHtml((draft.rows||[])[n]?.[key]||'')}" autocomplete="off"></label>`;
+  const rowField = (n,key,label) => {const raw=(draft.rows||[])[n]?.[key]||'',shown=key==='date'?(dateValue(raw)||raw):raw;return `<label class="req-field">${escapeHtml(label)}<input data-row="${n}" data-key="${key}" value="${escapeHtml(shown)}" ${key==='date'?'data-date-input="true" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA"':''} autocomplete="off"></label>`;};
   function defaultDraft(type) { return {category:models[type].cat,eanMode:"CI",unit:"Un",rows:[{}],date:"",memo:""}; }
   function setModel(next) {model=next; draft=defaultDraft(next); rowCount=1; renderModels(); renderForm();}
   function rows() { return models[model].multi ? (draft.rows||[{}]) : [draft]; }
@@ -47,16 +47,7 @@
     const val=Number(raw.includes(',')?raw.replace(/\./g,'').replace(',','.'):raw);
     return Number.isFinite(val)&&val>=0 ? val.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : null;
   }
-  function dateValue(s) {
-    const raw=value(s);
-    if(!raw)return '';
-    const match=raw.match(/^(\d{2})(\d{2})(\d{4})$/)||raw.match(/^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{2,4})$/);
-    if(!match)return null;
-    const day=Number(match[1]),month=Number(match[2]),year=Number(match[3].length===2?'20'+match[3]:match[3]);
-    const d=new Date(year,month-1,day);
-    if(d.getFullYear()!==year||d.getMonth()!==month-1||d.getDate()!==day)return null;
-    return String(day).padStart(2,'0')+'/'+String(month).padStart(2,'0')+'/'+year;
-  }
+  function dateValue(s) {return window.SolicitacaoDatas.normalize(s);}
   function code(row) {return value(row.ci||row.cb);}
   function validate() {
     if(models[model].custom && !value(draft.customText))return "Escreva e confira o texto deste modelo antes de concluir.";
@@ -67,7 +58,7 @@
     if(model==='ean' && draft.eanMode==='CB' && !value(draft.cb)) return "Informe o CB a adicionar no EAN.";
     if(model==='cb' && rows().some(r=>!value(r.ci)||!value(r.newCB))) return "Informe o CI e o novo CB de cada produto.";
     for(const row of rows()) if((row.cost && formatMoney(row.cost)===null)||(row.sale && formatMoney(row.sale)===null)) return "Verifique os valores: use números positivos.";
-    for(const row of rows()) if(row.date && dateValue(row.date)===null)return "A validade deve ser uma data válida, como 27102026 ou 27/10/2026.";
+    for(const row of rows()) if(value(row.date) && dateValue(row.date)===null)return "Data inválida. Informe a validade no formato DD/MM/AAAA (ex.: 27/10/2026).";
     if(model==='custo' && !value(draft.cost))return "Informe o custo.";
     return "";
   }
@@ -82,9 +73,9 @@
       case 'grade':return withCB(line);
       case 'cb':return withCB(line,value(r.newCB));
       case 'desmembrar':return withCB(line+(qty?' - '+qty:''));
-      case 'promoEntrar':return withCB(line+(value(r.qty)?' - '+value(r.qty):'')+(value(r.date)?' - Até data: '+(dateValue(r.date)||r.date):''));
+      case 'promoEntrar':return withCB(line+(value(r.qty)?' - '+value(r.qty):''))+(dateValue(r.date)?'\nAté data: '+dateValue(r.date):'');
       case 'promoSair':return withCB(line);
-      case 'validadeAdd':return withCB(line+(value(r.date)?' - Até data: '+(dateValue(r.date)||r.date):''));
+      case 'validadeAdd':return withCB(line)+(dateValue(r.date)?'\nAté data: '+dateValue(r.date):'');
       case 'validadeRemove':return withCB(line);
       case 'ean':return withCB(line);
       case 'nome':return withCB(`CI - ${ci}\n\nDE:\n${value(r.oldName)}\n\nPARA:\n${value(r.newName)}`);
@@ -127,7 +118,7 @@
   }
   function renderForm(){
     const m=models[model], showRows=m.multi;
-    const rowsHtml=()=>rows().map((r,i)=>`<div class="req-product-row"><div class="req-product-head"><b>Produto ${i+1}</b>${showRows&&rows().length>1?`<button type="button" class="btn btn-link" data-remove-row="${i}">Remover</button>`:''}</div><div class="req-fields">${model==='cadastro'?'':rowField(i,'ci','CI')}${rowField(i,'name','Nome do produto')}${model==='cb'?'':rowField(i,'cb','CB (opcional)')}${model==='cb'?rowField(i,'newCB','CB (novo código)'):''}${['promoEntrar','validadeAdd'].includes(model)?rowField(i,'date','Validade (dd/mm/aaaa)'):''}${model==='promoEntrar'?rowField(i,'qty','Quantidade'):''}</div><div class="req-row-copy"><button type="button" data-copy-row="${i}" class="btn btn-ghost btn-small">Copiar produto</button>${model==='cadastro'?'':`<button type="button" data-copy-ci="${i}" class="btn btn-link">CI</button>`}<button type="button" data-copy-cb="${i}" class="btn btn-link">CB</button><button type="button" data-copy-name="${i}" class="btn btn-link">Nome</button></div></div>`).join('');
+    const rowsHtml=()=>rows().map((r,i)=>`<div class="req-product-row"><div class="req-product-head"><b>Produto ${i+1}</b>${showRows&&rows().length>1?`<button type="button" class="btn btn-link" data-remove-row="${i}">Remover</button>`:''}</div><div class="req-fields">${model==='cadastro'?'':rowField(i,'ci','CI')}${rowField(i,'name','Nome do produto')}${model==='cb'?'':rowField(i,'cb','CB (opcional)')}${model==='cb'?rowField(i,'newCB','CB (novo código)'):''}${['promoEntrar','validadeAdd'].includes(model)?rowField(i,'date','Validade (DD/MM/AAAA)'):''}${model==='promoEntrar'?rowField(i,'qty','Quantidade'):''}</div><div class="req-row-copy"><button type="button" data-copy-row="${i}" class="btn btn-ghost btn-small">Copiar produto</button>${model==='cadastro'?'':`<button type="button" data-copy-ci="${i}" class="btn btn-link">CI</button>`}<button type="button" data-copy-cb="${i}" class="btn btn-link">CB</button><button type="button" data-copy-name="${i}" class="btn btn-link">Nome</button></div></div>`).join('');
     let extras='';
     if(model==='grade')extras=field('rootCI','CI principal',{required:true})+field('rootName','Nome da grade');
     if(model==='desmembrar')extras=select('unit','Unidade', [['Un','Un.'],['Metro','Metro'],['1/2 Metro','1/2 Metro'],['Personalizado','Personalizado']])+field('qty','Quantidade (opcional)')+(draft.unit==='Personalizado'?field('customUnit','Nome da unidade'):"");
@@ -142,6 +133,7 @@
   async function copy(str){try{await navigator.clipboard.writeText(str);core.notify('Copiado.');return true;}catch(_){core.notify('Não foi possível copiar. Verifique a permissão do navegador.',true);return false;}}
   function readForm(target){
     const el=target.closest('[data-field],[data-row]'); if(!el)return;
+    if(el.hasAttribute('data-date-input'))window.SolicitacaoDatas.input(el);
     if(el.dataset.row!==undefined){const i=Number(el.dataset.row);draft.rows[i] ||= {};draft.rows[i][el.dataset.key]=el.value;}
     else {const key=el.dataset.field;draft[key]=el.value;if(key==='eanMode'||key==='unit'){renderForm();return;}}
     updatePreview();
@@ -255,6 +247,14 @@
     $('reqCategories').addEventListener('click',e=>{const m=e.target.closest('[data-model]'),c=e.target.closest('[data-cat]');if(m)setModel(m.dataset.model);else if(c){openCategory=openCategory===c.dataset.cat?'':c.dataset.cat;renderModels();}});
     $('reqForm').addEventListener('input',e=>readForm(e.target));
     $('reqForm').addEventListener('change',e=>readForm(e.target));
+    $('reqForm').addEventListener('focusout',e=>{
+      const el=e.target;
+      if(!el.hasAttribute?.('data-date-input'))return;
+      window.SolicitacaoDatas.blur(el);
+      const i=Number(el.dataset.row);
+      if(Number.isInteger(i)&&draft.rows?.[i])draft.rows[i].date=el.value;
+      updatePreview();
+    });
     $('reqForm').addEventListener('click',e=>{
       const remove=e.target.closest('[data-remove-row]'),cp=e.target.closest('[data-copy-row]'),ci=e.target.closest('[data-copy-ci]'),cb=e.target.closest('[data-copy-cb]'),name=e.target.closest('[data-copy-name]');
       if(remove){draft.rows.splice(Number(remove.dataset.removeRow),1);renderForm();return;}

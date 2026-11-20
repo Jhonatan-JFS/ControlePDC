@@ -1,3 +1,13 @@
+## Datas de validade nas solicitações (19/11/2026)
+
+- Nos formulários de **Solicitações** e **Telegram**, os campos de validade utilizam **DD/MM/AAAA** e recebem máscara ao digitar (ex.: `27102026` → `27/10/2026`).
+- Dados antigos em `DD.MM.AAAA`, `DD-MM-AAAA`, `DD/MM/AAAA` ou ISO (`AAAA-MM-DD`) são apresentados em `DD/MM/AAAA` ao abrir o formulário, sem alterar o histórico original.
+- Datas impossíveis (como `31/04/2026` e `29/02/2025`) são rejeitadas. Campos vazios continuam permitidos quando a validade é opcional.
+- Na mensagem gerada, `Até data: DD/MM/AAAA` fica **em uma linha própria após o CB**, quando ele existe, preservando a organização dos produtos.
+- A atualização não muda o calendário do Controle PDC nem reescreve solicitações já registradas.
+
+---
+
 ## Formato dos produtos nas solicitações (19/11/2026)
 
 - **Cadastro de Produto novo:** não pede CI, exige nome e aceita CB opcional. A primeira linha é apenas o nome; quando preenchido, o CB fica na linha seguinte, `CB: 789...`.

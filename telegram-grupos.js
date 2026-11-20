@@ -326,6 +326,7 @@
   pane.addEventListener("input",e=>{
     const el=e.target;
     if(el.id==="tgModelSearch"){modelSearch=el.value;renderModelChoices();return;}
+    if(el.hasAttribute?.("data-date-input"))window.SolicitacaoDatas.input(el);
     const d=draft();
     if(el.dataset.tgRow!==undefined){
       const i=Number(el.dataset.tgRow),key=el.dataset.tgKey;
@@ -337,6 +338,14 @@
       d[key]=el.value;
       if(["unit","eanMode"].includes(key)){store();renderCompose();return;}
     }else return;
+    store();updatePreview();
+  });
+  pane.addEventListener("focusout",e=>{
+    const el=e.target;
+    if(!el.hasAttribute?.("data-date-input"))return;
+    window.SolicitacaoDatas.blur(el);
+    const i=Number(el.dataset.tgRow),d=draft();
+    if(Number.isInteger(i)&&d.rows?.[i])d.rows[i].date=el.value;
     store();updatePreview();
   });
   pane.addEventListener("click",async e=>{

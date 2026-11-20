@@ -38,3 +38,7 @@
 @media(max-width:1000px){.topbar{flex-wrap:wrap}.pdc-nav{order:2;margin-right:0}.header-actions{margin-left:auto}}
 @media(max-width:760px){.req-layout{grid-template-columns:1fr}.req-menu{position:static}.req-menu-filter{display:grid;grid-template-columns:1fr 1fr}.req-editor{padding:13px}.req-page-head{margin-top:4px}.req-model-choices{display:flex;flex-wrap:wrap}.req-model-chip{border:1px solid #e5e8e2}}
 @media(max-width:550px){.pdc-nav{width:100%;order:3}.pdc-nav button{flex:1;font-size:11px}.req-page-head h2{font-size:16px}.req-fields{gap:8px}.req-form-heading h3{font-size:14px}.req-menu-filter{grid-template-columns:1fr}.sup-main{flex-wrap:wrap}.sup-item-text{flex-basis:70%}.sup-main .btn{margin-left:auto}.sup-toolbar select{flex:1 1 125px}.req-form-actions .btn{width:100%}}
+
+/* Campos de validade das solicitações: sempre DD/MM/AAAA, sem alterar o calendário PDC. */
+#requestsPage input[data-date-input][aria-invalid="true"],
+#telegramPage input[data-date-input][aria-invalid="true"]{border-color:#e78b83!important;outline:1px solid #e78b83!important}
