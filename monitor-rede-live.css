@@ -1,0 +1,40 @@
+
+/* JFS Connect: inventário recebido por consulta autenticada, não por descoberta no browser. */
+#monitorPage .nr-connection{margin-top:18px;border:1px solid #36536b;border-radius:15px;background:#132334;padding:18px;min-width:0}
+#monitorPage .nr-connection-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:9px}
+#monitorPage .nr-connection-header strong{font-size:16px;color:#f2f8ff}
+#monitorPage #nrLiveStatus{font-size:11px;color:#a9c5da;overflow-wrap:anywhere}
+#monitorPage #nrLiveStatus[data-state="ok"]{color:#78ddbe}
+#monitorPage #nrLiveStatus[data-state="error"]{color:#ffabaf}
+#monitorPage #nrLiveStatus[data-state="pending"]{color:#efca87}
+#monitorPage .nr-connection>p{font-size:12px;color:#adc6d9;line-height:1.6;margin:0 0 15px}
+#monitorPage .nr-endpoint-form label{display:block;font-size:11px;color:#d1e5f5;font-weight:750;margin:0 0 8px}
+#monitorPage .nr-endpoint-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+#monitorPage .nr-endpoint-row input{flex:1 1 320px;min-width:0;padding:10px 12px;min-height:42px;font-size:12px}
+#monitorPage .nr-endpoint-row button{min-height:42px;white-space:normal}
+#monitorPage .nr-endpoint-form small{display:block;font-size:10px;line-height:1.6;color:#8da9c0;margin:9px 0 0}
+#monitorPage .nr-telemetry-summary{margin:18px 0 10px;padding:12px 14px;background:#102d40;border:1px solid #3a6481;border-radius:10px;font-size:12px;color:#cbebfc}
+#monitorPage .nr-devices{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:12px;margin-top:15px}
+#monitorPage .nr-device{border:1px solid #38556f;border-radius:14px;background:#101f2e;padding:15px;min-width:0}
+#monitorPage .nr-device-head{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:15px}
+#monitorPage .nr-device-name{display:flex;align-items:center;gap:9px;min-width:0}
+#monitorPage .nr-device-name h3{font-size:15px;line-height:1.4;color:#f2f8ff;overflow-wrap:anywhere;margin:0}
+#monitorPage .nr-device-icon{font-size:24px;color:#80d8f1}
+#monitorPage .nr-device-badge{font-size:10px;padding:6px 9px;background:#463629;border:1px solid #84623c;color:#f4d098;border-radius:20px}
+#monitorPage .nr-device-badge.is-online{background:#153b33;border-color:#347c6a;color:#a3eed0}
+#monitorPage .nr-printer-list{display:grid;gap:8px}
+#monitorPage .nr-printer{display:flex;align-items:center;gap:10px;border:1px solid #2c4359;border-radius:10px;background:#172c3e;padding:11px;min-width:0}
+#monitorPage .nr-printer-icon{font-size:20px;color:#91cce7;flex:none}
+#monitorPage .nr-printer-info{flex:1 1 150px;min-width:0;display:grid;gap:5px}
+#monitorPage .nr-printer-info strong{font-size:12px;color:#ecf7ff;overflow-wrap:anywhere}
+#monitorPage .nr-printer-info small{font-size:10px;color:#a4bfd2;overflow-wrap:anywhere}
+#monitorPage .nr-printer-state{font-size:10px;color:#a6e3f4;max-width:130px;text-align:right;overflow-wrap:anywhere}
+#monitorPage .nr-printer-warning{font-size:11px;line-height:1.6;color:#f0c789;margin-top:12px}
+#monitorPage .nr-printer-empty,#monitorPage .nr-no-devices{font-size:12px;color:#a5bfd1;line-height:1.5}
+@media(max-width:650px){
+  #monitorPage .nr-connection{padding:13px}
+  #monitorPage .nr-endpoint-row input{flex-basis:100%}
+  #monitorPage .nr-endpoint-row button{flex:1 1 auto}
+  #monitorPage .nr-printer{flex-wrap:wrap}
+  #monitorPage .nr-printer-state{text-align:left;max-width:100%;padding-left:30px}
+}
