@@ -19,6 +19,15 @@ const firestore = getFirestore(app);
 const ui = window.ControlPDC;
 const TYPES = ["items", "events", "batches", "requests", "requestEvents"];
 let activeUser = null;
+
+// Reutiliza o Firebase Authentication atual para leitura do inventário no Worker.
+// Não expõe credencial de publicação, que permanece somente no Windows.
+window.JFSNetworkAuth = Object.freeze({
+  async getIdToken() {
+    if (!activeUser) throw new Error("Entre com sua conta Google para consultar a rede.");
+    return activeUser.getIdToken();
+  }
+});
 let stopListeners = [];
 let snapshots = {};
 let pendingWrites = 0;
