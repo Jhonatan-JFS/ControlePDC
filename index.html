@@ -27,6 +27,7 @@
   <script defer src="./telegram-mapa.js?v=2"></script>
   <script defer src="./telegram-grupos.js?v=12"></script>
   <script defer src="./monitor-rede.js?v=1"></script>
+  <script defer src="./monitor-rede-live.js?v=1"></script>
   <script type="module" src="./cloud.js?v=2.1.0"></script>
 </head>
 <body>
@@ -284,8 +285,24 @@
             </div>
             <h3>Espaço preparado para o JFS Connect</h3>
             <p>A subaba foi criada. A conexão com o sistema de monitoramento será implementada em uma próxima etapa.</p>
-            <p class="nr-disclaimer">Nenhum computador, impressora ou rede está sendo consultado por esta página.</p>
+            <p class="nr-disclaimer">Nenhum computador, impressora ou rede está sendo consultado enquanto a integração não estiver configurada.</p>
           </div>
+          <section class="nr-connection" aria-label="Conexão com o JFS Connect">
+            <div class="nr-connection-header"><strong>Conexão com a central</strong><span id="nrLiveStatus" role="status" aria-live="polite">Não configurado</span></div>
+            <p>Informe o endereço do serviço JFS autorizado. O acesso de leitura usa sua sessão Google; nenhum código de envio do Monitor será solicitado aqui.</p>
+            <form id="nrEndpointForm" class="nr-endpoint-form">
+              <label for="nrEndpoint">Endereço HTTPS do serviço de rede</label>
+              <div class="nr-endpoint-row">
+                <input type="url" id="nrEndpoint" name="endpoint" placeholder="https://jfs-network-telemetry.sua-conta.workers.dev/v1/monitor" autocomplete="off" spellcheck="false">
+                <button type="submit" class="btn btn-primary btn-small">Salvar conexão</button>
+                <button type="button" id="nrRefresh" class="btn btn-soft btn-small">Atualizar</button>
+                <button type="button" id="nrDisconnect" class="btn btn-ghost btn-small">Desconectar site</button>
+              </div>
+              <small>O endereço fica salvo apenas neste navegador. A consulta é somente leitura e não altera computadores ou impressoras.</small>
+            </form>
+            <div id="nrTelemetrySummary" class="nr-telemetry-summary" hidden></div>
+            <div id="nrDevices" class="nr-devices" aria-label="Computadores e impressoras informados pelo JFS Connect" hidden></div>
+          </section>
         </div>
       </section>
       <footer class="footer"><span id="storageStatus">Salvamento local ativo</span><span>Controle PDC v2.0 · solicitações integradas</span></footer>
