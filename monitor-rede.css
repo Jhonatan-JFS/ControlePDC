@@ -1,0 +1,55 @@
+/* Monitoramento de Rede — subaba visual independente do monitoramento Telegram. */
+#monitorPage .nr-tabs{
+  display:flex;align-items:center;flex-wrap:wrap;gap:7px;
+  padding:5px;margin:0 0 18px;border:1px solid #31475e;
+  border-radius:13px;background:#0d1723;
+}
+#monitorPage .nr-tab{
+  display:inline-flex;align-items:center;justify-content:center;gap:9px;
+  min-height:42px;padding:10px 17px;border:1px solid transparent;border-radius:10px;
+  color:#b1c8da;background:transparent;font:750 12px/1.4 Manrope,'DM Sans',sans-serif;
+  cursor:pointer;transition:background .16s,border-color .16s,color .16s;
+}
+#monitorPage .nr-tab span{font-size:17px;line-height:1}
+#monitorPage .nr-tab:hover{background:#20374d;color:#f1f9ff}
+#monitorPage .nr-tab[aria-selected="true"]{
+  color:#f4fbff;border-color:#4d8cbb;background:linear-gradient(135deg,#285d86,#1c4365);
+  box-shadow:inset 0 -2px 0 #75c6ed;
+}
+#monitorPage .nr-tab:focus-visible{outline:2px solid #85ddff;outline-offset:3px}
+#monitorPage [role="tabpanel"][hidden]{display:none!important}
+#monitorPage .nr-panel{min-width:0}
+#monitorPage .nr-heading{
+  display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;
+  margin-bottom:15px;padding:20px;border:1px solid #354d63;border-radius:15px;
+  background:linear-gradient(115deg,#1b3044,#121e2c);
+}
+#monitorPage .nr-heading h2{font:800 clamp(19px,2.5vw,24px)/1.25 Manrope,'DM Sans',sans-serif;color:#f2f9ff;margin:0}
+#monitorPage .nr-heading p{margin:7px 0 0;color:#b3cada;font-size:12px;line-height:1.6}
+#monitorPage .nr-status{
+  display:inline-flex;align-items:center;gap:8px;border-radius:100px;
+  padding:9px 12px;border:1px solid #6e6144;background:#302c25;
+  color:#efcc8f;font-size:11px;font-weight:700;white-space:normal;
+}
+#monitorPage .nr-status-dot{width:7px;height:7px;flex:none;border-radius:50%;background:#efbe73}
+#monitorPage .nr-empty{
+  padding:clamp(30px,6vw,70px) 18px;min-height:300px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+  border:1px dashed #45617c;border-radius:16px;background:radial-gradient(circle at 50% 0%,#1d3951 0%,#122334 48%,#111d29 100%);
+}
+#monitorPage .nr-empty-illustration{display:grid;place-items:center;max-width:100%;margin-bottom:17px}
+#monitorPage .nr-empty-illustration svg{max-width:100%;height:auto}
+#monitorPage .nr-empty h3{color:#eff8ff;font-size:17px;line-height:1.35;font-weight:800;margin:0 0 10px}
+#monitorPage .nr-empty p{max-width:460px;margin:0;color:#aec4d8;font-size:12px;line-height:1.75}
+#monitorPage .nr-empty .nr-disclaimer{
+  margin-top:19px;padding:10px 14px;border-radius:10px;
+  color:#9bb8ca;background:#132a3a;border:1px solid #2c4b60;font-size:11px;
+}
+@media(max-width:560px){
+  #monitorPage .nr-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  #monitorPage .nr-tab{min-width:0;padding:10px 8px;font-size:11px}
+  #monitorPage .nr-heading{padding:15px}
+  #monitorPage .nr-status{font-size:10px}
+  #monitorPage .nr-empty{min-height:270px}
+}
+@media(prefers-reduced-motion:reduce){#monitorPage .nr-tab{transition:none}}
