@@ -2,6 +2,8 @@
 (() => {
   "use strict";
   const STORAGE = "jfs-network-endpoint-v1";
+  const DEFAULT_ENDPOINT = "https://jfs-network-telemetry.jhonatan98-furtado98.workers.dev/v1/monitor";
+  const DISCONNECTED = "__disconnected__";
   const RATE_MS = 15_000;
   const id = key => document.getElementById(key);
   let endpoint = "";
@@ -16,7 +18,7 @@
   function validAddress(value) {
     const url = new URL(value);
     if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash ||
-        url.port || url.pathname !== "/v1/monitor" || !/^jfs-network-telemetry\.[a-z0-9-]+\.workers\.dev$/i.test(url.hostname))
+        url.port || url.pathname !== "/v1/monitor" || url.href !== DEFAULT_ENDPOINT)
       throw new Error("Informe o endereço HTTPS original do Worker jfs-network-telemetry em workers.dev.");
     return url.href;
   }
@@ -169,10 +171,10 @@
     if (!form) return;
     try {
       const saved = localStorage.getItem(STORAGE);
-      if (saved) {
-        endpoint = validAddress(saved);
+      if (saved !== DISCONNECTED) {
+        endpoint = validAddress(saved || DEFAULT_ENDPOINT);
         id("nrEndpoint").value = endpoint;
-        state("Aguardando consulta", "pending");
+        state("Serviço JFS identificado • aguardando autenticação", "pending");
       }
     } catch {
       endpoint = "";
@@ -218,7 +220,7 @@
     id("nrDisconnect").addEventListener("click", () => {
       controller?.abort();
       endpoint = "";
-      localStorage.removeItem(STORAGE);
+      localStorage.setItem(STORAGE, DISCONNECTED);
       id("nrEndpoint").value = "";
       clearData();
       state("Sem serviço configurado");
