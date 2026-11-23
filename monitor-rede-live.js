@@ -204,6 +204,17 @@
     });
     id("nrRefresh").addEventListener("click", () => refresh(true));
     id("nrShareLink").addEventListener("click", sharePanel);
+    id("nrCopyUid").addEventListener("click", async () => {
+      try {
+        if (!window.JFSNetworkAuth?.getUserId) throw new Error("Autenticação indisponível.");
+        const uid = window.JFSNetworkAuth.getUserId();
+        if (!navigator.clipboard?.writeText) throw new Error("Área de transferência indisponível.");
+        await navigator.clipboard.writeText(uid);
+        state("ID de acesso copiado. Use em OWNER_UID no Worker Cloudflare.", "ok");
+      } catch (error) {
+        state(error?.message || "Não foi possível copiar o ID.", "error");
+      }
+    });
     id("nrDisconnect").addEventListener("click", () => {
       controller?.abort();
       endpoint = "";

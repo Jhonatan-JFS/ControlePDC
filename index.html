@@ -16,7 +16,7 @@
   <link rel="stylesheet" href="./telegram-sync.css?v=2">
   <link rel="stylesheet" href="./telegram-mapa.css?v=1">
   <link rel="stylesheet" href="./monitor-rede.css?v=1">
-  <link rel="stylesheet" href="./monitor-rede-live.css?v=1">
+  <link rel="stylesheet" href="./monitor-rede-live.css?v=2">
   <script defer src="./solicitacao-datas.js?v=1"></script>
   <script defer src="./app.js?v=2.0.2"></script>
   <script defer src="./solicitacoes.js?v=2.0.5"></script>
@@ -28,8 +28,8 @@
   <script defer src="./telegram-mapa.js?v=2"></script>
   <script defer src="./telegram-grupos.js?v=12"></script>
   <script defer src="./monitor-rede.js?v=1"></script>
-  <script defer src="./monitor-rede-live.js?v=1"></script>
-  <script type="module" src="./cloud.js?v=2.1.0"></script>
+  <script defer src="./monitor-rede-live.js?v=2"></script>
+  <script type="module" src="./cloud.js?v=2.1.1"></script>
 </head>
 <body>
   <div class="app-shell">
@@ -299,12 +299,13 @@
                 <button type="button" id="nrRefresh" class="btn btn-soft btn-small">Atualizar</button>
                 <button type="button" id="nrDisconnect" class="btn btn-ghost btn-small">Desconectar site</button>
                 <button type="button" id="nrShareLink" class="btn btn-soft btn-small">Compartilhar acesso</button>
+                <button type="button" id="nrCopyUid" class="btn btn-ghost btn-small">Copiar meu ID de acesso</button>
               </div>
               <small>O endereço fica salvo apenas neste navegador. A consulta é somente leitura e não altera computadores ou impressoras.</small>
               <details class="nr-guide">
                 <summary>Como conectar o Monitor ao site?</summary>
                 <p><strong>1.</strong> Instale o JFS Monitor em cada computador autorizado e configure o IP e a chave da central Windows. A lista de impressoras será recebida pelo JFS Connect.</p>
-                <p><strong>2.</strong> Publique o serviço <strong>JFS Network Telemetry</strong> na conta Cloudflare destinada ao projeto e configure os segredos necessários. A conexão do celular pelo relay é separada.</p>
+                <p><strong>2.</strong> Publique o serviço <strong>JFS Network Telemetry</strong> na conta Cloudflare destinada ao projeto. Para o segredo OWNER_UID, entre com Google aqui e clique <strong>Copiar meu ID de acesso</strong>. Configure ALLOWED_ORIGIN e os demais segredos no Worker. A conexão do celular pelo relay é separada.</p>
                 <p><strong>3.</strong> No JFS Connect Windows, abra <strong>Configurar envio ao site</strong>, gere uma chave de envio e copie seu hash para a Cloudflare. Configure o mesmo endereço HTTPS no Windows e no site.</p>
                 <p><strong>Compartilhamento:</strong> o link público pode ser enviado a outro dispositivo, mas não concede acesso aos dados. Cada usuário precisa ser autorizado no serviço e autenticar-se com Google. Não compartilhe o token de envio.</p>
               </details>

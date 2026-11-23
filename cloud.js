@@ -23,6 +23,10 @@ let activeUser = null;
 // Reutiliza o Firebase Authentication atual para leitura do inventário no Worker.
 // Não expõe credencial de publicação, que permanece somente no Windows.
 window.JFSNetworkAuth = Object.freeze({
+  getUserId() {
+    if (!activeUser) throw new Error("Entre com sua conta Google antes de copiar o identificador.");
+    return activeUser.uid;
+  },
   async getIdToken() {
     if (!activeUser) throw new Error("Entre com sua conta Google para consultar a rede.");
     return activeUser.getIdToken();
