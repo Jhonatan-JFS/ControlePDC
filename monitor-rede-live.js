@@ -172,7 +172,9 @@
     try {
       const saved = localStorage.getItem(STORAGE);
       if (saved !== DISCONNECTED) {
-        endpoint = validAddress(saved || DEFAULT_ENDPOINT);
+        // Substitui endpoints legados por aquele verificado na conta JFS-Connect.
+        endpoint = validAddress(DEFAULT_ENDPOINT);
+        if (saved !== DEFAULT_ENDPOINT) localStorage.setItem(STORAGE, endpoint);
         id("nrEndpoint").value = endpoint;
         state("Serviço JFS identificado • aguardando autenticação", "pending");
       }
