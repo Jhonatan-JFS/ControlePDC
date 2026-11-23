@@ -264,11 +264,11 @@
         <div id="monitorRedePanel" class="nr-panel" role="tabpanel" aria-labelledby="monitorRedeTab" hidden>
           <header class="nr-heading">
             <div>
-              <span class="page-eyebrow">JFS CONNECT / NOVA SEÇÃO</span>
+              <span class="page-eyebrow">JFS CONNECT / MONITORAMENTO</span>
               <h2>Monitoramento de Rede</h2>
-              <p>Área reservada ao acompanhamento de redes, computadores e impressoras.</p>
+              <p>Acompanhe computadores e impressoras reportados pela central JFS Connect.</p>
             </div>
-            <span class="nr-status"><span class="nr-status-dot" aria-hidden="true"></span> Integração não configurada</span>
+            <span class="nr-status"><span class="nr-status-dot" aria-hidden="true"></span> Serviço Cloudflare disponível</span>
           </header>
           <div class="nr-empty">
             <div class="nr-empty-illustration" aria-hidden="true">
@@ -284,29 +284,29 @@
                 <circle cx="137" cy="77" r="4" fill="#6AAFD4"/>
               </svg>
             </div>
-            <h3>Espaço preparado para o JFS Connect</h3>
-            <p>A subaba foi criada. A conexão com o sistema de monitoramento será implementada em uma próxima etapa.</p>
-            <p class="nr-disclaimer">Nenhum computador, impressora ou rede está sendo consultado enquanto a integração não estiver configurada.</p>
+            <h3>Aguardando os primeiros relatórios</h3>
+            <p>O serviço está publicado. Os dispositivos aparecerão após a configuração do Connect Windows e o primeiro envio autorizado.</p>
+            <p class="nr-disclaimer">Os dados são recebidos somente dos monitores autorizados; nenhum computador da rede é acessado diretamente pelo site.</p>
           </div>
           <section class="nr-connection" aria-label="Conexão com o JFS Connect">
             <div class="nr-connection-header"><strong>Conexão com a central</strong><span id="nrLiveStatus" role="status" aria-live="polite">Não configurado</span></div>
-            <p>Informe o endereço do serviço JFS autorizado. O acesso de leitura usa sua sessão Google; nenhum código de envio do Monitor será solicitado aqui.</p>
+            <p>Serviço JFS Cloudflare pré-configurado. Entre com uma conta Google autorizada e clique em Atualizar para consultar os relatórios. O segredo de envio fica somente no Windows.</p>
             <form id="nrEndpointForm" class="nr-endpoint-form">
               <label for="nrEndpoint">Endereço HTTPS do serviço de rede</label>
               <div class="nr-endpoint-row">
-                <input type="url" id="nrEndpoint" name="endpoint" placeholder="https://jfs-network-telemetry.sua-conta.workers.dev/v1/monitor" autocomplete="off" spellcheck="false">
+                <input type="url" id="nrEndpoint" name="endpoint" placeholder="https://jfs-network-telemetry.jhonatan98-furtado98.workers.dev/v1/monitor" autocomplete="off" spellcheck="false">
                 <button type="submit" class="btn btn-primary btn-small">Salvar conexão</button>
                 <button type="button" id="nrRefresh" class="btn btn-soft btn-small">Atualizar</button>
                 <button type="button" id="nrDisconnect" class="btn btn-ghost btn-small">Desconectar site</button>
                 <button type="button" id="nrShareLink" class="btn btn-soft btn-small">Compartilhar acesso</button>
                 <button type="button" id="nrCopyUid" class="btn btn-ghost btn-small">Copiar meu ID de acesso</button>
               </div>
-              <small>O endereço fica salvo apenas neste navegador. A consulta é somente leitura e não altera computadores ou impressoras.</small>
+              <small>O endereço oficial é preenchido automaticamente. A consulta é somente leitura e não altera computadores ou impressoras.</small>
               <details class="nr-guide">
                 <summary>Como conectar o Monitor ao site?</summary>
                 <p><strong>1.</strong> Instale o JFS Monitor em cada computador autorizado e configure o IP e a chave da central Windows. A lista de impressoras será recebida pelo JFS Connect.</p>
-                <p><strong>2.</strong> Publique o serviço <strong>JFS Network Telemetry</strong> na conta Cloudflare destinada ao projeto. Para o segredo OWNER_UID, entre com Google aqui e clique <strong>Copiar meu ID de acesso</strong>. Configure ALLOWED_ORIGIN e os demais segredos no Worker. A conexão do celular pelo relay é separada.</p>
-                <p><strong>3.</strong> No JFS Connect Windows, abra <strong>Configurar envio ao site</strong>, gere uma chave de envio e copie seu hash para a Cloudflare. Configure o mesmo endereço HTTPS no Windows e no site.</p>
+                <p><strong>2.</strong> O serviço <strong>JFS Network Telemetry</strong> já foi publicado na conta Cloudflare JFS-Connect. A leitura exige sessão Google com e-mail do proprietário verificado ou UID explicitamente autorizado. O celular utiliza o relay separado.</p>
+                <p><strong>3.</strong> No JFS Connect Windows, abra <strong>Configurar envio ao site</strong>, cole o token privado disponibilizado ao proprietário e confirme a autorização de envio somente depois de validá-la para os equipamentos usados. A Cloudflare já guarda o hash correspondente.</p>
                 <p><strong>Compartilhamento:</strong> o link público pode ser enviado a outro dispositivo, mas não concede acesso aos dados. Cada usuário precisa ser autorizado no serviço e autenticar-se com Google. Não compartilhe o token de envio.</p>
               </details>
             </form>
