@@ -298,8 +298,16 @@
                 <button type="submit" class="btn btn-primary btn-small">Salvar conexão</button>
                 <button type="button" id="nrRefresh" class="btn btn-soft btn-small">Atualizar</button>
                 <button type="button" id="nrDisconnect" class="btn btn-ghost btn-small">Desconectar site</button>
+                <button type="button" id="nrShareLink" class="btn btn-soft btn-small">Compartilhar acesso</button>
               </div>
               <small>O endereço fica salvo apenas neste navegador. A consulta é somente leitura e não altera computadores ou impressoras.</small>
+              <details class="nr-guide">
+                <summary>Como conectar o Monitor ao site?</summary>
+                <p><strong>1.</strong> Instale o JFS Monitor em cada computador autorizado e configure o IP e a chave da central Windows. A lista de impressoras será recebida pelo JFS Connect.</p>
+                <p><strong>2.</strong> Publique o serviço <strong>JFS Network Telemetry</strong> na conta Cloudflare destinada ao projeto e configure os segredos necessários. A conexão do celular pelo relay é separada.</p>
+                <p><strong>3.</strong> No JFS Connect Windows, abra <strong>Configurar envio ao site</strong>, gere uma chave de envio e copie seu hash para a Cloudflare. Configure o mesmo endereço HTTPS no Windows e no site.</p>
+                <p><strong>Compartilhamento:</strong> o link público pode ser enviado a outro dispositivo, mas não concede acesso aos dados. Cada usuário precisa ser autorizado no serviço e autenticar-se com Google. Não compartilhe o token de envio.</p>
+              </details>
             </form>
             <div id="nrTelemetrySummary" class="nr-telemetry-summary" hidden></div>
             <div id="nrDevices" class="nr-devices" aria-label="Computadores e impressoras informados pelo JFS Connect" hidden></div>

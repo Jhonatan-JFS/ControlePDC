@@ -119,6 +119,51 @@
       inFlight = false;
     }
   }
+  function publicShareLink() {
+    const site = new URL("./", window.location.href);
+    site.search = "";
+    site.hash = "";
+    if (endpoint) site.searchParams.set("jfsEndpoint", endpoint);
+    return site.href;
+  }
+  async function sharePanel() {
+    const url = publicShareLink();
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: "JFS Connect — Monitoramento de Rede",
+          text: "Acesso ao painel JFS Connect (requer conta Google autorizada).",
+          url
+        });
+        return;
+      }
+      if (!navigator.clipboard?.writeText) throw new Error("Área de transferência indisponível.");
+      await navigator.clipboard.writeText(url);
+      state("Link copiado — login Google necessário", "ok");
+    } catch (error) {
+      if (error?.name !== "AbortError") state(
+        "Não foi possível compartilhar. Copie o endereço do navegador.", "error");
+    }
+  }
+
+  function receiveSharedEndpoint() {
+    const current = new URL(window.location.href);
+    const shared = current.searchParams.get("jfsEndpoint");
+    if (shared === null) return false;
+    // Nunca mantenha parâmetros de configuração na barra de endereços.
+    current.searchParams.delete("jfsEndpoint");
+    history.replaceState(history.state, "", current.pathname + current.search + current.hash);
+    try {
+      const candidate = validAddress(shared);
+      id("nrEndpoint").value = candidate;
+      state("Endereço preenchido pelo link. Confira o domínio e clique em Salvar conexão.", "pending");
+      return true;
+    } catch {
+      state("O link recebido contém um endereço inválido.", "error");
+      return false;
+    }
+  }
+
   function init() {
     const form = id("nrEndpointForm");
     if (!form) return;
@@ -133,10 +178,23 @@
       endpoint = "";
       state("Sem serviço configurado");
     }
+    const cameFromLink = receiveSharedEndpoint();
+    if (cameFromLink) {
+      // Seleciona a página real do sistema, sem criar uma rota paralela.
+      document.querySelector('[data-page="monitor"]')?.click();
+      document.querySelector('[data-monitor-area="rede"]')?.click();
+    }
     form.addEventListener("submit", event => {
       event.preventDefault();
       try {
-        endpoint = validAddress(id("nrEndpoint").value.trim());
+        const selected = validAddress(id("nrEndpoint").value.trim());
+        if (selected !== endpoint && !window.confirm(
+          "Você confirma que este endereço é o serviço Cloudflare criado por você?\n\n" +
+          new URL(selected).hostname + "\n\n" +
+          "O navegador enviará seu token de autenticação Google/Firebase a esse domínio. " +
+          "Não confirme endereços recebidos de desconhecidos."
+        )) return;
+        endpoint = selected;
         localStorage.setItem(STORAGE, endpoint);
         state("Serviço configurado. Consultando…");
         refresh(true);
@@ -145,6 +203,7 @@
       }
     });
     id("nrRefresh").addEventListener("click", () => refresh(true));
+    id("nrShareLink").addEventListener("click", sharePanel);
     id("nrDisconnect").addEventListener("click", () => {
       controller?.abort();
       endpoint = "";
