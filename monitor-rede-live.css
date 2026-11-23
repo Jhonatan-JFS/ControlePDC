@@ -38,3 +38,11 @@
   #monitorPage .nr-printer{flex-wrap:wrap}
   #monitorPage .nr-printer-state{text-align:left;max-width:100%;padding-left:30px}
 }
+
+/* Assistente de conexão e compartilhamento do painel */
+#monitorPage .nr-guide{margin-top:16px;padding:13px 15px;border:1px solid #355771;
+ border-radius:11px;background:#10253a;color:#bcd6e7}
+#monitorPage .nr-guide summary{cursor:pointer;color:#a6dcf7;font-size:12px;font-weight:750}
+#monitorPage .nr-guide summary:focus-visible{outline:2px solid #91dbff;outline-offset:4px}
+#monitorPage .nr-guide p{margin:12px 0 0;font-size:11px;line-height:1.75;color:#b9d0e2}
+#monitorPage .nr-guide strong{color:#eaf7ff}
