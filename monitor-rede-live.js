@@ -154,10 +154,9 @@
     current.searchParams.delete("jfsEndpoint");
     history.replaceState(history.state, "", current.pathname + current.search + current.hash);
     try {
-      endpoint = validAddress(shared);
-      localStorage.setItem(STORAGE, endpoint);
-      id("nrEndpoint").value = endpoint;
-      state("Endereço recebido pelo link. Entre com Google para consultar.", "pending");
+      const candidate = validAddress(shared);
+      id("nrEndpoint").value = candidate;
+      state("Endereço preenchido pelo link. Confira o domínio e clique em Salvar conexão.", "pending");
       return true;
     } catch {
       state("O link recebido contém um endereço inválido.", "error");
@@ -188,7 +187,14 @@
     form.addEventListener("submit", event => {
       event.preventDefault();
       try {
-        endpoint = validAddress(id("nrEndpoint").value.trim());
+        const selected = validAddress(id("nrEndpoint").value.trim());
+        if (selected !== endpoint && !window.confirm(
+          "Você confirma que este endereço é o serviço Cloudflare criado por você?\n\n" +
+          new URL(selected).hostname + "\n\n" +
+          "O navegador enviará seu token de autenticação Google/Firebase a esse domínio. " +
+          "Não confirme endereços recebidos de desconhecidos."
+        )) return;
+        endpoint = selected;
         localStorage.setItem(STORAGE, endpoint);
         state("Serviço configurado. Consultando…");
         refresh(true);
