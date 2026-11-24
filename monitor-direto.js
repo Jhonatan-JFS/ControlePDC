@@ -98,6 +98,13 @@ async function pairing(){
 }
 function init(){
  if(!$("jfsDirect"))return;
+ const url=new URL(window.location.href);
+ if(url.searchParams.get("jfsDirect")==="1") {
+   document.querySelector('[data-page="monitor"]')?.click();
+   document.querySelector('[data-monitor-area="rede"]')?.click();
+   url.searchParams.delete("jfsDirect");
+   history.replaceState(history.state,"",url.pathname+url.search+url.hash);
+ }
  $("jdPair").addEventListener("click",pairing);
  $("jdRefresh").addEventListener("click",()=>refresh(true));
  $("jdCopy").addEventListener("click",async()=>{
