@@ -1,0 +1,42 @@
+name: ControlePDC - validar JFS Direct Cloud v2
+on:
+  push:
+    branches: [experiment/direct-cloud-v2]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validar JavaScript do painel
+        run: node --check monitor-direto.js
+      - name: Validar integracao HTML
+        run: |
+          python - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          class Validator(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.ids=set()
+                  self.scripts=[]
+              def handle_starttag(self,tag,attrs):
+                  attrs=dict(attrs)
+                  if attrs.get("id"):
+                      assert attrs["id"] not in self.ids, f"ID duplicado: {attrs['id']}"
+                      self.ids.add(attrs["id"])
+                  if tag=="script" and "src" in attrs:self.scripts.append(attrs["src"])
+          parser=Validator()
+          parser.feed(Path("index.html").read_text())
+          for element in ("jfsDirect","jdPair","jdCode","jdRefresh","jdDevices","jdEvents","jdStatus"):
+              assert element in parser.ids, element
+          assert any("monitor-direto.js" in x for x in parser.scripts)
+          assert Path("monitor-direto.css").exists()
+          print("Painel JFS Direct v2: validado.")
+          PY

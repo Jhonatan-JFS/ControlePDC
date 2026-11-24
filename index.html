@@ -17,6 +17,7 @@
   <link rel="stylesheet" href="./telegram-mapa.css?v=1">
   <link rel="stylesheet" href="./monitor-rede.css?v=1">
   <link rel="stylesheet" href="./monitor-rede-live.css?v=2">
+  <link rel="stylesheet" href="./monitor-direto.css?v=1">
   <script defer src="./solicitacao-datas.js?v=1"></script>
   <script defer src="./app.js?v=2.0.2"></script>
   <script defer src="./solicitacoes.js?v=2.0.5"></script>
@@ -29,6 +30,7 @@
   <script defer src="./telegram-grupos.js?v=12"></script>
   <script defer src="./monitor-rede.js?v=1"></script>
   <script defer src="./monitor-rede-live.js?v=4"></script>
+  <script defer src="./monitor-direto.js?v=1"></script>
   <script type="module" src="./cloud.js?v=2.1.1"></script>
 </head>
 <body>
@@ -288,6 +290,25 @@
             <p>O serviço está publicado. Os dispositivos aparecerão após a configuração do Connect Windows e o primeiro envio autorizado.</p>
             <p class="nr-disclaimer">Os dados são recebidos somente dos monitores autorizados; nenhum computador da rede é acessado diretamente pelo site.</p>
           </div>
+          <section id="jfsDirect" aria-label="JFS Connect v2 - Monitoramento direto">
+            <h3>JFS Connect v2 — Monitoramento direto</h3>
+            <p>O Monitor Windows agora pode enviar informações para este site sem precisar do Connect Windows intermediário. Cada computador tem identificação e permissões próprias, com reparos desligados até serem liberados nele.</p>
+            <div class="jd-buttons">
+              <button type="button" class="btn btn-primary btn-small" id="jdPair">Gerar código para um computador</button>
+              <button type="button" class="btn btn-soft btn-small" id="jdRefresh">Atualizar agora</button>
+            </div>
+            <div id="jdCodeArea" hidden>
+              <p>Código de vínculo temporário — válido por 5 minutos. Insira em <strong>JFS Monitor → Configurar → Conexão direta ao site</strong>.</p>
+              <div id="jdCode" aria-label="Código de vínculo"></div>
+              <button type="button" class="btn btn-soft btn-small" id="jdCopy">Copiar código</button>
+            </div>
+            <span id="jdStatus" role="status" aria-live="polite">Entre com Google para consultar os Monitores.</span>
+            <div id="jdSummary" class="jd-summary">Aguardando inventário</div>
+            <div id="jdDevices" class="jd-devices" aria-label="Computadores vinculados"></div>
+            <h3 style="margin-top:21px">Histórico de eventos e reparos</h3>
+            <div id="jdEvents" class="jd-events"></div>
+            <p class="jd-footer">Os reparos são enviados somente ao computador escolhido; exigem autorização naquele Monitor e confirmação do nome no site. Limpar filas e reiniciar o Spooler pode afetar impressões em andamento. Não use em equipamentos de produção sem autorização.</p>
+          </section>
           <section class="nr-connection" aria-label="Conexão com o JFS Connect">
             <div class="nr-connection-header"><strong>Conexão com a central</strong><span id="nrLiveStatus" role="status" aria-live="polite">Não configurado</span></div>
             <p>Serviço JFS Cloudflare pré-configurado. Entre com uma conta Google autorizada e clique em Atualizar para consultar os relatórios. O segredo de envio fica somente no Windows.</p>
