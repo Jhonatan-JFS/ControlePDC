@@ -1,5 +1,5 @@
 /* Gerador de modelos da aba Telegram; replica os campos de Solicitações,
-   preservando o fluxo original do Controle PDC sem integração automática. */
+   integrando o fluxo de supervisão do Controle PDC. */
 (() => {
  "use strict";
  const categories=[
@@ -26,7 +26,7 @@
   validadeRemove:{name:"Remoção de Validade",multi:true,cat:"promo"},
   nome:{name:"Alteração de Nomenclatura",cat:"other"}
  };
- const models=categories.flatMap(cat=>cat.ids.map(id=>({id,name:catalog[id].name,category:cat.name,multi:!!catalog[id].multi})));
+ const models=categories.flatMap(cat=>cat.ids.map(id=>({id,name:catalog[id].name,category:cat.name,multi:!!catalog[id].multi,pdcCategory:catalog[id].cat})));
  const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
  const val=s=>String(s??"").trim();
  const defaults=id=>({category:catalog[id]?.cat||"other",eanMode:"CI",unit:"Un",rows:[{}],date:"",memo:""});
@@ -126,11 +126,11 @@
  }
  function form(id,d){
   const meta=catalog[id];if(!meta)return '<p class="req-warning">Modelo indisponível.</p>';
-  let extras="";
-  if(id==="grade")extras=field(d,"rootCI","CI principal")+field(d,"rootName","Nome da grade");
-  if(id==="cadastroNFe")extras=field(d,"company","Nome da empresa",{wide:true})+field(d,"nfeNumber","Número da NF-e",{wide:true,inputmode:"numeric"});
-  if(id==="desmembrar")extras=select(d,"unit","Unidade",[["Un","Un."],["Metro","Metro"],["1/2 Metro","1/2 Metro"],["Personalizado","Personalizado"]])+field(d,"qty","Quantidade (opcional)")+(d.unit==="Personalizado"?field(d,"customUnit","Nome da unidade"):"");
-  if(id==="ean")extras=select(d,"eanMode","Código a adicionar no EAN",[["CI","CI"],["CB","CB"]]);
+  let extras=select(d,"category","Categoria no Controle PDC",[["increase","Aumento"],["decrease","Redução"],["new","Novo"],["promo","Promoção"],["other","Outros"]]);
+  if(id==="grade")extras+=field(d,"rootCI","CI principal")+field(d,"rootName","Nome da grade");
+  if(id==="cadastroNFe")extras+=field(d,"company","Nome da empresa",{wide:true})+field(d,"nfeNumber","Número da NF-e",{wide:true,inputmode:"numeric"});
+  if(id==="desmembrar")extras+=select(d,"unit","Unidade",[["Un","Un."],["Metro","Metro"],["1/2 Metro","1/2 Metro"],["Personalizado","Personalizado"]])+field(d,"qty","Quantidade (opcional)")+(d.unit==="Personalizado"?field(d,"customUnit","Nome da unidade"):"");
+  if(id==="ean")extras+=select(d,"eanMode","Código a adicionar no EAN",[["CI","CI"],["CB","CB"]]);
   const extra='<div class="req-fields">'+extras+'</div>';
   function rowForm(r,i){
     if(id==="cadastro"){
@@ -165,5 +165,19 @@
   const memo=["preco","verificarPreco"].includes(id)?'<label class="req-wide-note">Observação (opcional; texto livre)<textarea data-tg-field="memo" rows="2">'+esc(d.memo||"")+'</textarea></label>':"";
   return '<div class="req-form-heading"><div><small>MODELO SELECIONADO</small><h3>'+esc(meta.name)+'</h3></div><button type="button" class="btn btn-ghost btn-small" id="tgClearDraft">Limpar</button></div>'+(id==="cadastro"?'<p class="req-muted">Produto novo: informe o nome e, se houver, o CB. O CI será atribuído após o cadastro.</p>':"")+extra+simple+memo;
  }
- window.TelegramTemplates={models,categories,defaults,form,message,validate,rowMessage,formatMoney,dateValue};
+ function requestEntries(id,d,submissionId,createdAt=new Date().toISOString()){
+  const meta=catalog[id];if(!meta||validate(id,d))return [];
+  const model=models.find(m=>m.id===id),msg=message(id,d);
+  const category=["increase","decrease","new","promo","other"].includes(d.category)?d.category:meta.cat;
+  return rows(id,d).filter(r=>["cadastro","cadastroNFe"].includes(id)?val(r.name):code(r)).map((r,i)=>({
+    id:submissionId+"-"+i,submissionId,position:i,modelId:id,modelName:meta.name,modelGroup:model.category,
+    pdcCategory:category,ci:val(r.ci),cb:val(id==="cb"?r.newCB:r.cb),
+    name:val(id==="nome"?r.newName:r.name||r.newName||r.oldName),
+    cost:formatMoney(r.cost)||"",sale:formatMoney(r.sale)||"",note:val(r.memo||d.memo),
+    validity:dateValue(r.date)||"",fields:JSON.parse(JSON.stringify({...d,item:r})),
+    message:msg,originalLine:rowMessage(id,d,r)||msg,createdAt,
+    status:"awaiting",reviewedAt:"",reason:"",pdcItemId:null,origin:"telegram-solicitacoes"
+  }));
+ }
+ window.TelegramTemplates={models,categories,defaults,form,message,validate,rowMessage,formatMoney,dateValue,requestEntries};
 })();
