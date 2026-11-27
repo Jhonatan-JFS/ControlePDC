@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="./monitor-rede-live.css?v=2">
   <link rel="stylesheet" href="./monitor-direto.css?v=1">
   <script defer src="./solicitacao-datas.js?v=1"></script>
-  <script defer src="./app.js?v=2.0.5"></script>
+  <script defer src="./app.js?v=2.0.6"></script>
   <script defer src="./solicitacoes.js?v=2.0.8"></script>
   <script defer src="./impressoes.js?v=8"></script>
   <script defer src="./impressoes-editor.js?v=8"></script>
@@ -162,11 +162,12 @@
         <p id="loadHistoryCount" role="status" aria-live="polite"></p>
         <small>Os registros selecionados serão excluídos do Firebase, junto com seus eventos e lotes que não tenham mais cargas vinculadas. As demais categorias, mensagens do Telegram e configurações permanecem intactas. Esta operação não pode ser desfeita.</small>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button type="button" class="btn btn-soft btn-small" id="loadSettingsBackup">Exportar backup</button><button type="button" class="btn btn-danger-outline btn-small" id="resetLoadHistory" disabled>Excluir definitivamente</button></div>
+        <div style="margin-top:16px;padding:12px;border:1px solid #a84849;border-radius:8px;display:flex;flex-direction:column;gap:8px"><strong>Limpeza permanente da lixeira</strong><small id="emptyLoadTrashSettingsCount" role="status">0 registros na lixeira.</small><small>Remove do banco todos os registros já enviados para a lixeira, sem afetar as cargas e solicitações ativas.</small><button type="button" class="btn btn-danger-outline" id="emptyLoadTrashSettings" disabled>Excluir permanentemente os dados da lixeira</button></div>
       </section>
       <section class="trash-panel hidden" id="trashPanel" aria-label="Lixeira de cargas e solicitações">
         <div class="trash-heading"><strong>Lixeira</strong><small>Cargas e solicitações excluídas ficam recuperáveis por data, separadamente.</small></div>
+        <div style="margin:10px 0 14px;padding:12px;border:1px solid #a84849;border-radius:8px;display:flex;flex-direction:column;gap:8px"><strong>Excluir dados da lixeira permanentemente</strong><small id="emptyLoadTrashCount" role="status">0 registros na lixeira.</small><button type="button" class="btn btn-danger-outline" id="emptyLoadTrash" disabled>Esvaziar lixeira definitivamente</button></div>
         <div id="trashList"></div>
-        <div class="trash-day" style="flex-wrap:wrap;gap:8px"><span><strong>Esvaziar lixeira definitivamente</strong><small id="emptyLoadTrashCount" role="status">0 registros na lixeira.</small></span><button type="button" class="btn btn-danger-outline btn-small" id="emptyLoadTrash" disabled>Esvaziar lixeira</button></div>
       </section>
       <div class="panel-search-bar" aria-label="Busca no painel do dia">
         <span class="panel-search-label">Buscar no painel</span>
