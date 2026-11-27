@@ -34,7 +34,7 @@
   let selected=new Set(),expanded=new Set();
   const historyOpenTypes=new Set(),historyOpenItems=new Set();
   async function copy(str){try{await navigator.clipboard.writeText(str);core.notify('Copiado.');return true;}catch(_){core.notify('Não foi possível copiar. Verifique a permissão do navegador.',true);return false;}}
-  function allRequests(){return core.read().requests||[];}
+  function allRequests(){return (core.read().requests||[]).filter(r=>!r.deletedAt);}
   function filteredRequests(){
     const txt=norm($('supSearch').value),cat=$('supCategory').value,type=$('supModel').value,status=$('supStatus').value;
     return allRequests().filter(r=>{
@@ -74,7 +74,7 @@
     const groups=new Map(),itemsByRequest=new Map(),eventsByItem=new Map();
     items.forEach(item=>{if(item.sourceRequestId)itemsByRequest.set(item.sourceRequestId,item);});
     events.forEach(event=>{if(!eventsByItem.has(event.itemId))eventsByItem.set(event.itemId,[]);eventsByItem.get(event.itemId).push(event);});
-    const requests=(state.requests||[]).slice().sort((a,b)=>Date.parse(b.createdAt||0)-Date.parse(a.createdAt||0));
+    const requests=(state.requests||[]).filter(r=>!r.deletedAt).sort((a,b)=>Date.parse(b.createdAt||0)-Date.parse(a.createdAt||0));
     for(const r of requests){
       const type=r.modelId||'modelo-antigo:'+String(r.modelName||'Outros');
       if(!groups.has(type))groups.set(type,{name:models[type]?.name||r.modelName||'Outros modelos',records:[]});
@@ -105,7 +105,7 @@
               <small>Tipo: ${escapeHtml(r.modelName||group.name)} · Categoria PDC: ${escapeHtml(pdcNames[r.pdcCategory]||'Outros')}</small>
               <small>Supervisão: ${r.status==='approved'?'Confirmada':r.status==='not_done'?'Não realizada':'Aguardando'}${r.reviewedAt?' · '+new Date(r.reviewedAt).toLocaleString('pt-BR'):''}</small>
               ${r.reason?`<small>Motivo: ${escapeHtml(r.reason)}</small>`:''}
-              ${item?`<small>Fila PDC: ${st==='printed'?'Impressão confirmada':st==='sent'?'Carga enviada':'Pendente de Carga'} · ${new Date(item.createdAt).toLocaleString('pt-BR')}</small>`:''}
+              ${item?`<small>Fila PDC: ${item.deletedAt?'Na lixeira':st==='printed'?'Impressão confirmada':st==='sent'?'Carga enviada':'Pendente de Carga'} · ${new Date(item.createdAt).toLocaleString('pt-BR')}</small>`:''}
               ${sent?`<small>Carga enviada: ${new Date(sent.at).toLocaleString('pt-BR')}</small>`:''}
               ${printed?`<small>Impressão confirmada: ${new Date(printed.at).toLocaleString('pt-BR')}</small>`:''}
             </div>`:''}
