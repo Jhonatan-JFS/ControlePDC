@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="./monitor-rede-live.css?v=2">
   <link rel="stylesheet" href="./monitor-direto.css?v=1">
   <script defer src="./solicitacao-datas.js?v=1"></script>
-  <script defer src="./app.js?v=2.0.2"></script>
+  <script defer src="./app.js?v=2.0.3"></script>
   <script defer src="./solicitacoes.js?v=2.0.7"></script>
   <script defer src="./impressoes.js?v=8"></script>
   <script defer src="./impressoes-editor.js?v=8"></script>
@@ -149,7 +149,12 @@
           <button class="btn btn-danger-outline btn-small" id="deleteDayButton" title="Mover registros da data para a lixeira" disabled>Excluir dia</button>
           <button class="btn btn-ghost btn-small" id="trashToggle">Lixeira (0)</button>
           <button class="btn btn-soft btn-small" id="undoButton" disabled title="Desfazer última alteração">↶ Desfazer</button>
+          <button type="button" class="btn btn-ghost btn-small" id="loadSettingsToggle" aria-expanded="false" aria-controls="loadSettingsPanel">⚙ Configurações</button>
         </div></div>
+      <section class="trash-panel hidden" id="loadSettingsPanel" aria-label="Configurações do controle de cargas">
+        <div class="trash-heading"><strong>Configurações do controle de cargas</strong><small>Gerencie o histórico operacional sem alterar as solicitações ou as cargas em andamento.</small></div>
+        <div class="trash-day" style="flex-wrap:wrap;gap:12px"><div><strong>Zerar histórico de cargas concluídas</strong><p id="loadHistoryCount" role="status" aria-live="polite"></p><small>As impressões confirmadas de todas as datas serão movidas para a lixeira. As pendências e cargas enviadas continuam no painel. É possível restaurar.</small></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-soft btn-small" id="loadSettingsBackup">Exportar backup</button><button type="button" class="btn btn-danger-outline btn-small" id="resetLoadHistory" disabled>Zerar histórico</button></div></div>
+      </section>
       <section class="trash-panel hidden" id="trashPanel" aria-label="Lixeira dos dias excluídos">
         <div class="trash-heading"><strong>Lixeira</strong><small>Itens excluídos ficam recuperáveis. Nenhum dia é apagado definitivamente nesta versão.</small></div>
         <div id="trashList"></div>
