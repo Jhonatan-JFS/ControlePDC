@@ -622,9 +622,9 @@
     const chosen=historyResetCandidates(resetSelection()),plan=deletionPlan(db,chosen);
     count.textContent=(chosen.items.length+chosen.requests.length)+" registro(s) selecionado(s) · "+plan.total+" documento(s) do banco, incluindo eventos e lotes sem vínculo. Todas as datas.";
     button.disabled=!cloudReady||!plan.total;
-    const trash=trashCandidates(),trashCount=trash.items.length+trash.requests.length,empty=$("emptyLoadTrash"),label=$("emptyLoadTrashCount");
-    if(empty)empty.disabled=!cloudReady||!trashCount;
-    if(label)label.textContent=trashCount+" registro(s) na lixeira.";
+    const trash=trashCandidates(),trashCount=trash.items.length+trash.requests.length;
+    for(const id of ["emptyLoadTrash","emptyLoadTrashSettings"]){const el=$(id);if(el)el.disabled=!cloudReady||!trashCount;}
+    for(const id of ["emptyLoadTrashCount","emptyLoadTrashSettingsCount"]){const el=$(id);if(el)el.textContent=trashCount+" registro(s) na lixeira.";}
   }
   function executePermanentDelete(chosen,summary){
     if(CLOUD_MODE&&(!cloudReady||!cloudChangeListener))return toast("Aguarde a sincronização antes de excluir.",true);
@@ -825,9 +825,10 @@
     });
     $("resetLoadHistory")?.addEventListener("click",resetLoadHistory);
     $("emptyLoadTrash")?.addEventListener("click",emptyLoadTrash);
+    $("emptyLoadTrashSettings")?.addEventListener("click",emptyLoadTrash);
     for(const key of Object.keys(resetCategories))$("resetCategory-"+key)?.addEventListener("change",renderLoadSettings);
     $("loadSettingsBackup")?.addEventListener("click",exportBackup);
-    $("trashToggle").addEventListener("click", () => { $("trashPanel").classList.toggle("hidden"); renderTrash(); });
+    $("trashToggle").addEventListener("click", () => { $("trashPanel").classList.toggle("hidden"); renderTrash(); renderLoadSettings(); });
     $("trashList").addEventListener("click", event => {
       const button = event.target.closest("[data-restore-day]");
       if (button) restoreDeletedDay(button.dataset.restoreDay,button.dataset.restoreKind);
