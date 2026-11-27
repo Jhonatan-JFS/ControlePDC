@@ -19,8 +19,8 @@
   <link rel="stylesheet" href="./monitor-rede-live.css?v=2">
   <link rel="stylesheet" href="./monitor-direto.css?v=1">
   <script defer src="./solicitacao-datas.js?v=1"></script>
-  <script defer src="./app.js?v=2.0.3"></script>
-  <script defer src="./solicitacoes.js?v=2.0.7"></script>
+  <script defer src="./app.js?v=2.0.4"></script>
+  <script defer src="./solicitacoes.js?v=2.0.8"></script>
   <script defer src="./impressoes.js?v=8"></script>
   <script defer src="./impressoes-editor.js?v=8"></script>
   <script defer src="./telegram-client.bundle.js?v=2"></script>
@@ -29,7 +29,7 @@
   <script defer src="./telegram-relatorios.js?v=7"></script>
   <script defer src="./telegram-modelos.js?v=5"></script>
   <script defer src="./telegram-mapa.js?v=2"></script>
-  <script defer src="./telegram-grupos.js?v=14"></script>
+  <script defer src="./telegram-grupos.js?v=15"></script>
   <script defer src="./monitor-rede.js?v=1"></script>
   <script defer src="./monitor-rede-live.js?v=4"></script>
   <script defer src="./monitor-direto.js?v=1"></script>
@@ -152,11 +152,19 @@
           <button type="button" class="btn btn-ghost btn-small" id="loadSettingsToggle" aria-expanded="false" aria-controls="loadSettingsPanel">⚙ Configurações</button>
         </div></div>
       <section class="trash-panel hidden" id="loadSettingsPanel" aria-label="Configurações do controle de cargas">
-        <div class="trash-heading"><strong>Configurações do controle de cargas</strong><small>Gerencie o histórico operacional sem alterar as solicitações ou as cargas em andamento.</small></div>
-        <div class="trash-day" style="flex-wrap:wrap;gap:12px"><div><strong>Zerar histórico de cargas concluídas</strong><p id="loadHistoryCount" role="status" aria-live="polite"></p><small>As impressões confirmadas de todas as datas serão movidas para a lixeira. As pendências e cargas enviadas continuam no painel. É possível restaurar.</small></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-soft btn-small" id="loadSettingsBackup">Exportar backup</button><button type="button" class="btn btn-danger-outline btn-small" id="resetLoadHistory" disabled>Zerar histórico</button></div></div>
+        <div class="trash-heading"><strong>Configurações do controle de cargas</strong><small>Escolha quais categorias limpar, independentemente da data. Nada fica selecionado por padrão.</small></div>
+        <fieldset style="border:0;padding:0;margin:12px 0;display:grid;gap:8px"><legend>Limpeza seletiva</legend>
+          <label class="trash-day" style="display:flex;align-items:center;justify-content:space-between;gap:12px"><span style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="resetCategory-printed"> Concluídos / impressões confirmadas</span><strong id="resetCount-printed">0</strong></label>
+          <label class="trash-day" style="display:flex;align-items:center;justify-content:space-between;gap:12px"><span style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="resetCategory-pending"> Cargas pendentes</span><strong id="resetCount-pending">0</strong></label>
+          <label class="trash-day" style="display:flex;align-items:center;justify-content:space-between;gap:12px"><span style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="resetCategory-sent"> Cargas enviadas</span><strong id="resetCount-sent">0</strong></label>
+          <label class="trash-day" style="display:flex;align-items:center;justify-content:space-between;gap:12px"><span style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="resetCategory-requests"> Solicitações — todos os estados e histórico</span><strong id="resetCount-requests">0</strong></label>
+        </fieldset>
+        <p id="loadHistoryCount" role="status" aria-live="polite"></p>
+        <small>Somente os registros selecionados vão para a lixeira. Limpar solicitações não remove as cargas já geradas; limpar cargas não remove as solicitações. As mensagens do Telegram e configurações permanecem intactas.</small>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button type="button" class="btn btn-soft btn-small" id="loadSettingsBackup">Exportar backup</button><button type="button" class="btn btn-danger-outline btn-small" id="resetLoadHistory" disabled>Limpar selecionados</button></div>
       </section>
-      <section class="trash-panel hidden" id="trashPanel" aria-label="Lixeira dos dias excluídos">
-        <div class="trash-heading"><strong>Lixeira</strong><small>Itens excluídos ficam recuperáveis. Nenhum dia é apagado definitivamente nesta versão.</small></div>
+      <section class="trash-panel hidden" id="trashPanel" aria-label="Lixeira de cargas e solicitações">
+        <div class="trash-heading"><strong>Lixeira</strong><small>Cargas e solicitações excluídas ficam recuperáveis por data, separadamente.</small></div>
         <div id="trashList"></div>
       </section>
       <div class="panel-search-bar" aria-label="Busca no painel do dia">
