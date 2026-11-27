@@ -20,7 +20,8 @@
   <link rel="stylesheet" href="./monitor-direto.css?v=1">
   <script defer src="./solicitacao-datas.js?v=1"></script>
   <script defer src="./app.js?v=2.0.2"></script>
-  <script defer src="./solicitacoes.js?v=2.0.5"></script>
+  <script defer src="./solicitacoes.js?v=2.0.6"></script>
+  <script defer src="./impressoes.js?v=1"></script>
   <script defer src="./telegram-client.bundle.js?v=2"></script>
   <script defer src="./telegram-precos.js?v=2"></script>
   <script defer src="./telegram-connector.js?v=15"></script>
@@ -45,6 +46,7 @@
         <button type="button" data-page="requests"><span class="nav-icon" aria-hidden="true">☷</span><span>Solicitações</span></button>
         <button type="button" data-page="telegram"><span class="nav-icon" aria-hidden="true">↗</span><span>Telegram</span></button>
         <button type="button" data-page="monitor"><span class="nav-icon" aria-hidden="true">◉</span><span>Monitoramento</span></button>
+        <button type="button" data-page="printing"><span class="nav-icon" aria-hidden="true">▤</span><span>Impressões</span></button>
       </nav>
       <div class="header-actions">
         <span class="mode-pill" id="modePill"><span class="online-dot"></span> Aguardando login</span>
@@ -336,6 +338,7 @@
           </section>
         </div>
       </section>
+      <section id="printingPage" hidden aria-label="Impressões personalizadas"></section>
       <footer class="footer"><span id="storageStatus">Salvamento local ativo</span><span>Controle PDC v2.0 · solicitações integradas</span></footer>
     </main>
   </div>
