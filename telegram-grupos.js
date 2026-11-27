@@ -60,6 +60,7 @@
     }
     if(!d.unit)d.unit="Un";
     if(!d.eanMode)d.eanMode="CI";
+    if(!["increase","decrease","new","promo","other"].includes(d.category))d.category=templates.defaults(modelId).category;
     return d;
   }
   let modelSearch="", modelCategory="all", openModelCategory="Cadastros";
