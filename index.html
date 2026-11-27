@@ -20,16 +20,16 @@
   <link rel="stylesheet" href="./monitor-direto.css?v=1">
   <script defer src="./solicitacao-datas.js?v=1"></script>
   <script defer src="./app.js?v=2.0.2"></script>
-  <script defer src="./solicitacoes.js?v=2.0.6"></script>
-  <script defer src="./impressoes.js?v=7"></script>
+  <script defer src="./solicitacoes.js?v=2.0.7"></script>
+  <script defer src="./impressoes.js?v=8"></script>
   <script defer src="./impressoes-editor.js?v=8"></script>
   <script defer src="./telegram-client.bundle.js?v=2"></script>
   <script defer src="./telegram-precos.js?v=2"></script>
   <script defer src="./telegram-connector.js?v=15"></script>
   <script defer src="./telegram-relatorios.js?v=7"></script>
-  <script defer src="./telegram-modelos.js?v=4"></script>
+  <script defer src="./telegram-modelos.js?v=5"></script>
   <script defer src="./telegram-mapa.js?v=2"></script>
-  <script defer src="./telegram-grupos.js?v=12"></script>
+  <script defer src="./telegram-grupos.js?v=13"></script>
   <script defer src="./monitor-rede.js?v=1"></script>
   <script defer src="./monitor-rede-live.js?v=4"></script>
   <script defer src="./monitor-direto.js?v=1"></script>
@@ -44,8 +44,7 @@
       </div>
       <nav class="pdc-nav" aria-label="Páginas do sistema">
         <button type="button" data-page="pdc" class="active" aria-current="page"><span class="nav-icon" aria-hidden="true">▦</span><span>Controle PDC</span></button>
-        <button type="button" data-page="requests"><span class="nav-icon" aria-hidden="true">☷</span><span>Solicitações</span></button>
-        <button type="button" data-page="telegram"><span class="nav-icon" aria-hidden="true">↗</span><span>Telegram</span></button>
+        <button type="button" data-page="telegram"><span class="nav-icon" aria-hidden="true">↗</span><span>Solicitações / Telegram</span></button>
         <button type="button" data-page="monitor"><span class="nav-icon" aria-hidden="true">◉</span><span>Monitoramento</span></button>
         <button type="button" data-page="printing"><span class="nav-icon" aria-hidden="true">▤</span><span>Impressões</span></button>
       </nav>
@@ -216,19 +215,6 @@
           <div class="lane-list printed-archive-list" id="printedList"></div>
         </div>
       </section>
-      </section>
-      <section id="requestsPage" class="req-page" hidden aria-label="Modelos de solicitações">
-        <div class="req-page-head"><div><span class="page-eyebrow">02 / MODELOS E REGISTROS</span><h2>Solicitações</h2><p>Escolha o modelo, preencha os dados e acompanhe as solicitações pela supervisão.</p></div></div>
-        <div class="req-layout">
-          <aside class="req-menu" aria-label="Categorias e modelos">
-            <div class="req-menu-filter">
-              <input id="reqModelSearch" type="search" placeholder="Buscar modelo..." aria-label="Buscar modelos">
-              <select id="reqModelCategory" aria-label="Filtrar categorias"><option value="all">Todas as categorias</option><option>Cadastros</option><option>Códigos e Identificação</option><option>Preços e Custos</option><option>Grades e Unidades</option><option>Promoções e Validades</option><option>Dados do Produto</option></select>
-            </div>
-            <div id="reqCategories"></div>
-          </aside>
-          <section class="req-editor" aria-label="Formulário de solicitação"><div id="reqForm"></div></section>
-        </div>
         <section class="req-history-section" aria-label="Histórico de solicitações">
           <button id="reqHistoryToggle" class="req-history-toggle" type="button">Histórico de solicitações <span id="reqHistoryCount">0 registros</span></button>
           <div id="reqHistory" class="req-history-list hidden"></div>
@@ -236,15 +222,15 @@
       </section>
       <section id="telegramPage" class="tg-page" hidden aria-label="Central de solicitações Telegram">
         <div class="tg-page-head">
-          <div><span class="page-eyebrow">03 / COMUNICAÇÃO E DESTINOS</span><h2>Telegram</h2><p>Gerencie visualmente o envio de solicitações aos grupos e tópicos vinculados.</p></div>
+          <div><span class="page-eyebrow">03 / COMUNICAÇÃO E DESTINOS</span><h2>Solicitações / Telegram</h2><p>Crie, copie e registre solicitações no Controle PDC. A conexão Telegram é necessária somente para envio direto e sincronização.</p></div>
           <div class="tg-header-controls"><span class="tg-warning-label" id="tgConnectionBadge">Conta Telegram não conectada</span><button type="button" id="tgHeaderSync" class="tg-header-sync-shortcut">⚙ Conexão e sincronização</button></div>
         </div>
         <button type="button" id="tgMenuToggle" class="btn btn-soft btn-small tg-menu-toggle" aria-expanded="false" aria-controls="tgSidebar">☰ Menu Telegram</button>
         <div class="tg-layout">
           <aside id="tgSidebar" class="tg-sidebar" aria-label="Navegação Telegram">
             <div class="tg-sidebar-head"><div class="tg-sidebar-title">CENTRAL TELEGRAM</div><button id="tgMenuClose" type="button" class="btn btn-ghost btn-small" title="Ocultar menu">✕</button></div>
-            <button type="button" class="tg-section-link active" data-tg-section="mapa">⌁ Mapa de Vínculos</button>
-            <button type="button" class="tg-section-link" data-tg-section="solicitacoes">✉ Nova solicitação</button>
+            <button type="button" class="tg-section-link" data-tg-section="mapa">⌁ Mapa de Vínculos</button>
+            <button type="button" class="tg-section-link active" data-tg-section="solicitacoes">✉ Nova solicitação</button>
             <button type="button" class="tg-section-link" data-tg-section="grupos">▦ Grupos e tópicos</button>
             <details class="tg-sidebar-destinations" id="tgSavedGroups"><summary>Destinos cadastrados <span id="tgGroupCountSidebar">0</span></summary><div class="tg-groups-heading"><strong>Seus grupos/tópicos</strong><button type="button" class="btn btn-soft btn-small" id="tgAddGroup">+ Grupo</button></div><nav id="tgGroupList" class="tg-group-list" aria-label="Grupos de destino"></nav></details>
             <button type="button" class="tg-section-link" data-tg-section="configuracoes">⚙ Conexão Telegram</button>
