@@ -117,6 +117,7 @@
     const {core,entries,submissionId}=prepared;
     const known=core.read().requests||[];
     const existing=known.filter(r=>r.submissionId===submissionId);
+    if(existing.some(r=>r.deletedAt))return {ok:false,message:"Esta solicitação possui registros na lixeira. Restaure-os no PDC ou inicie um novo rascunho para registrar novamente."};
     if(existing.length===entries.length&&entries.every(e=>existing.some(r=>r.id===e.id)))return {ok:true,message:"Esta solicitação já está registrada no PDC; não foi duplicada."};
     if(existing.length)return {ok:false,message:"Registro parcial encontrado no PDC. Confira o histórico antes de tentar novamente."};
     if(!core.createRequests(entries))return {ok:false,message:"Não foi possível registrar no PDC. Confira a conexão com o banco e tente Registrar na supervisão."};
