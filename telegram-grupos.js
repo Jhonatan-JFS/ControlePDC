@@ -28,7 +28,7 @@
     }catch(_){return {groups:[],mappings:{},drafts:{}};}
   }
   const state=load();
-  let section="mapa", groupId=state.groups[0]?.id||"", modelId="cadastro", sendInProgress=false;
+  let section="solicitacoes", groupId=state.groups[0]?.id||"", modelId="cadastro", sendInProgress=false;
   const topicCache=new Map();
   function store(){
     try{
@@ -100,6 +100,33 @@
     return '<div class="tg-route '+(ready?'assigned':'unassigned')+'"><div><small>DESTINOS DA MENSAGEM</small><strong>'+(all.length?all.length+' destino(s)':'Nenhum destino vinculado')+'</strong><div class="tg-route-targets">'+(badges||'<p>Configure os grupos e tópicos para este modelo no Mapa de Vínculos.</p>')+'</div></div><button type="button" id="tgOpenMapFromCompose" class="btn btn-soft btn-small">Editar no mapa</button></div>';
   }
   function getMessage(){return templates.message(modelId,draft());}
+  function prepareRegistration(id,d){
+    const problem=templates.validate(id,d);if(problem)return {error:problem};
+    const core=window.ControlPDC;if(!core?.createRequests)return {error:"Controle PDC indisponível."};
+    const clean=JSON.parse(JSON.stringify(d));delete clean._pdcSubmission;
+    const signature=JSON.stringify({id,d:clean});
+    let marker=d._pdcSubmission;
+    if(!marker||marker.signature!==signature){marker={signature,id:uid()};d._pdcSubmission=marker;store();}
+    const entries=templates.requestEntries(id,clean,marker.id);
+    if(!entries.length)return {error:"Nenhum produto identificado."};
+    return {entries,core,submissionId:marker.id};
+  }
+  function registerPrepared(prepared){
+    if(prepared.error)return {ok:false,message:prepared.error};
+    const {core,entries,submissionId}=prepared;
+    const known=core.read().requests||[];
+    const existing=known.filter(r=>r.submissionId===submissionId);
+    if(existing.length===entries.length&&entries.every(e=>existing.some(r=>r.id===e.id)))return {ok:true,message:"Esta solicitação já está registrada no PDC; não foi duplicada."};
+    if(existing.length)return {ok:false,message:"Registro parcial encontrado no PDC. Confira o histórico antes de tentar novamente."};
+    if(!core.createRequests(entries))return {ok:false,message:"Não foi possível registrar no PDC. Confira a conexão com o banco e tente Registrar na supervisão."};
+    return {ok:true,message:entries.length+" item(ns) registrado(s) em Aguardando Supervisão."};
+  }
+  function registerCurrent(){return registerPrepared(prepareRegistration(modelId,draft()));}
+  async function copyMessageText(text){
+    try{await navigator.clipboard.writeText(text);return true;}catch(_){}
+    const field=document.createElement("textarea");field.value=text;field.setAttribute("readonly","");field.style.cssText="position:fixed;left:-9999px;top:0";document.body.append(field);field.select();
+    try{return !!document.execCommand("copy");}catch(_){return false;}finally{field.remove();}
+  }
   function updatePreview(){const el=$("tgPreview");if(el)el.textContent=getMessage();}
   function renderModelChoices(){
     const mount=$("tgModelChoices");if(!mount)return;
@@ -116,16 +143,16 @@
   function renderCompose(){
     const m=model();
     const categoryOptions='<option value="all">Todas as categorias</option>'+templates.categories.map(c=>'<option value="'+esc(c.name)+'"'+(modelCategory===c.name?' selected':'')+'>'+esc(c.name)+'</option>').join("");
-    pane.innerHTML=header("Nova solicitação","Mesmos modelos e campos de Solicitações. O destino é determinado automaticamente pelo modelo escolhido.")+
+    pane.innerHTML=header("Nova solicitação","Crie, copie ou registre no Controle PDC mesmo sem conectar o Telegram. Conecte apenas para enviar diretamente aos grupos e tópicos.")+
       '<div class="tg-compose-layout"><aside class="tg-model-catalog"><div class="tg-setup-eyebrow">ESCOLHA O MODELO</div>'+
       '<div class="tg-model-filters"><input id="tgModelSearch" type="search" placeholder="Buscar modelo…" value="'+esc(modelSearch)+'" aria-label="Buscar modelo"><select id="tgModelCategory" aria-label="Filtrar categorias">'+categoryOptions+'</select></div><div id="tgModelChoices"></div></aside>'+
       '<section class="tg-compose-form">'+
       '<div id="tgRequestForm">'+templates.form(modelId,draft())+'</div>'+
       routeBox()+
       '<div class="tg-preview-panel"><div class="tg-preview-head"><strong>Prévia da mensagem</strong><span>Separação entre produtos preservada</span></div><pre id="tgPreview"></pre></div>'+
-      '<div class="tg-editor-actions"><button type="button" class="btn btn-soft" id="tgSaveDraft">Salvar rascunho</button><button type="button" class="btn btn-ghost" id="tgCopyMessage">Copiar mensagem</button><button type="button" class="btn btn-primary" id="tgSendMessage">Enviar pelo Telegram</button></div>'+
+      '<div class="tg-editor-actions"><button type="button" class="btn btn-soft" id="tgSaveDraft">Salvar rascunho</button><button type="button" class="btn btn-ghost" id="tgCopyMessage">Copiar mensagem</button><button type="button" class="btn btn-soft" id="tgRegisterPDC">Registrar na supervisão</button><button type="button" class="btn btn-soft" id="tgCopyRegister">Copiar e registrar</button><button type="button" class="btn btn-primary" id="tgSendMessage">Enviar pelo Telegram</button></div>'+
       '<p id="tgNotice" class="tg-notice" role="status" aria-live="polite"></p></section></div>';
-    renderModelChoices();updatePreview();
+    renderModelChoices();updatePreview();const send=$("tgSendMessage");if(send){send.disabled=sendInProgress||!window.TelegramConnector?.connected?.();send.title=send.disabled?"Conecte o Telegram para enviar diretamente.":"Envia e registra na supervisão.";}
   }
   function routingSummary(){
     const rows=state.groups.map(g=>{
@@ -260,7 +287,7 @@
   }
   window.TelegramRouting={
     groups:()=>state.groups.map(g=>({...g})),refresh:render,
-    exportCloudConfig,applyCloudConfig
+    exportCloudConfig,applyCloudConfig,openCompose:()=>{section="solicitacoes";render();}
   };
   window.addEventListener("tg-connection-changed",()=>render());
   window.addEventListener("tg-groups-updated",()=>{if(section==="grupos")renderRealGroupChooser();else if(section==="mapa")render();});
@@ -363,8 +390,7 @@
       const index=Number((part?.dataset.tgWhich??product?.dataset.tgCopyRow??0));
       const d=draft(),r=models.find(x=>x.id===modelId)?.multi?d.rows[index]:(d||{});
       const text=product?templates.rowMessage(modelId,d,r||{}):String(r?.[part.dataset.tgCopyPart]||"");
-      try{await navigator.clipboard.writeText(text);notice("Campo copiado.");}
-      catch(_){notice("Não foi possível copiar. Verifique a permissão do navegador.",true);}
+      if(await copyMessageText(text))notice("Campo copiado.");else notice("Não foi possível copiar. Selecione o texto da prévia manualmente.",true);
       return;
     }
     const overview=e.target.closest("[data-tg-destination]");
@@ -417,6 +443,13 @@
       }
       groupId=state.groups[0]?.id||"";store();render();return;
     }
+    if(e.target.closest("#tgRegisterPDC")){const result=registerCurrent();notice(result.message,!result.ok);return;}
+    if(e.target.closest("#tgCopyRegister")){
+      const problem=templates.validate(modelId,draft());if(problem)return notice(problem,true);
+      const prepared=prepareRegistration(modelId,draft()),txt=getMessage();
+      if(!await copyMessageText(txt))return notice("Não foi possível copiar. Selecione a prévia manualmente ou registre separadamente.",true);
+      const result=registerPrepared(prepared);notice("Mensagem copiada. "+result.message,!result.ok);return;
+    }
     if(e.target.closest("#tgSendMessage")){
       if(sendInProgress)return;
       const problem=templates.validate(modelId,draft());
@@ -431,6 +464,7 @@
       if(!txt.trim())return notice("Preencha o texto da solicitação.",true);
       const names=targets.map(g=>(g.telegramName||g.name)+(g.topicName?" / "+g.topicName:""));
       if(!confirm("Enviar esta solicitação para "+targets.length+" destino(s)?\n\n"+names.map(n=>"• "+n).join("\n")+"\n\n"+txt))return;
+      const prepared=prepareRegistration(modelId,draft());
       const button=$("tgSendMessage");
       sendInProgress=true;
       if(button){button.disabled=true;button.textContent="Enviando…";}
@@ -443,14 +477,16 @@
             sent.push(name+" (ID "+result.id+")");
           }catch(err){failures.push(name+": "+String(err.message||err));}
         }
+        const registration=sent.length?registerPrepared(prepared):null;
+        const pdcNote=registration?" "+registration.message:" Nenhum registro automático realizado.";
         if(failures.length){
-          notice(sent.length+" destino(s) enviados; "+failures.length+" falharam. Confira os grupos antes de reenviar para não duplicar mensagens. "+failures.join(" | "),true);
+          notice(sent.length+" destino(s) enviados; "+failures.length+" falharam. Confira os grupos antes de reenviar para não duplicar mensagens. "+failures.join(" | ")+pdcNote,true);
         }else{
-          notice("Mensagem enviada para "+sent.length+" destino(s): "+sent.join(" | ")+". Sincronize o monitor para acompanhar as reações.");
+          notice("Mensagem enviada para "+sent.length+" destino(s): "+sent.join(" | ")+". Sincronize o monitor para acompanhar as reações."+pdcNote,!!registration&&!registration.ok);
         }
       }finally{
         sendInProgress=false;
-        if(button){button.disabled=false;button.textContent="Enviar pelo Telegram";}
+        const activeButton=$("tgSendMessage");if(activeButton){activeButton.disabled=!window.TelegramConnector?.connected?.();activeButton.textContent="Enviar pelo Telegram";}
       }
       return;
     }
@@ -458,7 +494,7 @@
       const problem=templates.validate(modelId,draft());
       if(problem)return notice(problem,true);
       try{
-        await navigator.clipboard.writeText(getMessage());
+        if(!await copyMessageText(getMessage()))throw Error("clipboard");
         const all=destinations(modelId);
         notice("Mensagem copiada."+(all.length?" Destinos configurados: "+all.map(g=>g.name).join(", ")+".":" Nenhum destino configurado.")+" Nenhum envio realizado.");
       }catch(_){notice("Não foi possível copiar. Verifique a permissão do navegador.",true);}
