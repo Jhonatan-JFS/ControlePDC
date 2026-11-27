@@ -30,7 +30,7 @@ const types={gondola:{name:"Gôndola",w:100,sides:1},label:{name:"Etiqueta",w:50
 const make=()=>({parts:Array.from({length:types[type].sides},blank),qty:1,selected:true});
 rows.push(make());
 const style=document.createElement("style");style.textContent=`
-@media(min-width:761px){.topbar .pdc-nav{grid-template-columns:repeat(5,minmax(0,1fr))}.topbar .pdc-nav button{white-space:normal;text-align:center}}
+@media(min-width:761px){.topbar .pdc-nav{grid-template-columns:repeat(4,minmax(0,1fr))}.topbar .pdc-nav button{white-space:normal;text-align:center}}
 #printingPage[hidden]{display:none!important}
 #printingPage .pr-head,#printingPage .pr-panel,#printingPage .pr-row{background:#131e2a;border:1px solid #364b60;border-radius:14px;padding:16px;margin-bottom:12px}
 #printingPage .pr-head h2{margin:6px 0;color:#eef6ff;font-size:22px}
