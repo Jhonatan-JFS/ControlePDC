@@ -468,7 +468,7 @@
     $("bulkCategory").disabled = history || !cloudReady || !selectedVisible.length;
     $("applyCategoryButton").disabled = history || !cloudReady || !selectedVisible.length || !CATEGORY_KEYS.includes($("bulkCategory").value);
     $("deleteDayButton").disabled = !cloudReady || !db.items.some(item => !item.deletedAt && dateKey(item.createdAt) === selectedDay);
-    $("trashToggle").textContent = "Lixeira (" + new Set(db.items.filter(x => x.deletedAt).map(x => dateKey(x.createdAt))).size + ")";
+    $("trashToggle").textContent = "Lixeira (" + (db.items.filter(x=>x.deletedAt).length+db.requests.filter(x=>x.deletedAt).length) + ")";
     renderTrash();
     renderCalendar();
     renderLoadSettings();
@@ -597,28 +597,34 @@
     reader.onerror = () => toast("Não foi possível ler o arquivo.", true);
     reader.readAsText(file);
   }
-  function historyResetCandidates() {
-    return db.items.filter(item => !item.deletedAt && stageAt(item,today()) === "printed");
+  const resetCategories={printed:"Concluídos / impressões confirmadas",pending:"Cargas pendentes",sent:"Cargas enviadas",requests:"Solicitações (todos os estados)"};
+  function resetSelection(){return Object.keys(resetCategories).filter(key=>$("resetCategory-"+key)?.checked);}
+  function historyResetCandidates(keys){
+    const selected=new Set(keys);
+    return {items:db.items.filter(item=>!item.deletedAt&&selected.has(stageAt(item,today()))),requests:selected.has("requests")?db.requests.filter(r=>!r.deletedAt):[]};
   }
-  function renderLoadSettings() {
-    const count=$("loadHistoryCount"),button=$("resetLoadHistory");
-    if(!count||!button)return;
-    const candidates=historyResetCandidates();
-    const active=db.items.filter(item=>!item.deletedAt && stageAt(item,today())!=="printed").length;
-    count.textContent=candidates.length+" impressão(ões) confirmada(s) no histórico · "+active+" item(ns) em andamento preservado(s).";
-    button.disabled=!cloudReady||!candidates.length;
+  function renderLoadSettings(){
+    const count=$("loadHistoryCount"),button=$("resetLoadHistory");if(!count||!button)return;
+    for(const key of Object.keys(resetCategories)){const el=$("resetCount-"+key),c=historyResetCandidates([key]);if(el)el.textContent=c.items.length+c.requests.length;}
+    const chosen=historyResetCandidates(resetSelection()),total=chosen.items.length+chosen.requests.length;
+    count.textContent=total+" registro(s) selecionado(s) · "+chosen.items.length+" carga(s) e "+chosen.requests.length+" solicitação(ões). Todas as datas.";
+    button.disabled=!cloudReady||!total;
   }
-  function resetLoadHistory() {
+  function resetLoadHistory(){
     if(CLOUD_MODE&&!cloudReady)return toast("Aguarde a sincronização antes de editar.",true);
-    const candidates=historyResetCandidates();
-    if(!candidates.length)return toast("Não há impressões confirmadas para limpar.");
-    if(!confirm("Zerar o histórico de cargas concluídas? "+candidates.length+" item(ns) serão movidos para a lixeira. Cargas pendentes, cargas enviadas e solicitações serão preservadas. A operação pode ser desfeita ou restaurada pela lixeira."))return;
-    const ids=new Set(candidates.map(item=>item.id));
-    if(!commitChange("Zerar histórico de cargas concluídas",()=>{
+    const keys=resetSelection(),chosen=historyResetCandidates(keys);
+    if(!chosen.items.length&&!chosen.requests.length)return toast("Selecione categorias com registros.");
+    const summary=keys.map(key=>{const c=historyResetCandidates([key]);return resetCategories[key]+": "+(c.items.length+c.requests.length);}).join("\n");
+    if(!confirm("Mover para a lixeira os registros das categorias selecionadas, de todas as datas?\n\n"+summary+"\n\nAs categorias não selecionadas serão preservadas. Solicitações e cargas vinculadas são independentes nesta limpeza."))return;
+    const itemIds=new Set(chosen.items.map(x=>x.id)),requestIds=new Set(chosen.requests.map(x=>x.id));
+    if(!commitChange("Limpar categorias do Controle PDC",()=>{
       const deletedAt=new Date().toISOString();
-      db.items.forEach(item=>{if(ids.has(item.id)&&!item.deletedAt&&stageAt(item,today())==="printed")item.deletedAt=deletedAt;});
+      for(const item of db.items)if(itemIds.has(item.id)&&!item.deletedAt)item.deletedAt=deletedAt;
+      for(const r of db.requests)if(requestIds.has(r.id)&&!r.deletedAt)r.deletedAt=deletedAt;
     }))return;
-    toast("Histórico de cargas concluídas limpo. "+ids.size+" item(ns) na lixeira. Pendências preservadas.");
+    for(const key of keys){const el=$("resetCategory-"+key);if(el)el.checked=false;}
+    renderLoadSettings();
+    toast(itemIds.size+" carga(s) e "+requestIds.size+" solicitação(ões) movida(s) para a lixeira.");
   }
   function deleteSelectedDay() {
     if (CLOUD_MODE && !cloudReady) return;
@@ -632,25 +638,23 @@
     });
     toast("Dia movido para a lixeira. Você pode restaurar os itens.");
   }
-  function renderTrash() {
-    const groups = new Map();
-    db.items.filter(x => x.deletedAt).forEach(item => {
-      const key = dateKey(item.createdAt);
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key).push(item);
-    });
-    const days = Array.from(groups.keys()).sort().reverse();
-    $("trashList").innerHTML = days.length ? days.map(key =>
-      '<div class="trash-day"><span>' + escapeHtml(formatDay(key)) + ' <small>(' + groups.get(key).length + ' item(ns))</small></span>' +
-      '<button type="button" class="btn btn-soft btn-small" data-restore-day="' + escapeHtml(key) + '"' + (cloudReady ? '' : ' disabled') + '>Restaurar dia</button></div>'
-    ).join("") : '<p class="trash-empty">Nenhum registro excluído.</p>';
+  function renderTrash(){
+    const rows=[];
+    for(const [kind,records,label] of [["items",db.items,"Cargas"],["requests",db.requests,"Solicitações"]]){
+      const groups=new Map();
+      for(const item of records.filter(x=>x.deletedAt)){const day=dateKey(item.createdAt);if(!groups.has(day))groups.set(day,[]);groups.get(day).push(item);}
+      for(const day of [...groups.keys()].sort().reverse()){
+        rows.push('<div class="trash-day"><span>'+escapeHtml(label+" · "+formatDay(day))+' <small>('+groups.get(day).length+' registro(s))</small></span><button type="button" class="btn btn-soft btn-small" data-restore-day="'+escapeHtml(day)+'" data-restore-kind="'+kind+'"'+(cloudReady?'':' disabled')+'>Restaurar '+label.toLowerCase()+'</button></div>');
+      }
+    }
+    $("trashList").innerHTML=rows.join("")||'<p class="trash-empty">Nenhum registro excluído.</p>';
   }
-  function restoreDeletedDay(day) {
-    if (CLOUD_MODE && !cloudReady) return;
-    const matching = db.items.filter(x => x.deletedAt && dateKey(x.createdAt) === day);
-    if (!matching.length) return;
-    commitChange("Restaurar dia", () => matching.forEach(item => { delete item.deletedAt; }));
-    toast(matching.length + " produto(s) do dia " + formatDay(day) + " restaurado(s).");
+  function restoreDeletedDay(day,kind="items"){
+    if(CLOUD_MODE&&!cloudReady)return;
+    if(!["items","requests"].includes(kind))return;
+    const matching=db[kind].filter(x=>x.deletedAt&&dateKey(x.createdAt)===day);
+    if(!matching.length)return;
+    if(commitChange("Restaurar registros da lixeira",()=>matching.forEach(item=>{delete item.deletedAt;})))toast(matching.length+" registro(s) de "+formatDay(day)+" restaurado(s).");
   }
   function handleLaneClick(event) {
     const target = event.target.closest("[data-action]");
@@ -799,11 +803,12 @@
       $("loadSettingsToggle").setAttribute("aria-expanded",String(opened));renderLoadSettings();
     });
     $("resetLoadHistory")?.addEventListener("click",resetLoadHistory);
+    for(const key of Object.keys(resetCategories))$("resetCategory-"+key)?.addEventListener("change",renderLoadSettings);
     $("loadSettingsBackup")?.addEventListener("click",exportBackup);
     $("trashToggle").addEventListener("click", () => { $("trashPanel").classList.toggle("hidden"); renderTrash(); });
     $("trashList").addEventListener("click", event => {
       const button = event.target.closest("[data-restore-day]");
-      if (button) restoreDeletedDay(button.dataset.restoreDay);
+      if (button) restoreDeletedDay(button.dataset.restoreDay,button.dataset.restoreKind);
     });
     $("bulkCategory").addEventListener("change", render);
     $("applyCategoryButton").addEventListener("click", applyBulkCategory);
@@ -877,7 +882,7 @@
   }
   function approveRequests(ids) {
     const valid = new Set(ids);
-    const matching = db.requests.filter(r => valid.has(r.id) && ["awaiting", "not_done"].includes(r.status));
+    const matching = db.requests.filter(r => !r.deletedAt && valid.has(r.id) && ["awaiting", "not_done"].includes(r.status));
     const allowed = matching.filter(r => /^\d{2,14}$/.test(String(r.ci || "")) && String(r.name || "").trim().length > 0);
     const missing = matching.length - allowed.length;
     if (!allowed.length) { toast("Informe CI válido e nome do produto antes de encaminhar ao PDC. Use Corrigir dados.", true); return false; }
@@ -910,7 +915,7 @@
   function rejectRequests(ids,reason) {
     const chosen = new Set(ids);
     return commitChange("Registrar solicitações não realizadas", () => {
-      for (const r of db.requests) if (chosen.has(r.id) && ["awaiting","not_done"].includes(r.status)) {
+      for (const r of db.requests) if (!r.deletedAt && chosen.has(r.id) && ["awaiting","not_done"].includes(r.status)) {
         r.status="not_done";r.reason=String(reason||"");r.reviewedAt=new Date().toISOString();
         addRequestEvent(r.id,"rejected",{reason:r.reason});
       }
@@ -919,7 +924,7 @@
   function reopenRequests(ids) {
     const chosen = new Set(ids);
     return commitChange("Reencaminhar à supervisão", () => {
-      for (const r of db.requests) if (chosen.has(r.id) && r.status==="not_done") {
+      for (const r of db.requests) if (!r.deletedAt && chosen.has(r.id) && r.status==="not_done") {
         r.status="awaiting";r.reason="";r.reviewedAt="";
         addRequestEvent(r.id,"reopened");
       }
@@ -927,7 +932,7 @@
   }
   function correctRequest(requestId,changes) {
     const r = db.requests.find(x => x.id === requestId);
-    if (!r || !["awaiting","not_done"].includes(r.status)) return false;
+    if (!r || r.deletedAt || !["awaiting","not_done"].includes(r.status)) return false;
     const ci=String(changes.ci||"").trim(),cb=String(changes.cb||"").trim();
     if(ci && !/^\d{2,14}$/.test(ci)) {toast("CI inválido: use de 2 a 14 números.",true);return false;}
     if(cb && !/^\d{8,14}$/.test(cb)) {toast("CB inválido.",true);return false;}
