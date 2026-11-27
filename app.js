@@ -471,6 +471,7 @@
     $("trashToggle").textContent = "Lixeira (" + new Set(db.items.filter(x => x.deletedAt).map(x => dateKey(x.createdAt))).size + ")";
     renderTrash();
     renderCalendar();
+    renderLoadSettings();
     if (workspaceChangeListener) workspaceChangeListener();
   }
   function setDay(key) {
@@ -595,6 +596,29 @@
     };
     reader.onerror = () => toast("Não foi possível ler o arquivo.", true);
     reader.readAsText(file);
+  }
+  function historyResetCandidates() {
+    return db.items.filter(item => !item.deletedAt && stageAt(item,today()) === "printed");
+  }
+  function renderLoadSettings() {
+    const count=$("loadHistoryCount"),button=$("resetLoadHistory");
+    if(!count||!button)return;
+    const candidates=historyResetCandidates();
+    const active=db.items.filter(item=>!item.deletedAt && stageAt(item,today())!=="printed").length;
+    count.textContent=candidates.length+" impressão(ões) confirmada(s) no histórico · "+active+" item(ns) em andamento preservado(s).";
+    button.disabled=!cloudReady||!candidates.length;
+  }
+  function resetLoadHistory() {
+    if(CLOUD_MODE&&!cloudReady)return toast("Aguarde a sincronização antes de editar.",true);
+    const candidates=historyResetCandidates();
+    if(!candidates.length)return toast("Não há impressões confirmadas para limpar.");
+    if(!confirm("Zerar o histórico de cargas concluídas? "+candidates.length+" item(ns) serão movidos para a lixeira. Cargas pendentes, cargas enviadas e solicitações serão preservadas. A operação pode ser desfeita ou restaurada pela lixeira."))return;
+    const ids=new Set(candidates.map(item=>item.id));
+    if(!commitChange("Zerar histórico de cargas concluídas",()=>{
+      const deletedAt=new Date().toISOString();
+      db.items.forEach(item=>{if(ids.has(item.id)&&!item.deletedAt&&stageAt(item,today())==="printed")item.deletedAt=deletedAt;});
+    }))return;
+    toast("Histórico de cargas concluídas limpo. "+ids.size+" item(ns) na lixeira. Pendências preservadas.");
   }
   function deleteSelectedDay() {
     if (CLOUD_MODE && !cloudReady) return;
@@ -770,6 +794,12 @@
     $("printBatchButton").addEventListener("click", () => moveItems(Array.from(selectedIds), "printed"));
     $("undoButton").addEventListener("click", undoLast);
     $("deleteDayButton").addEventListener("click", deleteSelectedDay);
+    $("loadSettingsToggle")?.addEventListener("click",()=>{
+      const panel=$("loadSettingsPanel"),opened=!panel.classList.toggle("hidden");
+      $("loadSettingsToggle").setAttribute("aria-expanded",String(opened));renderLoadSettings();
+    });
+    $("resetLoadHistory")?.addEventListener("click",resetLoadHistory);
+    $("loadSettingsBackup")?.addEventListener("click",exportBackup);
     $("trashToggle").addEventListener("click", () => { $("trashPanel").classList.toggle("hidden"); renderTrash(); });
     $("trashList").addEventListener("click", event => {
       const button = event.target.closest("[data-restore-day]");
