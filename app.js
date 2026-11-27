@@ -603,28 +603,49 @@
     const selected=new Set(keys);
     return {items:db.items.filter(item=>!item.deletedAt&&selected.has(stageAt(item,today()))),requests:selected.has("requests")?db.requests.filter(r=>!r.deletedAt):[]};
   }
+  function trashCandidates(){return {items:db.items.filter(x=>x.deletedAt),requests:db.requests.filter(x=>x.deletedAt)};}
+  function deletionPlan(state,chosen){
+    const itemIds=new Set(chosen.items.map(x=>x.id)),requestIds=new Set(chosen.requests.map(x=>x.id));
+    const items=state.items.filter(x=>!itemIds.has(x.id)),requests=state.requests.filter(x=>!requestIds.has(x.id));
+    const affectedBatches=new Set(chosen.items.map(x=>x.batchId).filter(Boolean));
+    const usedBatches=new Set(items.map(x=>x.batchId).filter(Boolean));
+    const events=state.events.filter(x=>!itemIds.has(x.itemId));
+    const requestEvents=state.requestEvents.filter(x=>!requestIds.has(x.requestId));
+    const batches=state.batches.filter(x=>!affectedBatches.has(x.id)||usedBatches.has(x.id));
+    const after={...state,items,requests,events,requestEvents,batches};
+    const counts={items:state.items.length-items.length,requests:state.requests.length-requests.length,events:state.events.length-events.length,requestEvents:state.requestEvents.length-requestEvents.length,batches:state.batches.length-batches.length};
+    return {after,counts,total:Object.values(counts).reduce((a,b)=>a+b,0)};
+  }
   function renderLoadSettings(){
     const count=$("loadHistoryCount"),button=$("resetLoadHistory");if(!count||!button)return;
     for(const key of Object.keys(resetCategories)){const el=$("resetCount-"+key),c=historyResetCandidates([key]);if(el)el.textContent=c.items.length+c.requests.length;}
-    const chosen=historyResetCandidates(resetSelection()),total=chosen.items.length+chosen.requests.length;
-    count.textContent=total+" registro(s) selecionado(s) · "+chosen.items.length+" carga(s) e "+chosen.requests.length+" solicitação(ões). Todas as datas.";
-    button.disabled=!cloudReady||!total;
+    const chosen=historyResetCandidates(resetSelection()),plan=deletionPlan(db,chosen);
+    count.textContent=(chosen.items.length+chosen.requests.length)+" registro(s) selecionado(s) · "+plan.total+" documento(s) do banco, incluindo eventos e lotes sem vínculo. Todas as datas.";
+    button.disabled=!cloudReady||!plan.total;
+    const trash=trashCandidates(),trashCount=trash.items.length+trash.requests.length,empty=$("emptyLoadTrash"),label=$("emptyLoadTrashCount");
+    if(empty)empty.disabled=!cloudReady||!trashCount;
+    if(label)label.textContent=trashCount+" registro(s) na lixeira.";
+  }
+  function executePermanentDelete(chosen,summary){
+    if(CLOUD_MODE&&(!cloudReady||!cloudChangeListener))return toast("Aguarde a sincronização antes de excluir.",true);
+    const plan=deletionPlan(db,chosen);if(!plan.total)return toast("Não há registros para excluir.");
+    const answer=prompt("EXCLUSÃO DEFINITIVA — NÃO PODE SER DESFEITA.\n\n"+summary+"\n\n"+plan.total+" documento(s) serão removidos do banco, incluindo eventos e lotes sem vínculo. As demais categorias serão preservadas. Exporte um backup antes, se necessário.\n\nDigite EXCLUIR para confirmar.","");
+    if(answer!=="EXCLUIR")return toast("Exclusão cancelada. Nenhum registro alterado.");
+    const previous=db,before=JSON.stringify(db);db=plan.after;
+    if(!persist(before)){db=previous;render();return false;}
+    undoStack=[];selectedIds.clear();expandedIds.clear();render();
+    toast(CLOUD_MODE?"Exclusão definitiva enviada ao Firebase. Aguarde a confirmação da sincronização.":plan.total+" documento(s) excluído(s) definitivamente.");
+    return true;
   }
   function resetLoadHistory(){
-    if(CLOUD_MODE&&!cloudReady)return toast("Aguarde a sincronização antes de editar.",true);
     const keys=resetSelection(),chosen=historyResetCandidates(keys);
     if(!chosen.items.length&&!chosen.requests.length)return toast("Selecione categorias com registros.");
     const summary=keys.map(key=>{const c=historyResetCandidates([key]);return resetCategories[key]+": "+(c.items.length+c.requests.length);}).join("\n");
-    if(!confirm("Mover para a lixeira os registros das categorias selecionadas, de todas as datas?\n\n"+summary+"\n\nAs categorias não selecionadas serão preservadas. Solicitações e cargas vinculadas são independentes nesta limpeza."))return;
-    const itemIds=new Set(chosen.items.map(x=>x.id)),requestIds=new Set(chosen.requests.map(x=>x.id));
-    if(!commitChange("Limpar categorias do Controle PDC",()=>{
-      const deletedAt=new Date().toISOString();
-      for(const item of db.items)if(itemIds.has(item.id)&&!item.deletedAt)item.deletedAt=deletedAt;
-      for(const r of db.requests)if(requestIds.has(r.id)&&!r.deletedAt)r.deletedAt=deletedAt;
-    }))return;
-    for(const key of keys){const el=$("resetCategory-"+key);if(el)el.checked=false;}
-    renderLoadSettings();
-    toast(itemIds.size+" carga(s) e "+requestIds.size+" solicitação(ões) movida(s) para a lixeira.");
+    if(executePermanentDelete(chosen,summary)){for(const key of keys){const el=$("resetCategory-"+key);if(el)el.checked=false;}renderLoadSettings();}
+  }
+  function emptyLoadTrash(){
+    const chosen=trashCandidates();
+    executePermanentDelete(chosen,"Esvaziar lixeira existente: "+chosen.items.length+" carga(s) e "+chosen.requests.length+" solicitação(ões).");
   }
   function deleteSelectedDay() {
     if (CLOUD_MODE && !cloudReady) return;
@@ -803,6 +824,7 @@
       $("loadSettingsToggle").setAttribute("aria-expanded",String(opened));renderLoadSettings();
     });
     $("resetLoadHistory")?.addEventListener("click",resetLoadHistory);
+    $("emptyLoadTrash")?.addEventListener("click",emptyLoadTrash);
     for(const key of Object.keys(resetCategories))$("resetCategory-"+key)?.addEventListener("change",renderLoadSettings);
     $("loadSettingsBackup")?.addEventListener("click",exportBackup);
     $("trashToggle").addEventListener("click", () => { $("trashPanel").classList.toggle("hidden"); renderTrash(); });
