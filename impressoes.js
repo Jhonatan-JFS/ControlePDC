@@ -109,12 +109,12 @@ const priceY=294-priceFont*.20, cbY=price?Math.min(220,priceY-priceFont-cbFont*.
 const bh=Math.max(35,cbY-cbFont-by-4);
 if(validCB(code)){s+=bars(code,30,by,440,bh);s+=labelText(visibleCode(p),250,cbY,ct,460,"middle");}
 else s+=labelText("Informe o "+codeKind(p),250,by+Math.min(40,bh),ct,460,"middle","#555");
-if(price){if(p.christmas){const y=cbY+19,h=294-y,scale=Math.min(.36,Math.max(.18,(h-12)/100));s+=christmasPrice(price,pt,14,y,472,h,486-104*scale,Math.max(cbY+2,y-66*scale),scale);}else s+=labelText(price,250,priceY,pt,470,"middle");}
+if(price){if(p.christmas){const y=cbY+19,h=294-y,scale=Math.min(.28,Math.max(.18,(h-12)/100));s+=christmasPrice(price,pt,14,y,472,h,486-104*scale,y-45*scale,scale);}else s+=labelText(price,250,priceY,pt,470,"middle");}
 }else{
 const refWidth=p.ci?240:0,bw=price?330:Math.min(960,970-refWidth),by=Math.max(103,Math.ceil(nameEnd+5)),cbFont=ct.size*10,cbY=278-cbFont*.15,bh=Math.max(45,cbY-cbFont-by-4);
 if(validCB(code)){s+=bars(code,10,by,bw,bh);s+=labelText(visibleCode(p),10+bw/2,cbY,ct,bw-8,"middle");}
 else s+=labelText("Informe o "+codeKind(p),10+bw/2,by+Math.min(60,bh),ct,bw-8,"middle","#555");
-if(price){const px=350,pw=p.ci?390:630,ph=284-by;if(p.christmas){const y=Math.max(by,nameEnd+34),scale=Math.min(.90,Math.max(.38,(y-nameEnd-3)/68)),hatY=y-68*scale;s+=christmasPrice(price,pt,px,y,pw,284-y,px+pw-92*scale,hatY,scale);}else{const priceY=by+ph/2+pt.size*3.4;s+='<rect x="'+px+'" y="'+by+'" width="'+pw+'" height="'+ph+'" fill="#000"/>';s+=labelText(price,px+pw/2,priceY,pt,pw-24,"middle","#fff");}}
+if(price){const px=350,pw=p.ci?390:630,ph=284-by;if(p.christmas){const y=Math.max(by,nameEnd+34),scale=Math.min(.90,Math.max(.38,(y-nameEnd-3)/45)),hatY=y-45*scale;s+=christmasPrice(price,pt,px,y,pw,284-y,px+pw-92*scale,hatY,scale);}else{const priceY=by+ph/2+pt.size*3.4;s+='<rect x="'+px+'" y="'+by+'" width="'+pw+'" height="'+ph+'" fill="#000"/>';s+=labelText(price,px+pw/2,priceY,pt,pw-24,"middle","#fff");}}
 if(p.ci)s+=labelText("REF:"+p.ci,986,by+Math.max(42,rt.size*10+6),rt,228,"end");
 }
 return s+"</g>";}
