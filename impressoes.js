@@ -87,10 +87,9 @@ function splitName(name,settings,max){const s=name.trim().replace(/\s+/g," ");co
 function christmasPrice(price,settings,x,y,w,h,hatX,hatY,scale){
  const left=(x-hatX)/scale,top=(y-hatY)/scale,right=(x+w-hatX)/scale,bottom=(y+h-hatY)/scale,r=Math.min(7/scale,(right-left)/4,(bottom-top)/4);
  const shape=`M${left+r} ${top} H${right-r} Q${right} ${top} ${right} ${top+r} V${bottom-r} Q${right} ${bottom} ${right-r} ${bottom} H${left+r} Q${left} ${bottom} ${left} ${bottom-r} V${top+r} Q${left} ${top} ${left+r} ${top} Z M8 35 C16 17 37 3 58 3 C79 3 92 24 92 49 L90 59 L80 61 C80 45 72 32 65 29 L61 48 Z`;
- // Reserva apenas a altura ocupada pela decoração, nunca uma coluna vazia sob o gorro.
- const textTop=Math.max(y+5,hatY+84*scale+3),textBottom=y+h-6,available=Math.max(8,textBottom-textTop);
- const adjusted={...settings,size:Math.min(settings.size,available/10.8)};
- const priceY=(textTop+textBottom)/2+adjusted.size*3.2;
+ // O preço ocupa a tarja inteira. O gorro fica acima da área dos dígitos.
+ const adjusted={...settings,size:Math.min(settings.size,(h-12)/10)};
+ const priceY=y+h/2+adjusted.size*3.4;
  return `<g data-pr-christmas="price"><g data-pr-christmas="hat" transform="translate(${hatX} ${hatY}) scale(${scale})" stroke-linecap="round" stroke-linejoin="round">
  <path d="${shape}" fill="#000" fill-rule="nonzero"/>
  <path d="M17 30 C30 12 47 7 58 7 C69 7 77 13 82 22 C68 10 48 12 28 25 Z" fill="#fff"/>
@@ -110,12 +109,12 @@ const priceY=294-priceFont*.20, cbY=price?Math.min(220,priceY-priceFont-cbFont*.
 const bh=Math.max(35,cbY-cbFont-by-4);
 if(validCB(code)){s+=bars(code,30,by,440,bh);s+=labelText(visibleCode(p),250,cbY,ct,460,"middle");}
 else s+=labelText("Informe o "+codeKind(p),250,by+Math.min(40,bh),ct,460,"middle","#555");
-if(price){if(p.christmas){const y=cbY+14,h=294-y,scale=Math.min(.58,Math.max(.25,(h-16)/105));s+=christmasPrice(price,pt,14,y,472,h,486-104*scale,y-27*scale,scale);}else s+=labelText(price,250,priceY,pt,470,"middle");}
+if(price){if(p.christmas){const y=cbY+19,h=294-y,scale=Math.min(.36,Math.max(.18,(h-12)/100));s+=christmasPrice(price,pt,14,y,472,h,486-104*scale,Math.max(cbY+2,y-66*scale),scale);}else s+=labelText(price,250,priceY,pt,470,"middle");}
 }else{
 const refWidth=p.ci?240:0,bw=price?330:Math.min(960,970-refWidth),by=Math.max(103,Math.ceil(nameEnd+5)),cbFont=ct.size*10,cbY=278-cbFont*.15,bh=Math.max(45,cbY-cbFont-by-4);
 if(validCB(code)){s+=bars(code,10,by,bw,bh);s+=labelText(visibleCode(p),10+bw/2,cbY,ct,bw-8,"middle");}
 else s+=labelText("Informe o "+codeKind(p),10+bw/2,by+Math.min(60,bh),ct,bw-8,"middle","#555");
-if(price){const px=350,pw=p.ci?390:630,ph=284-by;if(p.christmas){const hatY=Math.max(nameEnd+5,by-20),scale=Math.min(1,Math.max(.55,(284-hatY-48)/100)),y=hatY+30*scale;s+=christmasPrice(price,pt,px,y,pw,284-y,px+pw-92*scale,hatY,scale);}else{const priceY=by+ph/2+pt.size*3.4;s+='<rect x="'+px+'" y="'+by+'" width="'+pw+'" height="'+ph+'" fill="#000"/>';s+=labelText(price,px+pw/2,priceY,pt,pw-24,"middle","#fff");}}
+if(price){const px=350,pw=p.ci?390:630,ph=284-by;if(p.christmas){const y=Math.max(by,nameEnd+34),scale=Math.min(.90,Math.max(.38,(y-nameEnd-3)/68)),hatY=y-68*scale;s+=christmasPrice(price,pt,px,y,pw,284-y,px+pw-92*scale,hatY,scale);}else{const priceY=by+ph/2+pt.size*3.4;s+='<rect x="'+px+'" y="'+by+'" width="'+pw+'" height="'+ph+'" fill="#000"/>';s+=labelText(price,px+pw/2,priceY,pt,pw-24,"middle","#fff");}}
 if(p.ci)s+=labelText("REF:"+p.ci,986,by+Math.max(42,rt.size*10+6),rt,228,"end");
 }
 return s+"</g>";}
