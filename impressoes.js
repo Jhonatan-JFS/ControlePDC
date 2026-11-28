@@ -84,19 +84,17 @@ function labelText(s,x,y,settings,max,anchor="start",fill="#000"){const size=set
 function splitName(name,settings,max){const s=name.trim().replace(/\s+/g," ");const limit=Math.max(8,Math.floor(max/(settings.size*10*.55)));if(s.length<=limit)return [s];let i=s.lastIndexOf(" ",limit);if(i<limit/2)i=limit;return [s.slice(0,i),s.slice(i).trim()];}
 // Arte vetorial monocromática: gorro preto, reflexos brancos, faixa e pompom com contorno.
 // Uma única arte: a silhueta preta da tarja e do gorro compartilha o mesmo caminho.
-function christmasPrice(price,settings,x,y,w,h,hatX,hatY,scale){
+function christmasPriceArt(x,y,w,h,hatX,hatY,scale){
  const left=(x-hatX)/scale,top=(y-hatY)/scale,right=(x+w-hatX)/scale,bottom=(y+h-hatY)/scale,r=Math.min(7/scale,(right-left)/4,(bottom-top)/4);
  const shape=`M${left+r} ${top} H${right-r} Q${right} ${top} ${right} ${top+r} V${bottom-r} Q${right} ${bottom} ${right-r} ${bottom} H${left+r} Q${left} ${bottom} ${left} ${bottom-r} V${top+r} Q${left} ${top} ${left+r} ${top} Z M8 35 C16 17 37 3 58 3 C79 3 92 24 92 49 L90 59 L80 61 C80 45 72 32 65 29 L61 48 Z`;
- // O preço ocupa a tarja inteira. O gorro fica acima da área dos dígitos.
- const adjusted={...settings,size:Math.min(settings.size,(h-12)/10)};
- const priceY=y+h/2+adjusted.size*3.4;
+ // Somente a arte do fundo. O texto do preço é renderizado pelo mesmo código do modelo padrão.
  return `<g data-pr-christmas="price"><g data-pr-christmas="hat" transform="translate(${hatX} ${hatY}) scale(${scale})" stroke-linecap="round" stroke-linejoin="round">
  <path d="${shape}" fill="#000" fill-rule="nonzero"/>
  <path d="M17 30 C30 12 47 7 58 7 C69 7 77 13 82 22 C68 10 48 12 28 25 Z" fill="#fff"/>
  <path d="M74 25 C84 33 87 46 86 55 L81 47 C81 37 77 31 74 25 Z" fill="#fff"/>
  <path d="M5 35 Q4 28 11 27 Q16 21 23 25 Q30 21 36 28 Q43 24 50 31 Q57 28 63 35 Q71 33 75 41 Q82 42 80 50 Q80 58 73 59 Q67 57 64 53 Q56 54 51 48 Q43 49 38 43 Q30 44 25 39 Q17 43 13 37 Q7 41 5 35 Z" fill="#fff" stroke="#000" stroke-width="3"/>
  <path d="M83 57 Q87 52 92 56 Q98 54 99 61 Q104 65 100 70 Q101 77 94 78 Q90 83 85 79 Q78 81 76 75 Q71 71 76 65 Q76 59 83 57 Z" fill="#fff" stroke="#000" stroke-width="3"/>
- </g>`+labelText(price,x+w/2,priceY,adjusted,w-20,"middle","#fff")+"</g>";
+ </g></g>`;
 }
 function renderPart(p,w,x){const code=codeValue(p);
 const small=w===500,nt=typography(p,"name"),ct=typography(p,"cb"),pt=typography(p,"price"),rt=typography(p,"ci"), name=splitName(p.name||"Nome do produto",nt,w-24), price=money(p.price)||"";
@@ -109,12 +107,12 @@ const priceY=294-priceFont*.20, cbY=price?Math.min(220,priceY-priceFont-cbFont*.
 const bh=Math.max(35,cbY-cbFont-by-4);
 if(validCB(code)){s+=bars(code,30,by,440,bh);s+=labelText(visibleCode(p),250,cbY,ct,460,"middle");}
 else s+=labelText("Informe o "+codeKind(p),250,by+Math.min(40,bh),ct,460,"middle","#555");
-if(price){if(p.christmas){const y=cbY+19,h=294-y,scale=Math.min(.28,Math.max(.18,(h-12)/100));s+=christmasPrice(price,pt,14,y,472,h,486-104*scale,y-45*scale,scale);}else s+=labelText(price,250,priceY,pt,470,"middle");}
+if(price){if(p.christmas){const y=cbY+8,h=294-y,scale=.28;s+=christmasPriceArt(10,y,480,h,490-104*scale,y-45*scale,scale);}s+=labelText(price,250,priceY,pt,470,"middle",p.christmas?"#fff":"#000");}
 }else{
 const refWidth=p.ci?240:0,bw=price?330:Math.min(960,970-refWidth),by=Math.max(103,Math.ceil(nameEnd+5)),cbFont=ct.size*10,cbY=278-cbFont*.15,bh=Math.max(45,cbY-cbFont-by-4);
 if(validCB(code)){s+=bars(code,10,by,bw,bh);s+=labelText(visibleCode(p),10+bw/2,cbY,ct,bw-8,"middle");}
 else s+=labelText("Informe o "+codeKind(p),10+bw/2,by+Math.min(60,bh),ct,bw-8,"middle","#555");
-if(price){const px=350,pw=p.ci?390:630,ph=284-by;if(p.christmas){const y=Math.max(by,nameEnd+34),scale=Math.min(.90,Math.max(.38,(y-nameEnd-3)/45)),hatY=y-45*scale;s+=christmasPrice(price,pt,px,y,pw,284-y,px+pw-92*scale,hatY,scale);}else{const priceY=by+ph/2+pt.size*3.4;s+='<rect x="'+px+'" y="'+by+'" width="'+pw+'" height="'+ph+'" fill="#000"/>';s+=labelText(price,px+pw/2,priceY,pt,pw-24,"middle","#fff");}}
+if(price){const px=350,pw=p.ci?390:630,ph=284-by,priceY=by+ph/2+pt.size*3.4;if(p.christmas){const scale=Math.min(.9,Math.max(.25,(ph/2-pt.size*4.6-4)/38));const hatY=by-45*scale;s+=christmasPriceArt(px,by,pw,ph,px+pw-92*scale,hatY,scale);}else s+='<rect x="'+px+'" y="'+by+'" width="'+pw+'" height="'+ph+'" fill="#000"/>';s+=labelText(price,px+pw/2,priceY,pt,pw-24,"middle","#fff");}
 if(p.ci)s+=labelText("REF:"+p.ci,986,by+Math.max(42,rt.size*10+6),rt,228,"end");
 }
 return s+"</g>";}
